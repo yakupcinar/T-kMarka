@@ -1,0 +1,39 @@
+# Bağımlılıklar
+/vendor
+/node_modules
+
+# Ortam ve sırlar — .env ASLA depoya girmez, .env.example girer
+.env
+.env.backup
+.env.production
+/auth.json
+
+# Laravel çalışma zamanı
+/storage/*.key
+/storage/pail
+/public/build
+/public/hot
+/public/storage
+/bootstrap/cache/*.php
+
+# Test ve analiz önbellekleri
+/.phpunit.cache
+.phpunit.result.cache
+/.phpstan.cache
+
+# Docker — Caddy sertifikaları ve veritabanı hacimleri
+/docker/data
+/docker/caddy
+
+# Editör ve işletim sistemi
+/.idea
+/.vscode
+/.zed
+/.fleet
+/.nova
+.DS_Store
+*.swp
+
+# Loglar
+npm-debug.log
+yarn-error.log
