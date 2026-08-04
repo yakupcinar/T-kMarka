@@ -603,3 +603,4 @@ Yayın · yedekleme · gözlemlenebilirlik
 - Bölgesel/desi bazlı kargo tarifesi
 - Pazaryeri kanal entegrasyonları (Trendyol, Hepsiburada)
 - Panelden özelleştirilebilir izin türleri (`domain-model.md` §3 kapsam sınırı)
+

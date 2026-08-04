@@ -55,9 +55,11 @@ services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_DB: tikmarka
-      POSTGRES_USER: tikmarka
-      POSTGRES_PASSWORD: secret
+      # Değerler .env'den okunur; buradakiler yalnızca YEREL varsayılan.
+      # Üretimde gerçek sırlar ortam değişkeniyle verilir, bu dosya değişmez.
+      POSTGRES_DB: ${DB_DATABASE:-tikmarka}
+      POSTGRES_USER: ${DB_USERNAME:-tikmarka}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
     ports:
       # Mac'te 5432 doluydu → 5433'e alındı. Konteyner içi port 5432 kalıyor,
       # bu yüzden .env'deki DB_PORT değişmiyor (app ağ içinden bağlanıyor).
