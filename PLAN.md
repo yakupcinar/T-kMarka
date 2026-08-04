@@ -345,8 +345,19 @@ kanıtlanıyor**; CI yeşil dönüyor.
   - [x] **`search_path`** — paket sıfırlamıyor, bağlantıyı **imha ediyor** (`purge`) ve
         her kiracıya `search_path`'i config'inde gömülü yeni bağlantı açıyor
         > 8 dönüşümlü istek + araya merkez isteğiyle ölçüldü, sızıntı yok.
-- [ ] `php artisan tenant:create` komutu — şema oluştur, migrate et, alan adı bağla
+- [x] `php artisan tenant:create` komutu — şema oluştur, migrate et, alan adı bağla
       (M-2.5'in 1–3 ve 6. adımları; varsayılan veri ve sahip kullanıcı 1A'da eklenecek)
+  > `app/Tenancy/Commands/CreateTenant.php`. Şema oluşturma ve marka migration'ları
+  > paketin olay zincirinde otomatik koşuyor; komut satır + alan adı + doğrulama ekliyor.
+  >
+  > **Üçüncü kez aynı ders:** Laravel artisan komutlarını yalnızca
+  > `app/Console/Commands`'ta kendiliğinden bulur. M-2.7 gereği `app/Tenancy/` altında
+  > olduğumuz için `bootstrap/app.php` → `withCommands()` ile klasörü tanıttık.
+  > (migration = taranır · provider = kaydedilir · komut = yerindeyse taranır)
+  >
+  > Doğrulandı: şema + tablolar oluşuyor · yinelenen alan adı ve boş argüman
+  > **çıkış kodu 1** ile reddediliyor · kiracı silinince şeması da düşüyor.
+  > Eksikler kodda `TODO(1A)` / `TODO(Faz 3)` olarak işaretli.
 - [ ] Caddy `ask` ucu: `GET /tenancy/domain-check?domain=` → `domains`'e bak, 200/404 dön
   > ⚠️ **M-4.1/1 — bu uç olmadan on-demand TLS açılmaz.** Açılırsa IP'mize yönlendirilen
   > her alan adı için sertifika alınmaya çalışılır ve kotamız yanar.

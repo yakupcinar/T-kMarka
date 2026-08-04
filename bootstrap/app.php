@@ -11,6 +11,15 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    /*
+    | Laravel artisan komutlarını yalnızca app/Console/Commands klasöründe
+    | kendiliğinden bulur. Bizim kiracılık komutlarımız M-2.7 gereği
+    | app/Tenancy/ altında duruyor ("kiracılığın tamamı tek yerde"), bu
+    | yüzden klasörü burada tanıtıyoruz.
+    */
+    ->withCommands([
+        __DIR__.'/../app/Tenancy/Commands',
+    ])
     ->withMiddleware(function (Middleware $middleware): void {
         //
     })
