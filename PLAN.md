@@ -358,7 +358,16 @@ kanıtlanıyor**; CI yeşil dönüyor.
   > Doğrulandı: şema + tablolar oluşuyor · yinelenen alan adı ve boş argüman
   > **çıkış kodu 1** ile reddediliyor · kiracı silinince şeması da düşüyor.
   > Eksikler kodda `TODO(1A)` / `TODO(Faz 3)` olarak işaretli.
-- [ ] Caddy `ask` ucu: `GET /tenancy/domain-check?domain=` → `domains`'e bak, 200/404 dön
+- [x] Caddy `ask` ucu: `GET /tenancy/domain-check?domain=` → `domains`'e bak, 200/404 dön
+  > `app/Http/Platform/DomainCheckController.php`, rota `routes/web.php` içinde merkez
+  > alan adına bağlı. Doğrulandı: kayıtlı → 200 · kayıtsız → 404 · boş → 404 ·
+  > BÜYÜK harfli → 200 (sınırda küçültme yapılıyor).
+  >
+  > **Kimlik doğrulaması yok, olamaz** — Caddy kimlik sunamıyor. Sızdırdığı tek bilgi
+  > "bu alan adı kayıtlı mı", ki alan adları zaten herkese açık.
+  >
+  > Caddy tarafı **Faz 3'te** bağlanacak; `docker/Caddyfile` başındaki nota eklenecek
+  > yapılandırma hazır yazılı.
   > ⚠️ **M-4.1/1 — bu uç olmadan on-demand TLS açılmaz.** Açılırsa IP'mize yönlendirilen
   > her alan adı için sertifika alınmaya çalışılır ve kotamız yanar.
 - [ ] `app/` dizin yapısını kur (M-2.7): `Platform/`, `Tenancy/`, `Domain/`, `Http/`
