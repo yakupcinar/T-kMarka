@@ -9,6 +9,9 @@
 /auth.json
 
 # Laravel çalışma zamanı
+# ⚠ Kiracı klasörleri: her markanın yüklediği dosyalar buraya düşüyor
+#   (storage/tenant<kimlik>/app/...). Ürün görselleri dahil — asla depoya girmez.
+/storage/tenant*
 /storage/*.key
 /storage/pail
 /public/build

@@ -50,6 +50,24 @@ services:
       redis:
         condition: service_started
 
+  # ── Zamanlayıcı ────────────────────────────────────────────────────
+  # Laravel'in zamanlanmış görevleri kendi kendine çalışmaz; dakikada bir
+  # tetikleyen bir süreç gerekir. `schedule:work` bunu konteyner içinde yapar
+  # (üretimde cron da kullanılabilir).
+  #
+  # ⚠ worker ile AYNI tuzak: kodu belleğe alır. Deploy sonrası yeniden
+  #   başlatılmazsa eski görev tanımlarını çalıştırmaya devam eder.
+  scheduler:
+    build: ./docker/php
+    command: php artisan schedule:work
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
   # ── Veritabanı ─────────────────────────────────────────────────────
   # Tek veritabanı. Markalar içinde ayrı şemalarda duracak. (M-2)
   postgres:

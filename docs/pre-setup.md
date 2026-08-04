@@ -221,11 +221,22 @@ eklenir — o zaman da yeni bir kimlik modeli değil, önüne konan bir yönlend
 
 | Tuzak | Ne olur | Kural |
 |-------|---------|-------|
-| **Kuyruk** | İş kuyruğa girer, worker onu kiracı bağlamı olmadan alır ve **varsayılan veritabanında** çalıştırır. A markasının sipariş e-postası B markasının müşterisine gider | Her iş kiracı kimliğini taşır; temel `Job` sınıfı çalışmadan önce bağlamı yeniden kurar |
-| **Cache** | Tek Redis, ortak anahtar alanı. `product:12` iki markada iki farklı ürün | Tüm anahtarlar kiracı önekli |
-| **Dosya** | Görseller ortak kökte; yol tahmin edilerek başka markanın görseline erişilir | `tenants/{uuid}/…` — id değil **uuid** |
-| **Zamanlanmış iş** | "Süresi dolan rezervasyonları serbest bırak" tek kiracıda çalışır, diğerlerinin stoğu kilitli kalır | Zamanlayıcı kiracı listesi üzerinde döner |
-| **`search_path` sızması** | Şema bazlı modele özel: havuzlanmış veya kalıcı bağlantıda bir istekte kurulan `search_path` **sonraki isteğe taşınır**. B markasının isteği A markasının şemasında çalışır | Bağlam her istekte açıkça kurulur ve **bitişte sıfırlanır**; pgBouncer kullanılacaksa `transaction` modu bu yüzden ayrı incelenir |
+| **Kuyruk** | İş kuyruğa girer, worker onu kiracı bağlamı olmadan alır ve **merkez bağlamda** çalıştırır. A markasının sipariş e-postası B'nin müşterisine gider | Paket kiracı kimliğini **işin gövdesine yazıyor**: `createPayloadUsing` ile `'tenant_id' => $id` ekleniyor (`Bootstrappers/QueueTenancyBootstrapper.php:128,157`), worker `JobProcessing` olayında onu okuyup kiracıyı devreye alıyor, `JobProcessed`/`JobFailed`'de geri dönüyor (`:62,65,78,79`) |
+
+> ⚠️ **0.5'te bu tuzağa gerçekten düştük — sebebi kod değil, ÇALIŞAN SÜREÇTİ.**
+> `worker` konteyneri paket kurulmadan önce başlatılmıştı; `queue:work` kodu belleğe
+> aldığı için kiracılık dinleyicisi hiç kaydedilmemişti. İki farklı markanın işi de
+> **merkez klasöre** yazdı ve ikincisi birincinin üstüne bindi.
+>
+> **Hiçbir hata çıkmadı** — iş `DONE` dedi, süresini yazdı, her şey normal göründü.
+> `docker compose restart worker` sonrası doğru çalıştı.
+>
+> Sonuç: deploy adımlarında `queue:restart` (veya worker yeniden başlatma) bir "iyi olur"
+> değil, **kiracı izolasyonunun şartı**.
+| **Cache** | Tek Redis, ortak anahtar alanı. `product:12` iki markada iki farklı ürün | Paket bunu **önekle değil etiketle (tag)** çözüyor: kiracı devredeyken `cache` yöneticisi `Stancl\Tenancy\CacheManager` ile değiştiriliyor ve her çağrıya `tenant<id>` etiketi ekleniyor (`src/CacheManager.php:19,34`). ⚠️ **Şartı: etiket destekleyen bir depo.** Redis ve Memcached destekler; `file` ve `database` **desteklemez** — o sürücülerde kiracı cache'i çalışmaz |
+| **Dosya** | Görseller ortak kökte; yol tahmin edilerek başka markanın görseline erişilir | Paket `storage_path()`'in **kökünü** değiştiriyor: `storage/tenant<kimlik>/app/…` (`Bootstrappers/FilesystemTenancyBootstrapper.php:38,42,64`). Kimlik uuid olduğu için yol tahmin edilemiyor. ⚠️ Bu klasörler `.gitignore`'a alınmak zorunda — yoksa markaların yüklediği dosyalar depoya girer |
+| **Zamanlanmış iş** | Zamanlayıcı bir istekten doğmaz — alan adı yok, middleware yok, kiracı yok. Görev **merkez bağlamda** koşar ve hiçbir markanın verisine dokunamaz; hata da vermez | Pakette hazır çözümü **yok**, kural bizde: marka verisine dokunan her görev `tenants:run <komut>` ile sarılır (`routes/console.php`'de kural olarak yazılı). ⚠️ Ayrıca zamanlayıcıyı **çalıştıran bir süreç** gerekiyor — `docker-compose.yml`'e `scheduler` servisi eklendi; onsuz hiçbir görev hiç çalışmaz |
+| **`search_path` sızması** | Şema bazlı modele özel: bir istekte kurulan `search_path` sonraki isteğe taşınırsa B markasının isteği A'nın şemasında çalışır | Paket bunu **sıfırlayarak değil, bağlantıyı imha ederek** çözüyor: her kiracıya `search_path`'i config'inde gömülü ayrı bir `tenant` bağlantısı açılıyor, geçişte eskisi `purge` ediliyor (`Database/DatabaseManager.php:41,51`). ⚠️ Bu koruma **Laravel'in kendi bağlantı yönetimi içinde** geçerli; pgBouncer gibi dış havuzlayıcıda fiziksel oturum paylaşıldığı için `transaction` modu ayrıca incelenmeli |
 
 ⚠️ Beşinin ortak özelliği **sessiz** olmalarıdır. Hata fırlatmazlar; yanlış veriyi
 sakince işlerler. Teşhisi "bazen yanlış ürün görünüyor" şikâyetiyle başlar ve günler alır.

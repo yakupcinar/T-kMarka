@@ -324,12 +324,27 @@ kanıtlanıyor**; CI yeşil dönüyor.
 > Bu yüzden altyapı testi kiracı oluşturmuyor. Gerçek kiracı testleri 8. adımda, kendi
 > düzeniyle yazılacak.
 - [ ] **M-2.4'ün beş tuzağını çöz** — hepsi `app/Tenancy/` altında, tek yerde:
-  - [ ] **Kuyruk:** temel `Job` sınıfı kiracı kimliğini taşısın ve çalışmadan önce bağlamı
-        yeniden kursun
-  - [ ] **Cache:** tüm anahtarlar kiracı önekli
-  - [ ] **Dosya:** kiracı kökü `tenants/{uuid}/`
-  - [ ] **Zamanlanmış iş:** zamanlayıcı kiracı listesi üzerinde dönsün
-  - [ ] **`search_path`:** bağlam istek sonunda **sıfırlansın**
+  - [x] **Kuyruk** — paket `tenant_id`'yi işin gövdesine yazıyor, worker `JobProcessing`
+        olayında okuyup kiracıyı devreye alıyor
+        > ⚠️ **Gerçek sızıntı yaşandı.** İki markanın işi de merkez klasöre yazdı, ikincisi
+        > birincinin üstüne bindi ve **hiçbir hata çıkmadı**. Sebep koda değil çalışan
+        > sürece aitti: `worker` konteyneri paket kurulmadan önce başlatılmıştı, kodu
+        > belleğe aldığı için kiracılık dinleyicisi hiç kaydedilmemişti. 0.2'de kendi
+        > yazdığımız "bayat kod" uyarısının gerçekleşmiş hâli.
+        > **Sonuç: deploy adımlarında worker yeniden başlatmak izolasyonun şartı.**
+  - [x] **Cache** — **etiket (tag)** ile, önek değil. Aynı anahtar A/B/merkezde ayrı değer
+        > ⚠️ Şartı var: etiket destekleyen depo. Redis ✓ · `file`/`database` **desteklemez**
+  - [x] **Dosya** — `storage_path()` kökü değişiyor: `storage/tenant<kimlik>/app/`
+        > `worker` konteynerinin `app`'in yazdığı dosyaları gördüğü de doğrulandı (ortak volume).
+        > ⚠️ `.gitignore`'a `/storage/tenant*` eklendi — yoksa markaların yüklediği
+        > dosyalar (ürün görselleri dahil) public depoya girecekti.
+  - [x] **Zamanlanmış iş** — pakette hazır çözümü **yok**, kural bizde:
+        `tenants:run <komut>` (`routes/console.php`'de yazılı)
+        > ⚠️ Ayrıca zamanlayıcıyı çalıştıran süreç de yoktu — `docker-compose.yml`'e
+        > `scheduler` servisi (`schedule:work`) eklendi. Onsuz hiçbir görev hiç çalışmazdı.
+  - [x] **`search_path`** — paket sıfırlamıyor, bağlantıyı **imha ediyor** (`purge`) ve
+        her kiracıya `search_path`'i config'inde gömülü yeni bağlantı açıyor
+        > 8 dönüşümlü istek + araya merkez isteğiyle ölçüldü, sızıntı yok.
 - [ ] `php artisan tenant:create` komutu — şema oluştur, migrate et, alan adı bağla
       (M-2.5'in 1–3 ve 6. adımları; varsayılan veri ve sahip kullanıcı 1A'da eklenecek)
 - [ ] Caddy `ask` ucu: `GET /tenancy/domain-check?domain=` → `domains`'e bak, 200/404 dön
@@ -680,6 +695,14 @@ Yayın · yedekleme · gözlemlenebilirlik
   (`docs/pre-setup.md` §3/0 şartı)
 - **Filament** (hazır panel altyapısı) değerlendirmesi → Faz 4
 - **Storefront API / mobil uygulama** → M-3'ün şartı tutulursa sonradan ince bir katman
+- **pgBouncer (bağlantı havuzlayıcı)** — şu an gerek yok: tek sunucu, az işçi,
+  bağlantı baskısı yok.
+  > ⚠️ **Eklenirse şartı var:** `search_path` bir *oturum* ayarıdır, işlem değil.
+  > pgBouncer'ın verimli modu olan `transaction` modunda fiziksel bağlantı her işlem
+  > sonunda başka isteğe verilir ve A markasının `search_path`'i B'ye geçer — şema bazlı
+  > kiracılıkta bu doğrudan veri sızmasıdır. Ya `session` modu kullanılmalı (havuzlama
+  > kazancının çoğu kaybolur) ya da her işlem başında `search_path` yeniden kurulmalı.
+  > Bkz. `docs/pre-setup.md` M-2.4 / 5. tuzak.
 - Çoklu depo · çoklu para birimi · çoklu dil
 - Bölgesel/desi bazlı kargo tarifesi
 - Pazaryeri kanal entegrasyonları (Trendyol, Hepsiburada)
