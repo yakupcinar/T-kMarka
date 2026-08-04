@@ -1,0 +1,88 @@
+services:
+
+  # ── Ters vekil ─────────────────────────────────────────────────────
+  # Dış dünyaya açılan tek servis. TLS'i sonlandırır, statik dosyayı
+  # kendisi sunar, PHP isteklerini app:9000'e devreder.  (M-4)
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      # Caddyfile bu iki değeri okuyor. Değerler .env'den geliyor —
+      # FPM adresi hiçbir dosyada sabit yazılı değil. (M-4)
+      FPM_HOST: ${FPM_HOST:-app}
+      FPM_PORT: ${FPM_PORT:-9000}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./public:/var/www/html/public:ro
+      - caddy_data:/data          # ⚠ sertifikalar burada — kalıcı olmalı (M-4.1/2)
+      - caddy_config:/config
+    depends_on:
+      - app
+
+  # ── Uygulama (PHP-FPM) ─────────────────────────────────────────────
+  app:
+    build: ./docker/php
+    volumes:
+      - .:/var/www/html           # kod canlı bağlı — kaydettiğin anda geçerli
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # ── Kuyruk işçisi ──────────────────────────────────────────────────
+  # app ile AYNI imaj, tek farkı çalıştırdığı komut.
+  worker:
+    build: ./docker/php
+    command: php artisan queue:work --tries=3 --timeout=90
+    volumes:
+      - .:/var/www/html           # ⚠ app ile aynı bağlama — storage/ ortak (M-2.4)
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # ── Veritabanı ─────────────────────────────────────────────────────
+  # Tek veritabanı. Markalar içinde ayrı şemalarda duracak. (M-2)
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: tikmarka
+      POSTGRES_USER: tikmarka
+      POSTGRES_PASSWORD: secret
+    ports:
+      # Mac'te 5432 doluydu → 5433'e alındı. Konteyner içi port 5432 kalıyor,
+      # bu yüzden .env'deki DB_PORT değişmiyor (app ağ içinden bağlanıyor).
+      - "5433:5432"               # dışarıdan GUI ile bakabilmek için
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tikmarka -d tikmarka"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # ── Cache + kuyruk ─────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+
+  # ── Yerel e-posta yakalayıcı ───────────────────────────────────────
+  # Giden mailleri tutar, gerçekten göndermez. Arayüz: localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+
+volumes:
+  pg_data:
+  redis_data:
+  caddy_data:
+  caddy_config:

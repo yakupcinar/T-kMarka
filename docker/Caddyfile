@@ -1,0 +1,31 @@
+# Yerel geliştirme yapılandırması.
+#
+# Kiracı alan adları burada elle sayılıyor. Faz 3'te bunun yerine
+# on-demand TLS gelecek: Caddy tanımadığı alan adı için uygulamaya
+# soracak (GET /tenancy/domain-check) ve sertifikayı kendisi alacak.
+# O açılmadan önce `ask` ucu yazılmak ZORUNDA — yoksa IP'mize
+# yönlendirilen her alan adı için sertifika istenir. (M-4.1/1)
+
+marka-a.localhost, marka-b.localhost, localhost {
+
+	# Let's Encrypt .localhost adreslerine sertifika veremez.
+	# Caddy kendi iç otoritesiyle üretir. (M-4)
+	tls internal
+
+	# Web'e açık TEK klasör. Diğer her şey bunun dışında kalıyor.
+	root * /var/www/html/public
+
+	encode zstd gzip
+
+	# PHP isteklerini uygulama konteynerine devret.
+	# Adres KODA GÖMÜLÜ DEĞİL — ortam değişkeninden okunuyor, böylece
+	# ileride FPM başka bir konteynere/pod'a taşınırsa burası değişmiyor.
+	# Unix soketi değil TCP kullanılmasının sebebi de bu. (M-4)
+	php_fastcgi {$FPM_HOST:app}:{$FPM_PORT:9000}
+
+	# Statik dosyaları (görsel, css, js) Caddy kendisi sunar.
+	# PHP-FPM bunu yapamaz.
+	file_server
+
+	log
+}

@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-03**
 
 ```
-┌─ YOL HARİTASI ────────────────────────────── şu an: Faz 0.1 ───┐
+┌─ YOL HARİTASI ────────────────────────────── şu an: Faz 0.3 ───┐
 │                                                                │
 │  0 · TEMEL         git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -125,7 +125,7 @@ kanıtlanıyor**; CI yeşil dönüyor.
 - [x] `.env.example` hazırla ve depoya ekle
   > **Neden:** `.env` sırlar içerdiği için depoya girmez. `.env.example` "hangi değişkenler
   > gerekli" bilgisini taşır — projeyi kuran herkes ondan kopyalayarak başlar.
-- [ ] İlk commit
+- [x] İlk commit
 
 > ⚠️ **0.2'ye devreden not:** Laravel 12 varsayılan olarak `laravel/sail` ile geliyor.
 > Biz kendi Compose dosyamızı ve Caddy'yi kullanacağımız için (M-4) Sail kaldırılacak —
@@ -133,10 +133,17 @@ kanıtlanıyor**; CI yeşil dönüyor.
 
 ### 0.2 Docker ortamı
 
-- [ ] `docker-compose.yml` — **beş servis**: `app` (PHP-FPM), `worker` (kuyruk), `caddy`,
+- [x] `docker-compose.yml` — **altı servis**: `app` (PHP-FPM), `worker` (kuyruk), `caddy`,
       `postgres`, `redis`
-- [ ] PHP imajına gerekli uzantıları ekle: `pdo_pgsql`, `redis`, `intl`, `bcmath`, `gd`
-- [ ] `worker` servisi — `app` ile **aynı imaj**, farklı komut (`queue:work`)
+- [x] `docker/php/Dockerfile` — PHP 8.4 imajı + uzantılar: `pdo_pgsql`, `redis`, `intl`,
+      `bcmath`, `gd`, `zip` · composer imaja dahil
+  > `bcmath` gerekçesi doğrulandı: float ile `0.1 + 0.2 = 0.30000000000000004`.
+  > PostgreSQL `numeric(12,2)` veriyi kayıpsız **saklar**, `bcmath` hesabı kayıpsız
+  > **yapar** — ikisi de gerekli (`docs/domain-model.md` §0).
+  >
+  > 📌 Geliştirme imajı 802 MB. Üretim imajının inceltilmesi (çok aşamalı build, composer
+  > çıkarılır, opcache açılır) **Faz 6**'ya bırakıldı — geliştirmede sorun değil.
+- [x] `worker` servisi — `app` ile **aynı imaj**, farklı komut (`queue:work`)
   > **Neden ayrı konteyner:** web isteği ile arka plan işi farklı hızlarda ölçeklenir ve
   > uzun süren bir iş, istek karşılayan süreçleri meşgul etmemeli. Ayrıca kuyruk çöktüğünde
   > sitenin ayakta kalması gerekir.
@@ -149,27 +156,27 @@ kanıtlanıyor**; CI yeşil dönüyor.
   > ⚠️ **Tuzak 2 — paylaşılan depolama.** İşçi görsel işleme gibi dosyaya dokunan işleri
   > yapacak. `app` ve `worker` **aynı `storage/` hacmini** görmezse yüklenen görsel bir
   > konteynerde var diğerinde yok olur. Kiracı dosya kökü de buradan besleniyor (M-2.4).
-- [ ] Mailpit servisi ekle — yerelde giden e-postaları yakalamak için
-- [ ] **Caddy** yapılandırması (M-4): FPM'e **TCP** ile bağlan, adres ortam değişkeninden
+- [x] Mailpit servisi ekle — yerelde giden e-postaları yakalamak için
+- [x] **Caddy** yapılandırması (M-4): FPM'e **TCP** ile bağlan, adres ortam değişkeninden
       okunsun
   > **Neden TCP:** Unix soketi yerine TCP — ileride konteyner ayrımına gidilirse kodda
   > hiçbir şey değişmez.
-- [ ] **Caddy `/data` dizinine kalıcı volume ver** (M-4.1/2)
+- [x] **Caddy `/data` dizinine kalıcı volume ver** (M-4.1/2)
   > **Neden:** sertifikalar orada durur. Volume yoksa her yeniden başlatmada sertifikalar
   > sıfırdan istenir ve birkaç deploy sonra Let's Encrypt hız limitine takılırsın.
-- [ ] Yerel geliştirmede `tls internal` kullan
+- [x] Yerel geliştirmede `tls internal` kullan
   > **Neden:** Let's Encrypt yerel alan adına sertifika veremez. Gerçek on-demand TLS akışı
   > ancak Faz 3'te, kontrol düzlemiyle birlikte test edilebilir.
-- [ ] PostgreSQL sürümünü sabitle (`postgres:17`), **`citext` eklentisini etkinleştir**
+- [x] PostgreSQL sürümünü sabitle (`postgres:17`), **`citext` eklentisini etkinleştir**
   > **Neden:** `citext`, e-posta gibi alanlarda büyük/küçük harf duyarsız benzersizlik
   > sağlıyor (`docs/domain-model.md` §0).
-- [ ] Redis'i cache + queue sürücüsü olarak bağla
-- [ ] **Yerel alan adları:** `marka-a.localhost` ve `marka-b.localhost`
+- [x] Redis'i cache + queue sürücüsü olarak bağla
+- [x] **Yerel alan adları:** `marka-a.localhost` ve `marka-b.localhost`
   > **Neden `.localhost`:** kiracılık alan adına bağlı olduğu için (M-2.2) yerelde en az
   > iki alan adı gerekiyor. Tarayıcılar `.localhost` uzantısını `/etc/hosts` düzenlemeden
   > çözer — `dnsmasq` kurmaya gerek yok.
-- [ ] `docker compose up` ile ayağa kalktığını doğrula
-- [ ] `worker` konteynerinin kuyruğu gerçekten tükettiğini doğrula (deneme işi at, çalışsın)
+- [x] `docker compose up` ile ayağa kalktığını doğrula
+- [x] `worker` konteynerinin kuyruğu gerçekten tükettiğini doğrula (deneme işi at, çalışsın)
 
 ### 0.3 Kod kalitesi araçları
 
@@ -191,6 +198,19 @@ kanıtlanıyor**; CI yeşil dönüyor.
       düşürülsün
   > **Neden:** kiracı testleri merkez şemayla aynı düzeni kullanamaz. Bu şimdi kurulmazsa
   > 1A'dan itibaren her test dosyasında elle kurulum tekrarlanır.
+
+### 0.4b Atılacak alıştırma — Laravel'in temel döngüsü *(öğrenme adımı)*
+
+- [ ] Bir `Note` migration'ı, bir `Note` modeli, bir test yaz — çalıştır, testi yeşil gör
+- [ ] **Sonra hepsini sil**
+
+> **Neden bu adım var:** 0.5'teki çok kiracılık, "normal" Laravel'in **üstüne kurulan**
+> bir katman. Altındaki katmanı bir kere kendi elinle yapmadan üstündekini anlamak zor —
+> her şey aynı anda yeni olur. Bu alıştırmadan sonra 0.5, "bunun üstüne ne ekleniyor"
+> sorusuna dönüşür.
+>
+> Plan kuralı 1'i (iş mantığından önce kiracılık) bozmuyor: bu proje kodu değil, silinecek
+> bir egzersiz. Depoya commit edilmez.
 
 ### 0.5 Kiracılık zemini ← **bu bloğun kalbi**
 
@@ -262,13 +282,157 @@ kiracının verisi birbirine karışmıyor.
 - [ ] 1E — Ödeme
 - [ ] 1F — Olay kaydı
 
-> ⚠️ **1D açılırken unutulmayacak — mesafeli satış sözleşmesi onayı.** Sipariş oluşurken
-> müşterinin sözleşmeyi kabul ettiği, **kanıt olarak** siparişin üzerinde durmalı:
-> `terms_accepted_at` + `terms_version` (`docs/domain-model.md` §7).
+---
+
+### Blok özetleri — 1B … 1F
+
+> Bunlar **madde listesi değil**, blok haritasıdır. Amacı Faz 1'in tamamını görünür kılmak.
+> Her blok için üç şey yazılı: temel akış, dokunduğu tablolar, bitiş ölçütü. Üçü de veri
+> modelinden türediği için **eskimez.** Madde listesi blok açılırken yazılır (kural 4).
+
+#### 1B — Katalog
+
+```
+PANEL TARAFI                         VİTRİN TARAFI
+ ürün oluştur (draft)                 ProductQuery::forStorefront()
+   → varyant ekle (sku, fiyat, stok)    → kategori / filtre / sırala
+   → görsel yükle (sıralı)              → liste
+   → KDV oranı belirle                  → ürün detay (varyantlar + görseller)
+   → status = active
+```
+
+**Kural — ürün listeleme tek bir sorgu katmanından geçer.** Controller'a gömülü sorgu
+yazılmayacak. Kategori, koleksiyon, arama, öneri ve panel — beşi de
+`app/Domain/Catalog/ProductQuery` üzerinden geçer, yalnızca modu değişir:
+
+```
+ProductQuery::forStorefront()  → sadece status=active ürün, is_active varyant
+ProductQuery::forPanel()       → taslak ve arşiv dahil hepsi
+```
+
+> **Neden:** "vitrinde hangi ürün görünür" kuralı beş yere kopyalanırsa bir gün birinde
+> unutulur ve **taslak hâlindeki, fiyatı girilmemiş ürün müşteriye görünür** — sessiz bir
+> hata. Panelin ayrı mod olması da tesadüf değil: panel taslakları görmek **zorunda**.
+> Sorunun iki doğru cevabı var, bu ayrım tek yerde yaşamalı. (TıkRota K-4/1'in karşılığı.)
+
+**Tablolar:** `categories` · `products` · `product_variants` · `product_images`
+**Bitiş ölçütü:** panelden varyantlı ürün eklenebiliyor · vitrin ucu **yalnızca** aktif
+olanları dönüyor · taslak ürünün vitrinde görünmediği testle kanıtlanıyor
+
+#### 1C — Sepet
+
+```
+sepete ekle isteği
+  │
+  ├─ giriş yapılmış mı?
+  │    evet  → customer_id ile sepet bul/oluştur
+  │    hayır → session_token ile sepet bul/oluştur   ← misafir
+  │
+  ├─ varyant ekle / çıkar / adet değiştir
+  │
+  └─ fiyat CANLI okunur — cart_items'ta fiyat YOK
+       marka fiyatı değiştirirse sepette de değişir
+
+giriş yapıldığında
+  → misafir sepeti müşterinin sepetine taşınır
+  → aynı varyant iki sepette varsa: adetler TOPLANMAZ, büyük olan alınır
+```
+
+> **Neden toplanmıyor:** iki cihazda 2'şer ekleyen kullanıcının niyeti 4 almak değildir.
+> Toplama sessizce yanlış siparişe yol açar; büyüğü almak en kötü ihtimalle sepette fazla
+> bir adet bırakır ve kullanıcı onu görür.
+
+**Tablolar:** `carts` · `cart_items`
+**Bitiş ölçütü:** misafir sepete ekleyebiliyor · giriş sonrası sepet birleşiyor ·
+`customer_id` ve `session_token`'dan tam olarak birinin dolu olması veritabanı `CHECK`'i
+ile zorlanıyor
+
+#### 1D — Stok + Sipariş + Sevkiyat  ← **en zor blok**
+
+```
+CHECKOUT — orkestratör. Kendi iş yapmaz, sırayı yönetir.
+
+ 1  sepeti doğrula ............ fiyat değişti mi? varyant hâlâ aktif mi?
+ 2  adresi KOPYALA ............ siparişe yazılır, deftere bağlanmaz
+ 3  ┌─ BEGIN TRANSACTION
+ 4  │   SELECT ... FOR UPDATE .. satır kilidi (aşırı satış engeli)
+ 5  │   stok yeterli → rezervasyon oluştur (held, +15 dk)
+ 6  └─ COMMIT
+ 7  sipariş oluştur ........... payment_status = pending
+    satırlar DONAR ............ başlık, sku, fiyat, KDV oranı kopyalanır
+    sözleşme onayı yazılır .... terms_accepted_at + terms_version
+ 8  → 1E ödeme                  ⚠ ÖDEME TRANSACTION'IN DIŞINDA
+ 9  başarılı → rezervasyon committed · stok düş · payment_status = paid
+    başarısız → rezervasyon released · sipariş cancelled
+
+SEVKİYAT — sonradan, panelden. Bir sipariş birden çok pakette çıkabilir.
+
+    fulfillment oluştur → hangi order_item, kaç adet
+      └→ orders.fulfillment_status yeniden hesaplanır
+           unfulfilled → partial → fulfilled
+```
+
+> ⚠️ **Ödeme neden transaction dışında:** dış servis yavaşlarsa veritabanı satırları
+> dakikalarca kilitli kalır ve tüm mağaza donar.
 >
-> **Neden 1D'de, sonra değil:** marka sözleşme metnini sonradan değiştirdiğinde eski
-> siparişler eski sürüme bağlı kalmalı. Sipariş bir fotoğraf olduğu için (§7) bu bilgi
-> sonradan üretilemez — o an yakalanmazsa bir daha yakalanamaz.
+> ⚠️ **Sözleşme onayı sonradan eklenemez:** marka metni değiştirdiğinde eski siparişler
+> eski sürüme bağlı kalmalı. Sipariş bir fotoğraftır — o an yakalanmazsa bir daha
+> yakalanamaz (`docs/domain-model.md` §7).
+
+**Tablolar:** `orders` · `order_items` · `fulfillments` · `fulfillment_items` ·
+`stock_reservations`
+**Bitiş ölçütü:** uçtan uca test — misafir sipariş verir, stok düşer, sipariş **kısmi**
+sevk edilir, `fulfillment_status` doğru hesaplanır · eşzamanlı iki siparişte aşırı satış
+olmadığı testle kanıtlanır
+
+#### 1E — Ödeme
+
+```
+        ┌──────────────────────────────────┐
+        │  PaymentProvider   (arayüz)      │
+        │  ─────────────────────────────   │
+        │  charge()        refund()        │
+        │  verifyWebhook()                 │
+        └───────┬──────────────────┬───────┘
+                │                  │
+     FakePaymentProvider     IyzicoProvider / PayTR
+     Faz 1 — gerçek para     sonra takılır
+     yok, "başarılı" der     ÜSTTEKİ KOD DEĞİŞMEZ
+```
+
+> ⚠️ **İki kural pazarlık dışı:**
+> · tutar **sunucuda** `orders.grand_total`'dan yeniden üretilir — istemciden gelene asla
+>   güvenilmez
+> · webhook **imzası doğrulanmadan** sipariş ödendi sayılmaz — yoksa herkes sahte istek
+>   atıp bedava sipariş oluşturur
+>
+> Kart verisi hiçbir zaman sisteme girmez. Sağlayıcı anahtarları `settings`'te şifreli.
+
+**Tablolar:** `payments`
+**Bitiş ölçütü:** sahte sağlayıcıyla ödeme uçtan uca çalışıyor · başarısız ödemede
+rezervasyon serbest bırakılıyor · imzasız webhook reddediliyor
+
+#### 1F — Olay kaydı
+
+```
+olay olur                          kuyruk               worker
+─────────                          ──────               ──────
+product_viewed      ──┐
+search_performed    ──┤                             ┌─ events tablosuna yaz
+cart_item_added     ──┼──→  kuyruğa atılır  ──────→ ┤  type + jsonb payload
+cart_item_removed   ──┤     istek beklemez          └─ occurred_at
+order_placed        ──┘
+                            ⚠ iş kiracı kimliğini TAŞIR (M-2.4/kuyruk)
+                              taşımazsa A'nın olayı B'nin şemasına yazılır
+```
+
+**Tablolar:** `events`
+**Bitiş ölçütü:** beş olay tipi kaydediliyor · olayın **doğru kiracının** şemasına
+yazıldığı testle kanıtlanıyor · olay yazımı istek süresini uzatmıyor
+
+> Tüketicisi TıkRota'daki gibi bir keşif akışı **değil** — tek markada keşfedilecek satıcı
+> yok. Besleyeceği şeyler: ürün önerisi (Faz 3), terk edilmiş sepet (Faz 2) ve markanın
+> satış raporu.
 
 ---
 
