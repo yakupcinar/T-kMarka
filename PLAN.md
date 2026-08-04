@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-03**
 
 ```
-┌─ YOL HARİTASI ────────────────────────────── şu an: Faz 0.4b───┐
+┌─ YOL HARİTASI ────────────────────────────── şu an: Faz 0.5 ───┐
 │                                                                │
 │  0 · TEMEL         git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -228,8 +228,23 @@ kanıtlanıyor**; CI yeşil dönüyor.
 
 ### 0.4b Atılacak alıştırma — Laravel'in temel döngüsü *(öğrenme adımı)*
 
-- [ ] Bir `Note` migration'ı, bir `Note` modeli, bir test yaz — çalıştır, testi yeşil gör
-- [ ] **Sonra hepsini sil**
+- [x] Bir `Note` migration'ı, bir `Note` modeli, bir test yaz — çalıştır, testi yeşil gör
+- [x] **Sonra hepsini sil**
+
+> **Alıştırmadan çıkanlar:**
+>
+> | Gördüğümüz | Nasıl |
+> |---|---|
+> | Migration'ın ürettiği SQL | `php artisan migrate --pretend` — çalıştırmadan gösteriyor |
+> | Modelin ürettiği SQL | `DB::listen()` ile INSERT cümlesi yakalandı |
+> | Konvansiyon | `Note` sınıfı → `notes` tablosu; hiçbir yere kayıt yapılmıyor |
+> | `$fillable` koruması | listede olmayan alan sessizce yok sayılıyor |
+> | `down()` ne işe yarar | silme adımında gerçekten kullanıldı |
+> | Testin kırmızıya düşmesi | `$fillable`'dan `body` çıkarılınca 4 testten **yalnızca 1'i** kırıldı — küçük ve tek konulu test, problemin yerini söylüyor |
+> | `RefreshDatabase` | dört test de not oluşturuyor ama ilki "tam 1 tane" diyerek geçiyor |
+>
+> **Yakalanan gerçek sorun:** Laravel'in `timestamps()` metodu `timestamp without
+> time zone` üretiyor, bizim kararımız `timestamptz`. Uyarı 1A.1'e yazıldı.
 
 > **Neden bu adım var:** 0.5'teki çok kiracılık, "normal" Laravel'in **üstüne kurulan**
 > bir katman. Altındaki katmanı bir kere kendi elinle yapmadan üstündekini anlamak zor —
@@ -487,6 +502,16 @@ Müşteri token'ıyla panel ucuna erişilemiyor — testle kanıtlanıyor.
   > bir gün yanlış cevaplanır. İki guard, ayrımı framework seviyesinde zorunlu kılar.
 
 #### 1A.1 Migration ve modeller (kiracı şeması)
+
+> ⚠️ **0.4b alıştırmasında yakalandı — `timestamps()` kullanma, `timestampsTz()` kullan.**
+> Laravel'in varsayılan `$table->timestamps()` metodu PostgreSQL'de
+> `timestamp(0) without time zone` üretiyor. `docs/domain-model.md` §0 ise
+> **`timestamptz`** (UTC) diyor.
+>
+> Saat dilimi taşımayan bir zaman damgası, farklı sunucular ve yaz saati geçişinde
+> kayar. Sipariş anı, rezervasyon bitişi (+15 dk), kargo tarihleri bundan etkilenir.
+> Sonradan düzeltmek her tabloya migration yazmak demek.
+
 
 - [ ] `customers` — `email` (**citext, nullable**), `password` nullable, `accepts_marketing`
   > **Neden nullable:** misafir siparişini mümkün kılan alan bu (`domain-model.md` §3).

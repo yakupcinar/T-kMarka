@@ -83,5 +83,11 @@ test        arayüz yok → testler gözümüz
          TUZAK: docker env_file → $_SERVER → phpunit ezemiyor
                 → app/worker'dan env_file kaldırıldı, Laravel .env'i dosyadan okuyor
          5 test yeşil
-0.4b ⏳  ALIŞTIRMA — ilk gerçek PHP (Note: migration + model + test, sonra sil)
+0.4b ✅  ALIŞTIRMA — Note: migration + model + test, sonra silindi
+         migration = yapı (DDL) · model/Eloquent = veri (DML, ORM budur)
+         konvansiyon: Note sınıfı → notes tablosu, kayıt gerekmiyor
+         migrate --pretend → SQL'i çalıştırmadan gösterir
+         test bilerek kırmızıya düşürüldü — 4 testten 1'i kırıldı
+         BULGU: timestamps() → timestamptz DEĞİL, 1A.1'e uyarı yazıldı
+0.5  ⏳  kiracılık zemini (stancl/tenancy, şema bazlı)
 ```
