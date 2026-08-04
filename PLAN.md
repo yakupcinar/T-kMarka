@@ -260,15 +260,69 @@ kanıtlanıyor**; CI yeşil dönüyor.
       düşürülsün
   > **Neden 0.4'ten buraya taşındı:** bu düzen `stancl/tenancy`'ye dayanıyor, paket
   > kurulmadan yazılamaz. 0.4'te planlanmıştı, gerçekle çeliştiği için taşındı (kural 4).
-- [ ] `stancl/tenancy` kur, **şema bazlı** (`PostgreSQLSchemaManager`) yapılandır (M-2)
+- [~] `stancl/tenancy` kur, **şema bazlı** (`PostgreSQLSchemaManager`) yapılandır (M-2)
+  - [x] paket kuruldu — **v3.10.0**
+  - [x] **Laravel 12 uyumu doğrulandı:** paketin `composer.json`'ı
+        `illuminate/support: ^10|^11|^12|^13` istiyor, bizde Laravel 12.64.0.
+        Tahmin değil, ilan edilmiş destek.
+  - [x] **Şema modu doğrulandı:** `PostgreSQLSchemaManager` sınıfı pakette mevcut
+        (`PostgreSQLDatabaseManager` da var — M-2'deki "geçiş tek satır yapılandırma"
+        iddiası böylece kanıtlandı)
+  - [x] ayar dosyaları projeye çıkarıldı (`vendor:publish`)
+  - [x] impersonation migration'ı silindi — kapsam dışı özellik (kural 5)
+  - [ ] `config/tenancy.php` şema moduna göre düzenlenecek ← 2. adım
   > ⚠️ **Önce Laravel 12 uyumluluğunu doğrula.** Paket framework'ün başlatma sürecine
   > giriyor (M-2.6), dolayısıyla sürüm uyumu ilan edilmiş olmalı — "muhtemelen çalışır"
   > kabul edilmez. Uyumlu sürüm yoksa karar M-2.6'ya geri döner (elle yazmak), plan
   > buna göre güncellenir.
-- [ ] Migration'ları ikiye ayır: `database/migrations/landlord` ve `database/migrations/tenant`
-- [ ] Merkez şema migration'ları: `tenants`, `domains` (`docs/domain-model.md` §2)
+- [x] Migration'ları ikiye ayır: `database/migrations/landlord` ve `database/migrations/tenant`
+  > **Kök klasör bilerek BOŞ bırakıldı.** Laravel migration'ları ararken alt klasörlere
+  > bakmıyor (`glob($path.'/*_*.php')`, özyinelemeli değil). Kök dolu olsaydı
+  > `make:migration` ile üretilen her yeni dosya oraya düşer ve **kazara merkez şemaya**
+  > giderdi — oysa bundan sonra yazacağımız tabloların çoğu marka tablosu. Kök boş olunca
+  > `php artisan migrate` hiçbir şey bulamıyor, yani sessizce yanlış iş yapmıyor.
+  >
+  > Kısayollar `composer.json`'a eklendi: `migrate:landlord`, `migrate:fresh:landlord`.
+  > Marka tarafı için paketin kendi komutu var: `tenants:migrate`.
+- [x] Merkez şema migration'ları: `tenants`, `domains` (`docs/domain-model.md` §2)
+  > ⚠️ **Paketin `tenants` tablosu domain modelimizden farklı geldi.** Paket "virtual
+  > column" yaklaşımı kullanıyor: `schema_name`, `status`, `name` gibi alanlar ayrı kolon
+  > değil, tek bir `data` json kolonunda duruyor. Gerçek kolon eklenirse paket onu
+  > kullanıyor — yani sonradan çevrilebilir.
+  >
+  > **Şimdilik varsayılanla devam:** 0.5'in amacı izolasyonu kanıtlamak. `status` ve
+  > abonelik alanları **Faz 3**'ün konusu; gerçek kolonlara orada çevrilecek. Aksi hâlde
+  > "SQL ile durumu active olanları getir" sorgusu json içinden yapılmak zorunda kalır.
   > `plans` / `subscriptions` Faz 3'e bırakıldı — Faz 0'da tek bir varsayılan planla yaşanır.
-- [ ] Alan adı çözümleme middleware'i (M-2.2): host → `domains` → şema
+- [x] Alan adı çözümleme middleware'i (M-2.2): host → `domains` → şema
+  - [x] `App\Platform\Models\Tenant` yazıldı — paketin hazır modelinde `domains()`
+        ilişkisi yok, alan adı yöntemi onsuz çalışmıyor (`HasDomains` + `HasDatabase`)
+  - [x] `TenancyServiceProvider` **elle** `bootstrap/providers.php`'ye eklendi
+        > `vendor:publish` dosyayı kopyalıyor ama listeye eklemiyor. Migration'lardan
+        > farklı: provider'lar taranmaz, **kaydedilir** — sıra önemli olduğu için.
+  - [x] `routes/web.php` merkez alan adına kilitlendi
+        > İki rota dosyası da `/` tanımlıyordu; sonra yüklenen diğerini gölgeliyor ve
+        > merkez adres erişilemez hâle geliyordu. `Route::domain()` ile çözüldü.
+  - [x] Tanımsız alan adı **404** dönüyor (`bootstrap/app.php` → `withExceptions`)
+        > Varsayılan 500'dü. Yanlış mesaj: sunucu patlamadı, öyle bir marka yok.
+  - [x] Şema öneki `tenant` → `tenant_` düzeltildi
+        > Ayraçsız hâli `tenantea940248-...` gibi okunmaz adlar üretiyordu.
+  - [x] Merkez migration klasörü `AppServiceProvider`'da kaydedildi
+        > **PHP trait öncelik kuralı:** `tests/TestCase`'te `migrateFreshUsing()` ezmek
+        > işe yaramadı — trait metodu (RefreshDatabase) miras alınan metodu geçiyor.
+        > Sıra: sınıfın kendi metodu > trait > üst sınıf. Çözüm `loadMigrationsFrom()`.
+  - [x] Doğrulandı: `marka-a` ve `marka-b` kendi kiracı kimliklerini dönüyor, merkez 200
+
+> ⚠️ **Yaşanan tuzak — ölü veritabanı oturumu testleri sonsuza kadar kilitledi.**
+> Zaman aşımına uğrayan bir test koşusu `idle in transaction` durumunda bir oturum
+> bıraktı; sonraki her `migrate:fresh` o kilidi bekleyip asıldı. Belirti "test takılıyor",
+> sebep hiçbir yerde yazmıyor. Teşhis: `pg_stat_activity`'de `wait_event_type = Lock`
+> satırlarına bakmak. Çözüm: `pg_terminate_backend`.
+>
+> ⚠️ **`Tenant::create()` testte kiracı şeması oluşturmaya kalkıyor** (TenantCreated →
+> CreateDatabase işi, testlerde `sync`) ve `RefreshDatabase`'in işlemiyle kilitleniyor.
+> Bu yüzden altyapı testi kiracı oluşturmuyor. Gerçek kiracı testleri 8. adımda, kendi
+> düzeniyle yazılacak.
 - [ ] **M-2.4'ün beş tuzağını çöz** — hepsi `app/Tenancy/` altında, tek yerde:
   - [ ] **Kuyruk:** temel `Job` sınıfı kiracı kimliğini taşısın ve çalışmadan önce bağlamı
         yeniden kursun

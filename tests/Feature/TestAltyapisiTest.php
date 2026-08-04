@@ -1,16 +1,24 @@
 <?php
 
-use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
-it('veritabanina kayit yazabiliyor', function () {
-    User::factory()->create(['email' => 'deneme@tikmarka.test']);
+/*
+| Test ALTYAPISININ çalıştığını doğrular — kiracılığı değil.
+| Kiracı izolasyon testleri 0.5/8'de, kendi düzeniyle yazılacak.
+*/
 
-    expect(User::count())->toBe(1);
+it('merkez veritabanina kayit yazabiliyor', function () {
+    DB::table('cache')->insert([
+        'key' => 'deneme',
+        'value' => 'x',
+        'expiration' => time() + 60,
+    ]);
+
+    expect(DB::table('cache')->count())->toBe(1);
 });
 
 it('bir onceki testin verisi geri alinmis oluyor', function () {
-    expect(User::count())->toBe(0);
+    expect(DB::table('cache')->count())->toBe(0);
 });
 
 it('testler postgresql uzerinde kosuyor', function () {
