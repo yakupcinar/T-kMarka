@@ -288,7 +288,9 @@ kanıtlanıyor**; CI yeşil dönüyor.
 
 ### 0.7 Belgeler
 
-- [ ] `README.md` — projenin ne olduğu, kurulum adımları, komutlar
+- [x] `README.md` — projenin ne olduğu, mimari, kurulum adımları, komutlar
+  > Depo public olduğu için 0.7'yi beklemeden yazıldı (0.4'ten sonra).
+- [x] `docs/summary.md` — tek sayfalık özet; her blok bitince kısa kayıt eklenir
 - [x] `docs/pre-setup.md` ve `docs/domain-model.md` yazıldı
 - [x] `PLAN.md` kökte (günlük kullanılan dosya)
 
