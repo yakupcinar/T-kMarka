@@ -23,9 +23,25 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
-        <env name="DB_URL" value=""/>
+        <!--
+            Testler de PostgreSQL'de koşar, SQLite'ta değil.
+            Sebep: şema (kiracılık), citext, jsonb ve SELECT FOR UPDATE
+            SQLite'ta yok. SQLite'ta test etmek "yeşil test, patlayan
+            üretim" demek olurdu.
+            Ayrı veritabanı: geliştirme verisi testlerle silinmesin.
+        -->
+        <!--
+            force="true" ŞART. Konteynerin ortamında .env'den gelen
+            DB_DATABASE=tikmarka zaten var; force olmadan phpunit onu
+            EZMEZ ve testler geliştirme veritabanında koşar.
+        -->
+        <env name="DB_CONNECTION" value="pgsql" force="true"/>
+        <env name="DB_HOST" value="postgres" force="true"/>
+        <env name="DB_PORT" value="5432" force="true"/>
+        <env name="DB_DATABASE" value="tikmarka_test" force="true"/>
+        <env name="DB_USERNAME" value="tikmarka" force="true"/>
+        <env name="DB_PASSWORD" value="secret" force="true"/>
+        <env name="DB_URL" value="" force="true"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

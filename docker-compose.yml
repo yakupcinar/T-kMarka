@@ -26,7 +26,10 @@ services:
     build: ./docker/php
     volumes:
       - .:/var/www/html           # kod canlı bağlı — kaydettiğin anda geçerli
-    env_file: .env
+    # env_file YOK — bilerek. Laravel .env'i dosyadan kendisi okuyor.
+    # Konteyner ortamına enjekte edilirse $_SERVER'a yazılır ve
+    # phpunit.xml testlerde onu EZEMEZ → testler geliştirme
+    # veritabanında koşar.
     depends_on:
       postgres:
         condition: service_healthy
@@ -40,7 +43,7 @@ services:
     command: php artisan queue:work --tries=3 --timeout=90
     volumes:
       - .:/var/www/html           # ⚠ app ile aynı bağlama — storage/ ortak (M-2.4)
-    env_file: .env
+    # env_file YOK — app ile aynı gerekçe (yukarı bak).
     depends_on:
       postgres:
         condition: service_healthy

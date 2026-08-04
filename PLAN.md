@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-03**
 
 ```
-┌─ YOL HARİTASI ────────────────────────────── şu an: Faz 0.4 ───┐
+┌─ YOL HARİTASI ────────────────────────────── şu an: Faz 0.4b───┐
 │                                                                │
 │  0 · TEMEL         git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -201,15 +201,30 @@ kanıtlanıyor**; CI yeşil dönüyor.
 
 ### 0.4 Test altyapısı
 
-- [ ] **Pest** kur, örnek bir test yaz ve geçtiğini gör
-- [ ] Test veritabanını ayır (`tikmarka_test`)
-- [ ] `RefreshDatabase` davranışını doğrula: her test temiz veritabanıyla başlasın
+- [x] **Pest** kur (`tests/Pest.php`), örnek test yaz ve geçtiğini gör
+  > PHPUnit'in sınıf/metot töreni yerine `it('...', function () { ... })`. Arkada yine
+  > PHPUnit çalışıyor, fark yalnızca yazım kolaylığı.
+- [x] Test veritabanını ayır — **`tikmarka_test`, PostgreSQL üzerinde**
+  > ⚠️ **Plandan sapma değil ama önemli bir düzeltme:** Laravel'in varsayılan
+  > `phpunit.xml`'i testleri **SQLite bellek içinde** koşturuyordu. Bizde çalışmaz —
+  > şema (kiracılığın tamamı), `citext`, `jsonb` ve `SELECT FOR UPDATE` SQLite'ta yok.
+  > SQLite'ta test etmek "yeşil test, patlayan üretim" demekti.
+- [x] `RefreshDatabase` davranışını doğrula: her test temiz veritabanıyla başlasın
   > **Neden:** testler birbirinin verisine bulaşırsa, tek başına geçen test paket hâlinde
   > patlar. Teşhisi çok zordur, baştan engellenir.
-- [ ] **Kiracı testleri için düzen kur:** test başında geçici şema oluşturulsun, sonunda
-      düşürülsün
-  > **Neden:** kiracı testleri merkez şemayla aynı düzeni kullanamaz. Bu şimdi kurulmazsa
-  > 1A'dan itibaren her test dosyasında elle kurulum tekrarlanır.
+  >
+  > **Nasıl çalışıyor:** migration'lar bir kez koşar; her test `BEGIN TRANSACTION` ile
+  > başlar, bitince `ROLLBACK`. Migration tekrar çalışmadığı için hızlı.
+- [x] **Yaşanan tuzak — `env_file` testleri geliştirme veritabanına yönlendiriyordu**
+  > `docker-compose.yml`'de `env_file: .env` vardı; bu, değerleri konteynerin **process
+  > ortamına** enjekte ediyor ve PHP onları `$_SERVER`'a koyuyor. Laravel'in `env()`
+  > helper'ı `$_SERVER`'ı önce okuduğu için `phpunit.xml`'deki `force="true"` bile
+  > yetmedi — testler **geliştirme veritabanında** koştu ve oraya migration attı.
+  >
+  > **Çözüm:** `app` ve `worker`'dan `env_file` kaldırıldı. Laravel `.env`'i zaten
+  > dosyadan okuyor (proje dizini konteynere bağlı). Ölçüldü: `$_SERVER` artık boş,
+  > `env()` doğru veritabanını görüyor.
+- [x] `phpunit.xml`'deki `DB_*` satırlarına `force="true"` eklendi
 
 ### 0.4b Atılacak alıştırma — Laravel'in temel döngüsü *(öğrenme adımı)*
 
@@ -226,6 +241,10 @@ kanıtlanıyor**; CI yeşil dönüyor.
 
 ### 0.5 Kiracılık zemini ← **bu bloğun kalbi**
 
+- [ ] **Kiracı testleri için düzen kur:** test başında geçici şema oluşturulsun, sonunda
+      düşürülsün
+  > **Neden 0.4'ten buraya taşındı:** bu düzen `stancl/tenancy`'ye dayanıyor, paket
+  > kurulmadan yazılamaz. 0.4'te planlanmıştı, gerçekle çeliştiği için taşındı (kural 4).
 - [ ] `stancl/tenancy` kur, **şema bazlı** (`PostgreSQLSchemaManager`) yapılandır (M-2)
   > ⚠️ **Önce Laravel 12 uyumluluğunu doğrula.** Paket framework'ün başlatma sürecine
   > giriyor (M-2.6), dolayısıyla sürüm uyumu ilan edilmiş olmalı — "muhtemelen çalışır"

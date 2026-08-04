@@ -77,5 +77,11 @@ test        arayüz yok → testler gözümüz
          seviye 8 = null erişimini yakalar ($user->name, $user null olabilir)
          sail kaldırıldı · anlamsız ExampleTest silindi
          üçü de yeşil: lint 25 dosya · analyse 0 hata · test 1 geçti
-0.4  ⏳  Pest test altyapısı
+0.4  ✅  Pest kuruldu · test db AYRI: tikmarka_test
+         testler PostgreSQL'de — SQLite'ta şema/citext/jsonb/FOR UPDATE yok
+         RefreshDatabase: her test transaction + rollback → izole
+         TUZAK: docker env_file → $_SERVER → phpunit ezemiyor
+                → app/worker'dan env_file kaldırıldı, Laravel .env'i dosyadan okuyor
+         5 test yeşil
+0.4b ⏳  ALIŞTIRMA — ilk gerçek PHP (Note: migration + model + test, sonra sil)
 ```
