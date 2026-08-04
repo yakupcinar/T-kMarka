@@ -1,0 +1,24 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+
+    # Seviye 0-10. Yükseldikçe daha titiz olur.
+    #
+    # Plan 5 diyordu; 8'e çıkarıldı. Gerekçe: "düşükten başla" kuralı
+    # mevcut kodda yüzlerce uyarı çıkmasın diye vardır — bizim kod
+    # tabanımız boş ve 8'de sıfır uyarı veriyor.
+    #
+    # Seviye 8'in kazandırdığı asıl şey: null olabilecek değere
+    # kontrolsüz erişimi yakalıyor.  User::find() bulamazsa null döner;
+    # ->name yazarsan uygulama çöker. Seviye 5 bunu göremiyor.
+    #
+    # 9-10 (mixed tipe katı davranma) sonraya bırakıldı — Laravel'in
+    # request()->input() gibi uçları doğal olarak mixed döndürüyor.
+    level: 8
+
+    paths:
+        - app
+        - database
+        - routes
+        - tests

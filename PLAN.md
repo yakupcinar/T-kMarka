@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-03**
 
 ```
-┌─ YOL HARİTASI ────────────────────────────── şu an: Faz 0.3 ───┐
+┌─ YOL HARİTASI ────────────────────────────── şu an: Faz 0.4 ───┐
 │                                                                │
 │  0 · TEMEL         git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -180,12 +180,24 @@ kanıtlanıyor**; CI yeşil dönüyor.
 
 ### 0.3 Kod kalitesi araçları
 
-- [ ] **Pint** (kod biçimlendirme) kur ve yapılandır
+- [x] **Pint** (kod biçimlendirme) kur ve yapılandır — `pint.json`, preset `laravel`
   > **Neden:** biçim tartışmasını tamamen ortadan kaldırır.
-- [ ] **Larastan** (statik analiz) kur, seviye 5'ten başla
+- [x] **Larastan** (statik analiz) kur — **seviye 8** (`phpstan.neon`)
+  > ⚠️ **Plandan sapma:** 5 yazıyordu, 8 yapıldı. "Düşükten başla" kuralı *mevcut kodda
+  > yüzlerce uyarı çıkmasın* diye vardır; bizim kod tabanımız boş ve seviye 8'de sıfır
+  > uyarı veriyor. Sonradan yükseltmek, o güne kadar yazılmış her koda geri dönmek demek.
+  >
+  > Seviye 8'in kazandırdığı: **null olabilecek değere kontrolsüz erişim.** Denendi —
+  > `User::find($id)` sonrası `->name` yazmak seviye 5'te sessiz geçiyor, 8'de yakalanıyor.
+  > 9-10 sonraya bırakıldı (Laravel'in `request()->input()` gibi uçları doğal olarak
+  > `mixed` döndürüyor).
   > **Neden:** kodu çalıştırmadan hata bulur — yanlış tip, olmayan metot, null olabilecek
   > değer. Seviye kademeli artırılır.
-- [ ] `composer.json`'a kısayol komutları ekle: `lint`, `analyse`, `test`
+- [x] `composer.json`'a kısayol komutları: `lint`, `lint:check`, `analyse`, `test`
+- [x] `laravel/sail` kaldırıldı (0.1'den devreden not) — kendi Compose'umuz var
+- [x] Laravel'in `tests/Unit/ExampleTest.php` yer tutucusu silindi
+  > Larastan'ın bulduğu ilk gerçek hata buydu: `assertTrue(true)` — her zaman geçen,
+  > hiçbir şey doğrulamayan test.
 
 ### 0.4 Test altyapısı
 

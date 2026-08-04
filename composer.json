@@ -3,7 +3,12 @@
     "name": "tikmarka/app",
     "type": "project",
     "description": "TıkMarka — çok kiracılı D2C e-ticaret uygulaması",
-    "keywords": ["e-ticaret", "d2c", "multi-tenant", "laravel"],
+    "keywords": [
+        "e-ticaret",
+        "d2c",
+        "multi-tenant",
+        "laravel"
+    ],
     "license": "proprietary",
     "require": {
         "php": "^8.4",
@@ -12,9 +17,9 @@
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
+        "larastan/larastan": "^3.10",
         "laravel/pail": "^1.2.2",
         "laravel/pint": "^1.24",
-        "laravel/sail": "^1.41",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.6",
         "phpunit/phpunit": "^11.5.50"
@@ -44,6 +49,9 @@
             "Composer\\Config::disableProcessTimeout",
             "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1 --timeout=0\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite --kill-others"
         ],
+        "lint": "pint",
+        "lint:check": "pint --test",
+        "analyse": "phpstan analyse --memory-limit=512M",
         "test": [
             "@php artisan config:clear --ansi",
             "@php artisan test"

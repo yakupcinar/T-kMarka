@@ -72,5 +72,10 @@ test        arayüz yok → testler gözümüz
 0.2  ✅  docker: caddy app worker postgres(citext) redis mailpit
          caddy→app→PHP 200 ✓ · worker kuyruğu tüketiyor ✓ · storage ortak ✓
          host portu 5433 (5432 doluydu)
-0.3  ⏳  Pint + Larastan
+0.3  ✅  Pint (biçim) + Larastan (analiz) · komutlar: lint · analyse · test
+         Larastan SEVİYE 8 — plan 5 diyordu, kod boşken 8 bedava
+         seviye 8 = null erişimini yakalar ($user->name, $user null olabilir)
+         sail kaldırıldı · anlamsız ExampleTest silindi
+         üçü de yeşil: lint 25 dosya · analyse 0 hata · test 1 geçti
+0.4  ⏳  Pest test altyapısı
 ```
