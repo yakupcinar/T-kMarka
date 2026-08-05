@@ -112,7 +112,7 @@ test        arayüz yok → testler gözümüz
 
 ════ FAZ 0 BİTTİ ════  iş mantığı hâlâ SIFIR
 
-1A.1 ~~  marka şeması tabloları (migration'lar)
+1A.1 ✅  marka şeması tabloları + modeller + factory'ler + enum
          customers  email NULL olabilir → misafir sipariş
          users      personel · is_owner emniyet kilidi
          roles + role_user + role_permissions  ilk FK'ler, pivot
@@ -123,4 +123,12 @@ test        arayüz yok → testler gözümüz
                 → sınırda küçültme + CHECK (email = lower(email))
          domains.domain'e de aynı CHECK eklendi (tutarlılık)
          tenant:create yarıda kalırsa artık arkasını topluyor
+         DESEN: $fillable = "neyi ASLA dışarıdan almam" listesi
+                Address.customer_id · User.is_owner · Role.is_system
+1A.2 ~~  kimlik doğrulama
+         Sanctum · personal_access_tokens MARKA şemasında
+         iki guard: customer (Customer) · staff (User)
+         KANIT: müşteri token'ı staff guard'ından REDDEDİLİYOR
+                (Guard.php:145 → $tokenable instanceof $model)
+         ⏳ uçlar · hız sınırlama · testler
 ```

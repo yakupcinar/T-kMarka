@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-03**
 
 ```
-┌─ YOL HARİTASI ────────────────────────────── şu an: Faz 1A ───┐
+┌─ YOL HARİTASI ────────────────────────────── şu an: 1A.2  ───┐
 │                                                                │
 │  0 · TEMEL         git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -635,7 +635,12 @@ Müşteri token'ıyla panel ucuna erişilemiyor — testle kanıtlanıyor.
 #### 1A.0 Ön karar: iki ayrı kimlik alanı
 
 - [x] **Laravel Sanctum, token tabanlı** — TıkRota K-12'den devralındı
-- [ ] **İki ayrı guard: `customer` ve `staff`**
+- [x] **İki ayrı guard: `customer` ve `staff`** — `config/auth.php`
+  > **Kanıtlandı (1A.2), tek uç yazmadan önce:** müşteri token'ı `staff` guard'ından,
+  > personel token'ı `customer` guard'ından **reddediliyor**. Mekanizma
+  > `vendor/laravel/sanctum/src/Guard.php:145` → `$tokenable instanceof $model`.
+  > `Customer` ve `User` kardeş sınıflar, biri diğerinin örneği değil.
+  > **Tek tabloda olsalardı bu koruma imkânsızdı.**
   > **Neden:** `docs/domain-model.md` §3 gereği müşteri ve personel ayrı tablolar. Tek
   > guard kullanılırsa "bu token hangi tabloya ait" sorusu her istekte tekrar sorulur ve
   > bir gün yanlış cevaplanır. İki guard, ayrımı framework seviyesinde zorunlu kılar.
@@ -652,13 +657,42 @@ Müşteri token'ıyla panel ucuna erişilemiyor — testle kanıtlanıyor.
 > Sonradan düzeltmek her tabloya migration yazmak demek.
 
 
-- [ ] `customers` — `email` (**citext, nullable**), `password` nullable, `accepts_marketing`
+- [x] `customers` — `email` **varchar nullable** (citext DEĞİL), `password` nullable,
+      `accepts_marketing`, `uuid`
+  > ⚠️ **citext denendi, kiracı şemasında ÇALIŞMIYOR.** Eklenti `public` şemasında;
+  > marka bağlantısının `search_path`'i onu görmediği için operatörler bulunamıyor ve
+  > PostgreSQL **sessizce** düz metin karşılaştırmasına düşüyor — `Ali@x.com` ile
+  > `ali@x.com` farklı sayılıyor, hata da vermiyor. Ölçüldü: `search_path` sadece marka →
+  > `false`, marka+public → `true`.
+  > **Yerine:** modelde sınırda küçültme + `CHECK (email = lower(email))`.
+  > Ayrıntı `docs/domain-model.md` §0.
   > **Neden nullable:** misafir siparişini mümkün kılan alan bu (`domain-model.md` §3).
-- [ ] `users` (personel) — `email` citext unique, `is_owner`
-- [ ] `roles`, `role_user`, `role_permissions`
-- [ ] `settings` — `group`, `key`, `value` (jsonb), `is_encrypted`
-- [ ] `addresses`
-- [ ] Modeller + ilişkiler
+- [x] `users` (personel) — `email` varchar unique, `password`, `is_owner`, `uuid`
+  > Laravel'in varsayılan `users` migration'ı silinip yerine bu yazıldı.
+  > `remember_token` yok — kimlik token tabanlı (K-12).
+- [x] `roles`, `role_user`, `role_permissions` — tek dosyada (birbirine bağlılar)
+  > İlk yabancı anahtarlarımız. `role_user` bileşik birincil anahtarlı pivot.
+  > ⚠️ `users` soft delete kullandığı için **kullanıcı tarafında cascade fiilen
+  > çalışmıyor** — personel "silindiğinde" rol bağları duruyor. Doğru davranış: geri
+  > alınırsa rolleri de gelir. Kalıcı silmede cascade devreye giriyor.
+- [x] `settings` — `group`, `key`, `value` (jsonb), `is_encrypted` · `unique(group,key)`
+  > Anahtar-değer + jsonb seçildi; geniş satır (her ayar bir kolon) alternatifi her yeni
+  > ayar için migration gerektirirdi — "çekirdek düzenlenmez, genişletilir" ile çelişir.
+- [x] `addresses` — müşterinin adres DEFTERİ
+  > ⚠️ Sipariş adresi değil. Sipariş verilirken `orders`'a **kopyalanacak**; müşteri
+  > adresini düzeltirse geçmiş siparişlerin nereye gittiği değişmemeli (§7).
+- [x] Modeller + ilişkiler — `Customer` · `Address` · `User` · `Role` · `Setting`
+  > **Bu blokta üç kez tekrar eden desen:** `$fillable` "neyi ekleyeyim" değil,
+  > **"neyi ASLA dışarıdan almam"** listesi.
+  > `Address.customer_id` (başkasının defterine adres eklenemesin) ·
+  > `User.is_owner` (kimse kendini sahip yapamasın) ·
+  > `Role.is_system` (sistem rolünün koruması kaldırılamasın).
+  > Üçü de denendi: istekten gelen değer sessizce atılıyor.
+  >
+  > `Setting` satır bazlı şifreleme yapıyor (Laravel'in hazır `encrypted` cast'i kolon
+  > bazlı). **Sıra tuzağı:** `value`, `is_encrypted`'dan önce yazılırsa ödeme anahtarı
+  > düz metin kaydedilirdi → `RuntimeException` fırlatılıyor, sessiz yanlış yerine
+  > gürültülü durma.
 - [x] Enum sınıfı: **`SettingGroup`** (`app/Enums/`)
   > **Neden:** durumları serbest metin yerine PHP enum'u olarak tanımlamak yazım hatasını
   > yazım anında yakalatır. Denendi: `'payments'` (fazladan s) yazınca `ValueError`
@@ -676,7 +710,9 @@ Müşteri token'ıyla panel ucuna erişilemiyor — testle kanıtlanıyor.
       `AddressFactory` (müşterisini kendisi üretir), `RoleFactory` (sistem), `SettingFactory` (şifreli)
   > **Neden:** sonraki her blokta test verisi buradan üretilecek. Şimdi doğru kurulursa
   > 1B–1F'de tek satır tekrar yazılmaz.
-- [ ] `tenants:migrate` ve `tenants:migrate:fresh` sorunsuz çalışıyor
+- [x] `tenants:migrate` sorunsuz çalışıyor — iki kiracıda da 7 tablo kuruluyor
+  > `addresses` · `customers` · `role_permissions` · `role_user` · `roles` ·
+  > `settings` · `users` (+ 1A.2'de `personal_access_tokens`)
 
 > ✅ **1A.1 — customers ve users tabloları yazıldı.** Yol boyunca iki ek düzeltme:
 >
@@ -694,6 +730,14 @@ Müşteri token'ıyla panel ucuna erişilemiyor — testle kanıtlanıyor.
 > edilmedi. Artık hata olursa kiracı siliniyor (şeması da düşüyor), çıkış kodu 1.
 
 #### 1A.2 Kimlik doğrulama uçları
+
+- [x] `laravel/sanctum` kuruldu · `personal_access_tokens` **marka şemasında**
+  > Token da marka verisi: marka silinince token'ları da gitmeli. `vendor:publish`
+  > dosyayı **boş bıraktığımız köke** düşürdü — 0.5/2'de öngördüğümüz tuzağın ta kendisi.
+  > `tenant/` klasörüne taşındı. Sanctum kendi migration'ını otomatik yüklemiyor,
+  > çift kayıt riski yok.
+- [x] `config/auth.php` — iki guard, iki provider (yukarıda 1A.0'daki kanıt)
+- [x] `HasApiTokens` iki modele de eklendi
 
 - [ ] Müşteri: `POST /api/register` · `POST /api/login` · `POST /api/logout` · `GET /api/me`
 - [ ] Personel: `POST /panel/login` · `POST /panel/logout` · `GET /panel/me`
