@@ -1,0 +1,108 @@
+name: CI
+
+# NE ZAMAN çalışsın.
+#   push          → main'e her gönderimde
+#   pull_request  → her PR'da (birleştirmeden ÖNCE hata yakalansın)
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Tek iş: lint + analyse + test. Hepsi geçmezse iş kırmızı döner.
+  kontrol:
+    name: lint · analyse · test
+    runs-on: ubuntu-latest
+
+    # İşin YANINDA çalışacak konteynerler.
+    # Yereldeki docker-compose.yml'nin CI karşılığı — ama burada sadece
+    # testin ihtiyacı olanlar var (caddy, worker, mailpit gerekmiyor).
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: tikmarka_test
+          POSTGRES_USER: tikmarka
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432:5432
+        # Sağlık kontrolü: PostgreSQL hazır olana kadar adımlar başlamasın.
+        # Yereldeki healthcheck ile aynı fikir — "ayakta" ≠ "hazır".
+        options: >-
+          --health-cmd="pg_isready -U tikmarka -d tikmarka_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+
+    # Uygulamanın ortam değişkenleri.
+    # ⚠ Yerelde servis adları (postgres/redis) kullanılıyor; CI'da servisler
+    #   aynı makinede olduğu için 127.0.0.1. phpunit.xml'de DB_HOST bu yüzden
+    #   force="true" DEĞİL — buradaki değer kazanıyor.
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+
+    steps:
+      # 1) Depoyu makineye indir. Bu olmadan ortada kod yok.
+      - name: Kodu indir
+        uses: actions/checkout@v4
+
+      # 2) PHP kur. Makine boş geliyor — PHP bile yok.
+      #    Uzantılar docker/php/Dockerfile'daki listeyle AYNI olmalı,
+      #    yoksa CI ile yerel farklı davranır.
+      - name: PHP 8.4 kur
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, redis, intl, bcmath, gd, zip
+          coverage: none
+
+      # 3) Composer paketlerini önbellekten al (varsa).
+      #    composer.lock değişmediyse indirme adımı saniyeler sürer.
+      - name: Composer önbelleği
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+
+      - name: Bağımlılıkları kur
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      # 4) .env yoksa Laravel açılmaz. Örnekten kopyalayıp anahtar üretiyoruz.
+      #    Gerçek sırlar burada YOK — testler sahte sağlayıcılarla çalışıyor.
+      - name: Ortam dosyasını hazırla
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # 5) citext eklentisi. Yerelde docker/postgres/init.sql yapıyordu;
+      #    CI'daki servis konteynerinde o dosya yok, elle kuruyoruz.
+      #    (docs/domain-model.md §0 — e-posta benzersizliği buna dayanıyor)
+      - name: citext eklentisini kur
+        run: |
+          PGPASSWORD=secret psql -h 127.0.0.1 -U tikmarka -d tikmarka_test \
+            -c "CREATE EXTENSION IF NOT EXISTS citext;"
+
+      # 6) Üç kontrol. Biri bile kırılırsa iş kırmızı döner.
+      #    ⚠ `lint` değil `lint:check` — CI dosyayı DÜZELTMEZ, sadece denetler.
+      #      Düzeltseydi hatayı gizlemiş olurduk.
+      - name: Biçim denetimi (Pint)
+        run: composer lint:check
+
+      - name: Statik analiz (Larastan, seviye 8)
+        run: composer analyse
+
+      - name: Testler (Pest)
+        run: composer test

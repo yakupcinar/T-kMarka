@@ -407,12 +407,22 @@ kanıtlanıyor**; CI yeşil dönüyor.
 
 ### 0.6 Sürekli entegrasyon (CI)
 
-- [ ] GitHub Actions iş akışı: her `push` ve PR'da `lint` + `analyse` + `test`
+- [x] GitHub Actions iş akışı: her `push` ve PR'da `lint` + `analyse` + `test`
+  > `.github/workflows/ci.yml`. `lint` değil **`lint:check`** kullanılıyor — CI dosyayı
+  > düzeltmez, yalnızca denetler. Düzeltseydi hatayı gizlemiş olurduk.
   > **Neden:** "bende çalışıyordu" durumunu ortadan kaldırır.
-- [ ] İş akışında PostgreSQL ve Redis servislerini tanımla
-- [ ] **Docker Hub girişi** ekle (`DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN`)
-  > **Neden:** Docker Hub'ın anonim indirme limiti var ve CI sunucuları paylaşımlı IP
-  > kullandığı için build'ler beklenmedik bir sabah `toomanyrequests` ile durur.
+- [x] İş akışında PostgreSQL ve Redis servislerini tanımla
+  > Sağlık kontrolleriyle birlikte — yereldeki `healthcheck` ile aynı fikir.
+  > `citext` eklentisi elle kuruluyor: `docker/postgres/init.sql` CI servisinde yok.
+  >
+  > ⚠️ **`phpunit.xml`'de `DB_HOST` artık `force="true"` değil.** Yerelde Docker ağında
+  > sunucunun adı `postgres`, CI'da servisler aynı makinede olduğu için `127.0.0.1`.
+  > Sabitlenseydi CI yanlış adrese bağlanmaya çalışırdı.
+- [x] ~~**Docker Hub girişi**~~ → **gerekmiyor, madde kapatıldı**
+  > **Neden düştü:** bu madde TıkRota'dan devralınmıştı ve CI'ın **imaj build ettiği**
+  > varsayımına dayanıyordu. Bizim iş akışımız imaj build etmiyor: PHP'yi `setup-php`
+  > ile kuruyor, `postgres`/`redis`'i GitHub'ın servis mekanizması yönetiyor.
+  > Anonim indirme kotası riski yok. (Plan kuralı 4)
 - [ ] Bilerek bozuk bir kod atıp CI'ın **kırmızı** döndüğünü doğrula, sonra düzelt
   > **Neden:** hiç kırmızı görmediğin bir CI, gerçekten çalıştığını kanıtlamaz.
 
