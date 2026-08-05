@@ -1,5 +1,7 @@
 <?php
 
+use App\Domain\Identity\DefaultRoles;
+use App\Models\User;
 use App\Platform\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -71,4 +73,37 @@ function kiraciOlustur(string $alanAdi, string $ad = 'Test Markası'): Tenant
 function guardOnbelleginiTemizle(): void
 {
     auth()->forgetGuards();
+}
+
+/**
+ * Marka kurar: kiracı + varsayılan roller + sahip kullanıcı.
+ *
+ * `tenant:create` komutunun test karşılığı. Kiracı bağlamı AÇIK bırakılır.
+ *
+ * @return array{tenant: Tenant, sahip: User}
+ */
+function markaKur(string $alanAdi = 'marka-a.test'): array
+{
+    $tenant = kiraciOlustur($alanAdi);
+    tenancy()->initialize($tenant);
+
+    (new DefaultRoles)->kur();
+
+    $sahip = User::factory()->sahip()->create([
+        'email' => 'sahip@'.$alanAdi,
+        'password' => 'sifre1234',
+    ]);
+
+    return ['tenant' => $tenant, 'sahip' => $sahip];
+}
+
+/** Panel token'ı alır. */
+function panelTokeni(string $alanAdi, string $eposta, string $parola = 'sifre1234'): string
+{
+    guardOnbelleginiTemizle();
+
+    return test()->postJson("http://{$alanAdi}/panel/login", [
+        'email' => $eposta,
+        'password' => $parola,
+    ])->json('token');
 }

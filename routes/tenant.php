@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Panel\AuthController as PanelAuth;
+use App\Http\Panel\StaffController;
 use App\Http\Storefront\AuthController as VitrinAuth;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
@@ -71,6 +72,18 @@ Route::middleware([
         Route::middleware('auth:staff')->group(function () {
             Route::post('/logout', [PanelAuth::class, 'logout']);
             Route::get('/me', [PanelAuth::class, 'me']);
+
+            /*
+            | PERSONEL YÖNETİMİ — `staff.manage` izni şart.
+            | Bu izin varsayılan rollerin hiçbirinde yok; pratikte yalnızca
+            | sahip erişebiliyor. Personel davet etmek yetki yükseltmeye en
+            | yakın işlem olduğu için bilerek böyle (1A.3).
+            */
+            Route::middleware('izin:staff.manage')->group(function () {
+                Route::get('/staff', [StaffController::class, 'index']);
+                Route::post('/staff', [StaffController::class, 'store']);
+                Route::delete('/staff/{user}', [StaffController::class, 'destroy']);
+            });
         });
     });
 });

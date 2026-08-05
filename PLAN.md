@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-03**
 
 ```
-┌─ YOL HARİTASI ────────────────────────────── şu an: 1A.2  ───┐
+┌─ YOL HARİTASI ────────────────────────────── şu an: 1A.4  ───┐
 │                                                                │
 │  0 · TEMEL         git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -774,17 +774,55 @@ Müşteri token'ıyla panel ucuna erişilemiyor — testle kanıtlanıyor.
 
 #### 1A.3 İzin sistemi
 
-- [ ] İzin listesini kodda sabit tanımla: `product.view`, `product.write`, `order.view`,
-      `order.fulfill`, `order.refund`, `customer.view`, `settings.write`, `staff.manage`,
-      `finance.view`
-- [ ] Dört varsayılan rolü seed et: **Sahip · Yönetici · Katalog · Sipariş & Destek**
-- [ ] Gate/Policy katmanı — izin kontrolü tek yerden
-- [ ] `GET / POST / DELETE /panel/staff` — personel davet ve yönetimi (`staff.manage`)
-- [ ] **`is_owner` kilidi:** sahibin rolü düşürülemez, kendisi silinemez
+- [x] İzin listesi kodda sabit — `app/Enums/Permission`, 9 izin
+  > Panelden yeni izin **türü** üretilemez; roller bu listeden seçim yapar. Üretilebilseydi
+  > her izin için ayrıca "bu izin neyi kontrol ediyor" eşlemesi gerekirdi ve izin sistemi
+  > kendi başına bir projeye dönerdi (domain-model §3 kapsam sınırı).
+- [x] Varsayılan rolleri seed et — **ÜÇ rol**: Yönetici · Katalog · Sipariş & Destek
+  > ⚠️ **Plandan sapma: "Sahip" bir ROL DEĞİL.** `users.is_owner` bayrağı. Rol olsaydı
+  > sahip kendi rolünü kaldırıp markasına kilitlenebilirdi — `is_owner` tam da bunu
+  > engelleyen emniyet kilidi (domain-model §3).
+  >
+  > ⚠️ **`staff.manage` hiçbir varsayılan rolde YOK** — Yönetici'de bile. Personel davet
+  > etmek yetki yükseltmeye en yakın işlem: bir yönetici kendine ikinci hesap açıp
+  > izinlerini genişletebilirdi. Pratikte personel yönetimi yalnızca sahipte.
+  >
+  > `tenant:create` artık rolleri ve sahip kullanıcıyı da kuruyor
+  > (`--sahip-eposta`, `--sahip-parola`).
+- [x] İzin kontrolü tek yerden — `izin:` middleware (`RequirePermission`)
+  > ⚠️ **Laravel'in `can:` middleware'i (Gate) KULLANILMADI.** Gate varsayılan guard'ın
+  > kullanıcısına bakıyor; bizde varsayılan `customer`, panel uçlarında ise kimlik `staff`
+  > guard'ından geliyor — Gate yanlış kullanıcıyı sorgulardı.
+  >
+  > `User::hasPermission()` izinleri rollerden topluyor ve istek başına bir kez
+  > sorguluyor. **Sahip her izne otomatik sahip** (bkz. yukarı).
+- [x] `GET / POST / DELETE /panel/staff` — personel davet ve yönetimi (`staff.manage`)
+  > URL'de `id` değil **`uuid`** (`User::getRouteKeyName`). Roller **isimle** atanıyor
+  > (`{"roles":["Katalog"]}`) — id ile olsaydı hem okunmaz olurdu hem iç kimlikleri
+  > sızdırırdı. Olmayan rol adı `exists` kuralıyla reddediliyor; sessizce yok sayılsaydı
+  > rolsüz personel oluşur ve neden hiçbir şey göremediği anlaşılmazdı.
+- [x] **`is_owner` kilidi** — üç katman
   > **Neden:** son yöneticinin kendini yetkisiz bırakıp panele kilitlenmesini engeller.
   > Bu bir rol değil, emniyet kilidi.
-- [ ] Testler: izinsiz personel **403** alıyor · sahip kilidi çalışıyor · davet edilen
-      personel giriş yapabiliyor
+  >
+  > 1. `is_owner` `$fillable` dışında → istekle sahiplik alınamaz
+  > 2. Sahip **çıkarılamaz** → marka sahipsiz kalmaz
+  > 3. Kimse **kendini çıkaramaz** → tek yetkili kendini panelden atamaz
+  >
+  > 📌 3. kilit yalnızca marka **kendi rolünü** oluşturup ona `staff.manage` verdiğinde
+  > devreye giriyor (sahip zaten 2. kilitle korunuyor). Elle test ederken bu senaryoya
+  > ulaşılamadı — otomatik testte özel rol kurularak sınandı.
+- [x] Testler — `tests/Tenancy/IzinTest.php`, **13 test** (toplam paket: 49)
+  > sahip rolsüz ama tüm izinlere sahip · rolsüz personelin hiçbir izni yok · personel
+  > yalnızca rolünün izinlerine sahip · **Sipariş & Destek'te iade izni yok** · hiçbir
+  > varsayılan rolde `staff.manage` yok · izinsiz personel **403** · davet + rol ataması ·
+  > olmayan rol reddi · sahip çıkarılamıyor · `staff.manage`'li biri kendini çıkaramıyor ·
+  > çıkarılan personelin token'ı iptal ediliyor · müşteri token'ı personel yönetimine
+  > giremiyor
+  >
+  > **Kırmızı görüldü:** `hasPermission`'daki sahip muafiyeti kaldırılınca **6 test**
+  > kırıldı — hepsi sahibin personel yönetebilmesine dayananlar. Muafiyet olmadan sahip
+  > (rolü olmadığı için) hiçbir şey yapamıyor: öngörülen kilitlenmenin ta kendisi.
 
 #### 1A.4 Mağaza ayarları (`settings`)
 

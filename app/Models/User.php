@@ -59,6 +59,17 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * URL'lerde `id` yerine `uuid` kullanılsın.
+     *
+     * `/panel/staff/3` sıra numarası verirdi ve markanın kaç personeli
+     * olduğu dışarıdan tahmin edilebilirdi (domain-model §0).
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
+
     /** @return list<string> */
     public function uniqueIds(): array
     {
