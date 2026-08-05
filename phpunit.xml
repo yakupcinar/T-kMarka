@@ -11,6 +11,16 @@
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
         </testsuite>
+        <!--
+            Kiracı testleri AYRI paket. Sebep: RefreshDatabase her testi bir
+            transaction'a sarıyor, ama kiracı oluşturmak CREATE SCHEMA +
+            ayrı bir bağlantıda migration demek. Commit edilmemiş şemayı o
+            bağlantı göremiyor ve test patlıyor.
+            Bu paket transaction kullanmaz, temizliği kendisi yapar.
+        -->
+        <testsuite name="Tenancy">
+            <directory>tests/Tenancy</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>
@@ -22,7 +32,16 @@
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
-        <env name="CACHE_STORE" value="array"/>
+        <!--
+            Cache testlerde de REDIS. Laravel'in varsayılanı "array" ama o
+            sürücüde veri yöneticinin İÇİNDE durur; kiracı değişince paket
+            yöneticiyi değiştirdiği için veri kayboluyor ve test gerçekte
+            olmayan bir hata gösteriyor.
+            Ayrı Redis veritabanı (15) kullanılıyor ki geliştirme verisine
+            dokunulmasın — 0.4'teki SQLite/PostgreSQL kararının aynısı.
+        -->
+        <env name="CACHE_STORE" value="redis" force="true"/>
+        <env name="REDIS_CACHE_DB" value="15" force="true"/>
         <!--
             Testler de PostgreSQL'de koşar, SQLite'ta değil.
             Sebep: şema (kiracılık), citext, jsonb ve SELECT FOR UPDATE
@@ -43,7 +62,14 @@
         <env name="DB_PASSWORD" value="secret" force="true"/>
         <env name="DB_URL" value="" force="true"/>
         <env name="MAIL_MAILER" value="array"/>
-        <env name="QUEUE_CONNECTION" value="sync"/>
+        <!--
+            Kuyruk testleri gerçek Redis'e yazıyor (ayrı veritabanı: 14).
+            "sync" olsaydı iş anında, hâlâ kiracı bağlamındayken çalışırdı ve
+            asıl mekanizmayı (kimliğin işin gövdesinde taşınması) test etmezdik.
+            Ayrı veritabanı: çalışan worker test işlerini kapmasın.
+        -->
+        <env name="QUEUE_CONNECTION" value="sync" force="true"/>
+        <env name="REDIS_DB" value="14" force="true"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>

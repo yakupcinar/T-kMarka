@@ -22,3 +22,15 @@ parameters:
         - database
         - routes
         - tests
+
+    ignoreErrors:
+        # Pest'te $this çalışma anında Tests\TestCase'e bağlanır
+        # (tests/Pest.php → pest()->extend(...)). Statik analiz kodu
+        # çalıştırmadan incelediği için bu bağlamayı göremiyor ve
+        # $this->get() gibi Laravel test yardımcılarını tanımıyor.
+        #
+        # Kapsam SADECE tests/ — uygulama kodunda bu kural geçerli değil,
+        # orada gerçek bir "olmayan metot" hatası yakalanmaya devam eder.
+        -
+            message: '#Call to an undefined method PHPUnit\\Framework\\TestCase::#'
+            path: tests/*

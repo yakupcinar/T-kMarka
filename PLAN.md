@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-03**
 
 ```
-┌─ YOL HARİTASI ────────────────────────────── şu an: Faz 0.5 ───┐
+┌─ YOL HARİTASI ────────────────────────────── şu an: Faz 0.6 ───┐
 │                                                                │
 │  0 · TEMEL         git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -256,10 +256,17 @@ kanıtlanıyor**; CI yeşil dönüyor.
 
 ### 0.5 Kiracılık zemini ← **bu bloğun kalbi**
 
-- [ ] **Kiracı testleri için düzen kur:** test başında geçici şema oluşturulsun, sonunda
-      düşürülsün
+- [x] **Kiracı testleri için düzen kur** — ayrı test paketi: `tests/Tenancy/`
   > **Neden 0.4'ten buraya taşındı:** bu düzen `stancl/tenancy`'ye dayanıyor, paket
   > kurulmadan yazılamaz. 0.4'te planlanmıştı, gerçekle çeliştiği için taşındı (kural 4).
+  >
+  > ⚠️ **`RefreshDatabase` ile çalışmıyor, denendi ve hata alındı:**
+  > `SQLSTATE[3F000] Invalid schema name`. Sebep: `RefreshDatabase` testi transaction'a
+  > sarıyor, `Tenant::create()` içindeki `CREATE SCHEMA` commit edilmemiş oluyor, marka
+  > migration'ları ise **ayrı bir bağlantıda** (`tenant`) koştuğu için o şemayı göremiyor.
+  >
+  > **Çözüm:** `tests/Tenancy/` ayrı `phpunit.xml` paketi, transaction yok, temizlik
+  > `afterEach`'te (kiracıları sil → şemalar düşer, cache temizle).
 - [~] `stancl/tenancy` kur, **şema bazlı** (`PostgreSQLSchemaManager`) yapılandır (M-2)
   - [x] paket kuruldu — **v3.10.0**
   - [x] **Laravel 12 uyumu doğrulandı:** paketin `composer.json`'ı
@@ -371,13 +378,32 @@ kanıtlanıyor**; CI yeşil dönüyor.
   > ⚠️ **M-4.1/1 — bu uç olmadan on-demand TLS açılmaz.** Açılırsa IP'mize yönlendirilen
   > her alan adı için sertifika alınmaya çalışılır ve kotamız yanar.
 - [ ] `app/` dizin yapısını kur (M-2.7): `Platform/`, `Tenancy/`, `Domain/`, `Http/`
-- [ ] **Testler — bu bloğun asıl çıktısı:**
-  - [ ] İki kiracı oluşturuluyor, ikisinin de şeması geliyor
-  - [ ] A kiracısında yaratılan kayıt B kiracısından **görünmüyor**
-  - [ ] Tanımsız alan adı **404** dönüyor
-  - [ ] Kuyruğa atılan iş **doğru kiracının** şemasında çalışıyor
-  - [ ] Aynı cache anahtarı iki kiracıda **farklı değer** dönüyor
-  - [ ] Bir istek sonrası `search_path` sıfırlanmış oluyor
+- [x] **Testler — bu bloğun asıl çıktısı** · `tests/Tenancy/` · **20 test yeşil**
+  - [x] İki kiracı oluşturuluyor, ikisinin de şeması geliyor
+  - [x] Marka tabloları her şemada ayrı ayrı kuruluyor
+  - [x] A kiracısında yaratılan kayıt B kiracısından **görünmüyor**
+  - [x] Aynı e-posta iki markada ayrı ayrı kullanılabiliyor (`unique` şema içinde)
+  - [x] Tanımsız alan adı **404** dönüyor · merkez adres kiracı çözümlemesi yapmıyor
+  - [x] Kuyruğa atılan işin **gövdesinde kiracı kimliği** taşınıyor; merkez bağlamda
+        atılan işte taşınmıyor
+  - [x] Aynı cache anahtarı iki kiracıda **farklı değer** dönüyor
+  - [x] Aynı dosya adı iki kiracıda **ayrı klasöre** yazılıyor
+  - [x] Kiracıdan çıkınca merkez bağlama dönülüyor
+  - [x] `domain-check` ucu: kayıtlı 200 · kayıtsız 404 · boş 404 · BÜYÜK harfli 200
+
+> **Kırmızı görüldü.** `config/tenancy.php`'den `CacheTenancyBootstrapper` kapatıldığında
+> **yalnızca** cache testi kırıldı, diğer 15'i geçmeye devam etti. Testler gerçekten
+> koruyor ve kırılan test problemin yerini söylüyor.
+>
+> ⚠️ **Test ortamı gerçeğe uyduruldu — 0.4'teki SQLite tuzağının aynısı çıktı.**
+> `phpunit.xml`'de `CACHE_STORE=array` vardı; o sürücüde veri yöneticinin *içinde*
+> durduğu için kiracı değişince paket yöneticiyi değiştirince veri kayboluyor ve test
+> **gerçekte olmayan bir hata** gösteriyordu. Testler artık gerçek Redis kullanıyor
+> (ayrı veritabanları: cache 15, kuyruk 14 — çalışan `worker` test işlerini kapmasın).
+>
+> 📌 `phpstan.neon`'a `tests/*` kapsamlı tek istisna eklendi: Pest'te `$this` çalışma
+> anında bağlandığı için statik analiz `$this->get()`'i tanımıyor. Uygulama kodunda
+> kural aynen geçerli.
 
 ### 0.6 Sürekli entegrasyon (CI)
 

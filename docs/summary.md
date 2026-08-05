@@ -89,5 +89,16 @@ test        arayüz yok → testler gözümüz
          migrate --pretend → SQL'i çalıştırmadan gösterir
          test bilerek kırmızıya düşürüldü — 4 testten 1'i kırıldı
          BULGU: timestamps() → timestamptz DEĞİL, 1A.1'e uyarı yazıldı
-0.5  ⏳  kiracılık zemini (stancl/tenancy, şema bazlı)
+0.5  ✅  kiracılık zemini — stancl/tenancy 3.10, ŞEMA bazlı
+         landlord/ + tenant/ migration ayrımı · kök bilerek boş
+         kapı görevlisi: host → domains → search_path (routes/tenant.php)
+         BEŞ TUZAK ölçülerek doğrulandı; belgedeki 3 tarif yanlıştı, düzeltildi
+           search_path: bağlantı purge · cache: TAG (Redis şart)
+           dosya: storage/tenant<id>/ · kuyruk: tenant_id iş gövdesinde
+           zamanlanmış: tenants:run + scheduler servisi (ikisi de yoktu)
+         GERÇEK SIZINTI: bayat worker → işler merkez klasöre yazdı, hata yok
+         tenant:create komutu · Caddy domain-check ucu
+         tests/Tenancy/ ayrı paket (RefreshDatabase transaction'ı şemayı bozuyor)
+         20 test yeşil · kırmızı görüldü (bootstrapper kapatınca 1 test kırıldı)
+0.6  ⏳  CI — GitHub Actions
 ```
