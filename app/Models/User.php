@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Permission;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -9,6 +10,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
@@ -24,6 +27,7 @@ class User extends Authenticatable
 
     /** @use HasFactory<UserFactory> */
     use HasFactory;
+
     use HasUuids;
     use SoftDeletes;
 
@@ -86,6 +90,44 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Role::class);
     }
+
+    /**
+     * Bu personelin sahip olduğu izinler — rollerinden toplanmış.
+     *
+     * İstek başına bir kez sorgulanır. Önbellek olmasaydı her yetki kontrolü
+     * ayrı bir sorgu açardı; tek bir panel sayfasında onlarca kontrol olabilir.
+     *
+     * @return Collection<int, string>
+     */
+    public function izinler(): Collection
+    {
+        return $this->izinOnbellegi ??= DB::table('role_permissions')
+            ->whereIn('role_id', $this->roles()->pluck('roles.id'))
+            ->distinct()
+            ->pluck('permission');
+    }
+
+    /**
+     * Yetki kontrolü — tek kapı.
+     *
+     * ⚠️ SAHİP her izne otomatik sahiptir. Olmasaydı sahip kendi rolünden
+     * `staff.manage` iznini kaldırdığında bir daha personel yönetimine
+     * giremez, yani kendi markasına kilitlenirdi. `is_owner` bir rol değil,
+     * bu yüzden emniyet kilidi (docs/domain-model.md §3).
+     */
+    public function hasPermission(Permission|string $izin): bool
+    {
+        if ($this->is_owner) {
+            return true;
+        }
+
+        $deger = $izin instanceof Permission ? $izin->value : $izin;
+
+        return $this->izinler()->contains($deger);
+    }
+
+    /** @var Collection<int, string>|null */
+    private ?Collection $izinOnbellegi = null;
 
     /** Token tabanlı kimlik (K-12) — `remember_token` kolonu da yok. */
     protected $rememberTokenName = null;

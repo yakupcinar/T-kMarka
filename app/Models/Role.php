@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Permission;
 use Database\Factories\RoleFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -70,5 +71,30 @@ class Role extends Model
             ->where('role_id', $this->id)
             ->orderBy('permission')
             ->pluck('permission');
+    }
+
+    /**
+     * Rolün izinlerini verilen listeyle DEĞİŞTİRİR (ekleme değil, eşitleme).
+     *
+     * Sil-ve-ekle yapılıyor: `role_permissions` bir varlık tablosu değil,
+     * role bağlı değer listesi. Fark hesaplamak yerine listeyi yenilemek
+     * hem daha kısa hem de "panelde ne seçiliyse o geçerli" davranışını
+     * doğrudan veriyor.
+     *
+     * @param  list<Permission|string>  $izinler
+     */
+    public function syncPermissions(array $izinler): void
+    {
+        DB::table('role_permissions')->where('role_id', $this->id)->delete();
+
+        $satirlar = collect($izinler)
+            ->map(fn (Permission|string $izin) => $izin instanceof Permission ? $izin->value : $izin)
+            ->unique()
+            ->map(fn (string $izin) => ['role_id' => $this->id, 'permission' => $izin])
+            ->all();
+
+        if ($satirlar !== []) {
+            DB::table('role_permissions')->insert($satirlar);
+        }
     }
 }
