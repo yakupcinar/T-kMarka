@@ -59,7 +59,20 @@ class CreateTenant extends Command
         // Zincir: app/Providers/TenancyServiceProvider.php → events()
         $tenant = Tenant::create(['name' => $ad]);
 
-        $tenant->domains()->create(['domain' => $alanAdi]);
+        // ⚠️ Buradan sonrası patlarsa ortada ÖKSÜZ kiracı kalır: satır ve şema
+        // oluşmuş ama alan adı yok → marka hiçbir adresten erişilemez, üstelik
+        // sorun HTTP denenene kadar fark edilmez. (1A.1'de bu gerçekten yaşandı:
+        // migration hata verdi, alan adı satırına hiç sıra gelmedi.)
+        // Bu yüzden hata olursa yarım kalan kiracıyı temizliyoruz.
+        try {
+            $tenant->domains()->create(['domain' => $alanAdi]);
+        } catch (\Throwable $e) {
+            $tenant->delete();   // şemayı da düşürür
+            $this->error('Marka oluşturulamadı, yarım kalan kayıt temizlendi:');
+            $this->error($e->getMessage());
+
+            return self::FAILURE;
+        }
 
         // TODO(1A): varsayılan ayarlar — KDV oranı, kargo ücreti, yasal metinler
         // TODO(1A): sahip kullanıcı oluştur ve e-posta ile davet gönder

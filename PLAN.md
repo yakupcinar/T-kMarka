@@ -667,6 +667,21 @@ Müşteri token'ıyla panel ucuna erişilemiyor — testle kanıtlanıyor.
   > 1B–1F'de tek satır tekrar yazılmaz.
 - [ ] `tenants:migrate` ve `tenants:migrate:fresh` sorunsuz çalışıyor
 
+> ✅ **1A.1 — customers ve users tabloları yazıldı.** Yol boyunca iki ek düzeltme:
+>
+> **1. `domains.domain`'e de küçük harf `CHECK`'i eklendi** (`landlord/` altında ayrı
+> migration; paketin kendi dosyasına dokunulmadı). Tutarlılık için: `customers.email` ve
+> `users.email` veritabanı garantisi alıyorsa alan adı da almalı.
+> ⚠️ Buradaki risk daha ağır: `'Marka-A.com'` ve `'marka-a.com'` iki ayrı satır olarak
+> **farklı markalara** bağlanabilirdi → gelen istek hangisine eşleşirse o markanın
+> mağazası açılır, yani **yanlış marka servis edilir**. Faz 3'te alan adı web formundan
+> geleceği için garanti koda değil veritabanına konuldu.
+>
+> **2. `tenant:create` yarıda kalırsa artık arkasını topluyor.** 1A.1'de gerçekten yaşandı:
+> marka migration'ı hata verdi, `domains` satırına sıra gelmedi ve ortada **öksüz kiracı**
+> kaldı — şeması var, hiçbir adresten erişilemiyor. Üstelik HTTP denenene kadar fark
+> edilmedi. Artık hata olursa kiracı siliniyor (şeması da düşüyor), çıkış kodu 1.
+
 #### 1A.2 Kimlik doğrulama uçları
 
 - [ ] Müşteri: `POST /api/register` · `POST /api/login` · `POST /api/logout` · `GET /api/me`
