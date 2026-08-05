@@ -34,3 +34,11 @@ parameters:
         -
             message: '#Call to an undefined method PHPUnit\\Framework\\TestCase::#'
             path: tests/*
+
+        # tests/Pest.php'deki yardımcılar Pest'in `test()` fonksiyonunu kullanıyor;
+        # o da çalışma anında test örneğini döndürüyor. Statik analiz bu bağlamayı
+        # göremiyor. Kapsam TEK DOSYA — gerçek yazım hataları diğer test
+        # dosyalarında yakalanmaya devam ediyor.
+        -
+            message: '#Call to an undefined method Pest\\#'
+            path: tests/Pest.php

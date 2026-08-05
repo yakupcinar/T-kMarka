@@ -97,7 +97,17 @@ function markaKur(string $alanAdi = 'marka-a.test'): array
     return ['tenant' => $tenant, 'sahip' => $sahip];
 }
 
-/** Panel token'ı alır. */
+/**
+ * Panel token'ı alır.
+ *
+ * `test()` Pest'in çalışma anındaki test örneğini veriyor. Statik analiz bu
+ * bağlamayı göremediği için `postJson` tanımsız görünüyor — `phpstan.neon`'da
+ * YALNIZCA BU DOSYA için istisna tanımlı.
+ *
+ * Test örneğini parametre olarak almak da denendi: Pest testlerinde `$this`
+ * `PHPUnit\Framework\TestCase` olarak görünüyor, `Tests\TestCase` beklentisiyle
+ * uyuşmuyor ve sorun 1 hatadan 8'e çıkıyor.
+ */
 function panelTokeni(string $alanAdi, string $eposta, string $parola = 'sifre1234'): string
 {
     guardOnbelleginiTemizle();
