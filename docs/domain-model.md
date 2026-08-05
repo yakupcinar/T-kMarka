@@ -93,7 +93,14 @@ M-2 gereği tek veritabanı, kiracı başına ayrı şema. Model iki ayrı düny
 | Alan | Tip | Not |
 |------|-----|-----|
 | tenant_id | FK | |
-| domain | citext unique | `markam.com`, `panel.markam.com`, `markam.tikmarka.com` |
+| domain | varchar(255) unique | `markam.com`, `panel.markam.com`, `markam.tikmarka.com` |
+
+> **`citext` değil — ve gerek de yok.** Paketin migration'ı `varchar` oluşturuyor.
+> Büyük/küçük harf güvencesi iki taraftan geliyor:
+> **girdi** — Symfony'nin `Request::getHost()` metodu `Host` başlığını zaten küçültüyor
+> (RFC 952/2181, `vendor/symfony/http-foundation/Request.php:1183`);
+> **saklama** — `tenant:create` küçültüyor + `CHECK (domain = lower(domain))` garanti veriyor.
+> İki taraf da küçük harf olduğu için harf farkından kaynaklanan eşleşmeme oluşamıyor.
 | is_primary | boolean | vitrinin kanonik adresi — yönlendirme buraya yapılır |
 
 > Bir kiracının birden çok alan adı olur: kalıcı adres, `www` varyantı, panel alt alan adı
