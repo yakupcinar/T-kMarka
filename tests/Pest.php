@@ -56,3 +56,19 @@ function kiraciOlustur(string $alanAdi, string $ad = 'Test Markası'): Tenant
 
     return $tenant;
 }
+
+/**
+ * Guard önbelleğini temizler.
+ *
+ * ⚠️ Yalnızca TEST ortamında gerekli. Gerçek HTTP'de her istek yeni bir PHP
+ * süreci olduğu için guard sıfırdan kurulur. Testlerde ise bütün istekler
+ * aynı süreçte koşuyor ve konteynerdeki guard nesnesi, bir önceki istekte
+ * çözdüğü kullanıcıyı önbellekte tutuyor — bu da bir sonraki isteğe sızıyor.
+ *
+ * Doğrulandı: aynı senaryo gerçek HTTP'de (curl) doğru davranıyor;
+ * A markasının token'ı B markasında 401 alıyor.
+ */
+function guardOnbelleginiTemizle(): void
+{
+    auth()->forgetGuards();
+}

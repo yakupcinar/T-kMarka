@@ -739,14 +739,38 @@ Müşteri token'ıyla panel ucuna erişilemiyor — testle kanıtlanıyor.
 - [x] `config/auth.php` — iki guard, iki provider (yukarıda 1A.0'daki kanıt)
 - [x] `HasApiTokens` iki modele de eklendi
 
-- [ ] Müşteri: `POST /api/register` · `POST /api/login` · `POST /api/logout` · `GET /api/me`
-- [ ] Personel: `POST /panel/login` · `POST /panel/logout` · `GET /panel/me`
+- [x] Müşteri: `POST /api/register` · `POST /api/login` · `POST /api/logout` · `GET /api/me`
+  > `api` middleware grubu kullanıldı, `web` değil — `web` oturum ve CSRF getirir,
+  > token istemcisi CSRF üretemediği için her POST kırılırdı.
+- [x] Personel: `POST /panel/login` · `POST /panel/logout` · `GET /panel/me`
+  > Soft delete edilmiş personel giriş yapamıyor (Eloquent zaten
+  > `deleted_at IS NULL` ekliyor). `panel/me` cevabında `roles` **yok** — izin
+  > sistemi 1A.3'te; şimdi eklenseydi kuralı olmayan bir alanı API sözleşmesine
+  > sokmuş olurduk.
   > Personelde **kayıt ucu yok** — personel davetle gelir (1A.3).
-- [ ] Giriş ve kayıt uçlarına **hız sınırlama** (throttle)
+- [x] Giriş ve kayıt uçlarına **hız sınırlama** — `giris` 5/dk, `kayit` 10/saat
+  > `giris` anahtarı **e-posta + IP birlikte**. Sadece IP olsaydı ortak ağdaki
+  > (okul, ofis) kullanıcılar birbirini kilitlerdi; sadece e-posta olsaydı saldırgan
+  > farklı adreslerle sınırsız deneme yapardı. Elle doğrulandı: 429 dönüyor.
   > **Neden:** kaba kuvvet saldırısının en ucuz önlemi. M-4.1/3 gereği hız sınırlama
   > vekilde değil burada yapılıyor — bu yüzden atlanamaz.
-- [ ] Testler: başarılı kayıt · yinelenen e-posta reddi · yanlış parola · geçersiz token
-- [ ] **Kritik test:** müşteri token'ı ile `/panel/*` ucuna erişim **401/403** dönüyor
+- [x] Testler — `tests/Tenancy/KimlikTest.php`, **16 test**
+  > başarılı kayıt · e-posta küçültme/kırpma · yinelenen e-posta (BÜYÜK harfle de) ·
+  > eksik alan · doğru/yanlış parola · **yanlış parola ile olmayan hesabın AYNI mesajı**
+  > (hesap sayımı engeli) · misafir giriş yapamıyor · tokensiz 401 · çıkış sonrası token
+  > geçersiz · silinmiş personel giremiyor · panelde kayıt ucu yok
+  >
+  > **Plana ek olarak iki test:** A markasının müşterisi B'de giriş yapamıyor ·
+  > A'nın token'ı B'de geçersiz (kiracılık × kimlik kesişimi, daha önce hiç sınanmamıştı).
+- [x] **Kritik test:** müşteri token'ı ile `/panel/*` → **401** · personel token'ı ile
+      `/api/*` → **401**
+  > **Kırmızı görüldü:** `auth:staff` → `auth:customer` yapıldığında **yalnızca bu test**
+  > kırıldı, diğer 16'sı geçmeye devam etti.
+  >
+  > ⚠️ **Test ortamı yapaylığı çıktı ve belgelendi:** testlerde bütün istekler aynı PHP
+  > sürecinde koşuyor ve konteynerdeki guard nesnesi bir önceki isteğin kullanıcısını
+  > önbellekte tutuyor. Gerçek HTTP'de her istek yeni süreç olduğu için sorun yok —
+  > `curl` ile doğrulandı. Testlerde `guardOnbelleginiTemizle()` kullanılıyor.
 
 #### 1A.3 İzin sistemi
 
