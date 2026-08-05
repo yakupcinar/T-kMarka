@@ -27,8 +27,10 @@ class DomainCheckController
     {
         $domain = strtolower(trim((string) $request->query('domain', '')));
 
-        // BOZULDU (bilerek): kayıt kontrolü kaldırıldı, her adrese 200 dönüyor.
-        // CI bunu yakalamalı.
+        if ($domain === '' || ! Domain::where('domain', $domain)->exists()) {
+            return response('', 404);
+        }
+
         return response('', 200);
     }
 }
