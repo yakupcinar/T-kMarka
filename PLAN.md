@@ -659,10 +659,21 @@ Müşteri token'ıyla panel ucuna erişilemiyor — testle kanıtlanıyor.
 - [ ] `settings` — `group`, `key`, `value` (jsonb), `is_encrypted`
 - [ ] `addresses`
 - [ ] Modeller + ilişkiler
-- [ ] Enum sınıfları: `CustomerStatus`, `OrderPaymentStatus` (şimdiden), `SettingGroup`
+- [x] Enum sınıfı: **`SettingGroup`** (`app/Enums/`)
   > **Neden:** durumları serbest metin yerine PHP enum'u olarak tanımlamak yazım hatasını
-  > statik analizde yakalatır.
-- [ ] Factory'ler: `CustomerFactory`, `UserFactory`, `AddressFactory`
+  > yazım anında yakalatır. Denendi: `'payments'` (fazladan s) yazınca `ValueError`
+  > fırlıyor. Enum olmasaydı satır kaydedilir, panelde ödeme ayarları **boş liste** olarak
+  > görünür ve hiçbir hata çıkmazdı.
+  >
+  > ⚠️ **Plandan sapma — diğer iki enum yazılmadı:**
+  > `CustomerStatus` **tamamen düşürüldü**: `customers` tablosunda böyle bir kolon yok,
+  > `docs/domain-model.md` §3'te de tasarlanmamış. Spekülatif bir maddeydi.
+  > `OrderPaymentStatus` **1D'ye taşındı**: `orders` tablosu orada oluşacak. Şimdi
+  > yazılsaydı tüketicisi olmayan, test edilemeyen ve 1D'de muhtemelen değişecek bir sınıf
+  > olurdu — plan kuralı 2 (her madde doğrulanabilir olmalı) ve 5 (kapsam genişletme
+  > yasağı) ile çelişirdi.
+- [x] Factory'ler: `CustomerFactory` (misafir/pazarlamaIzinli), `UserFactory` (sahip),
+      `AddressFactory` (müşterisini kendisi üretir), `RoleFactory` (sistem), `SettingFactory` (şifreli)
   > **Neden:** sonraki her blokta test verisi buradan üretilecek. Şimdi doğru kurulursa
   > 1B–1F'de tek satır tekrar yazılmaz.
 - [ ] `tenants:migrate` ve `tenants:migrate:fresh` sorunsuz çalışıyor

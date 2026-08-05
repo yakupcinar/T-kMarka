@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SettingGroup;
 use Database\Factories\SettingFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -32,6 +33,11 @@ class Setting extends Model
     {
         return [
             'is_encrypted' => 'boolean',
+
+            // Grup adı serbest metin değil. 'payment' yerine 'payments'
+            // yazılan tek satır, ödeme ayarlarının panelde görünmemesine
+            // yol açardı — hata da vermeden, boş liste dönerek.
+            'group' => SettingGroup::class,
         ];
     }
 

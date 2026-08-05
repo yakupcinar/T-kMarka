@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\SettingGroup;
 use App\Models\Setting;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -16,7 +17,7 @@ class SettingFactory extends Factory
     {
         // ⚠ is_encrypted, value'dan ÖNCE geliyor — model bunu şart koşuyor.
         return [
-            'group' => 'store',
+            'group' => SettingGroup::Store,
             'key' => fake()->unique()->slug(2),
             'is_encrypted' => false,
             'value' => fake()->word(),
@@ -27,7 +28,7 @@ class SettingFactory extends Factory
     public function sifreli(): static
     {
         return $this->state(fn () => [
-            'group' => 'payment',
+            'group' => SettingGroup::Payment,
             'is_encrypted' => true,
         ]);
     }
