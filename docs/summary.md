@@ -110,5 +110,17 @@ test        arayüz yok → testler gözümüz
            → statik analiz iş kuralı hatasını göremez, yalnızca test yakalar
 0.7  ✅  README (0.4b'den önce yazılmıştı) + CI rozeti
 
-════ FAZ 0 BİTTİ ════  iş mantığı hâlâ SIFIR — sıradaki: Faz 1A
+════ FAZ 0 BİTTİ ════  iş mantığı hâlâ SIFIR
+
+1A.1 ~~  marka şeması tabloları (migration'lar)
+         customers  email NULL olabilir → misafir sipariş
+         users      personel · is_owner emniyet kilidi
+         roles + role_user + role_permissions  ilk FK'ler, pivot
+         settings   anahtar-değer + jsonb · is_encrypted (ödeme anahtarları)
+         addresses  DEFTER — sipariş adresi değil, siparişe KOPYALANIR
+         BULGU: citext marka şemasında çalışmıyor (eklenti public'te,
+                search_path görmüyor, sessizce düz metne düşüyor)
+                → sınırda küçültme + CHECK (email = lower(email))
+         domains.domain'e de aynı CHECK eklendi (tutarlılık)
+         tenant:create yarıda kalırsa artık arkasını topluyor
 ```
