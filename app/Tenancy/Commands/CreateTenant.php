@@ -2,6 +2,8 @@
 
 namespace App\Tenancy\Commands;
 
+use App\Domain\Identity\DefaultRoles;
+use App\Models\User;
 use App\Platform\Models\Tenant;
 use Illuminate\Console\Command;
 use Stancl\Tenancy\Database\Models\Domain;
@@ -23,7 +25,9 @@ class CreateTenant extends Command
      */
     protected $signature = 'tenant:create
                             {ad : Markanın adı (ör. "A Markası")}
-                            {alan-adi : Markanın alan adı (ör. marka-a.localhost)}';
+                            {alan-adi : Markanın alan adı (ör. marka-a.localhost)}
+                            {--sahip-eposta= : Sahip kullanıcının e-postası (varsayılan: sahip@<alan-adi>)}
+                            {--sahip-parola=123 : Sahip kullanıcının parolası}';
 
     protected $description = 'Yeni marka açar: şema oluşturur, tablolarını kurar, alan adını bağlar.';
 
@@ -74,18 +78,41 @@ class CreateTenant extends Command
             return self::FAILURE;
         }
 
-        // TODO(1A): varsayılan ayarlar — KDV oranı, kargo ücreti, yasal metinler
-        // TODO(1A): sahip kullanıcı oluştur ve e-posta ile davet gönder
+        /*
+        | Roller ve sahip kullanıcı MARKA ŞEMASINDA oluşturulmalı.
+        | `run()` kiracı bağlamını açıp kapatıyor; olmasaydı bu kayıtlar
+        | merkez şemaya gitmeye çalışır ve "tablo yok" hatası alınırdı.
+        */
+        $sahipEposta = mb_strtolower(trim(
+            (string) ($this->option('sahip-eposta') ?: "sahip@{$alanAdi}")
+        ));
+        $sahipParola = (string) $this->option('sahip-parola');
+
+        $tenant->run(function () use ($ad, $sahipEposta, $sahipParola) {
+            (new DefaultRoles)->kur();
+
+            User::create([
+                'name' => $ad.' Sahibi',
+                'email' => $sahipEposta,
+                'password' => $sahipParola,
+            ])->forceFill(['is_owner' => true])->save();
+            // ⚠️ `is_owner` $fillable dışında (istekle sahiplik alınamasın diye),
+            // bu yüzden forceFill ile atanıyor — güvenilir yerden.
+        });
+
+        // TODO(1A.4): varsayılan ayarlar — KDV oranı, kargo ücreti, yasal metinler
         // TODO(Faz 3): durum alanı (provisioning → active) ve abonelik kaydı
         // TODO(Faz 3): tenant:delete komutu — kiracı silinince şeması düşüyor
         //              ama storage/tenant<kimlik>/ klasörü diskte kalıyor.
 
         $this->newLine();
         $this->line("  kimlik   : {$tenant->id}");
+        $this->line("  sahip    : {$sahipEposta}  (parola: {$sahipParola})");
         $this->line('  şema     : '.$tenant->database()->getName());
         $this->line("  adres    : https://{$alanAdi}");
         $this->newLine();
-        $this->warn('Eksik: varsayılan ayarlar ve sahip kullanıcı (Faz 1A).');
+        $this->warn('⚠ Sahip parolası komut satırında görünüyor — ilk girişte değiştirilmeli.');
+        $this->warn('Eksik: varsayılan mağaza ayarları (1A.4).');
 
         return self::SUCCESS;
     }
