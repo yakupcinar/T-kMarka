@@ -1,0 +1,28 @@
+<?php
+
+namespace Database\Factories;
+
+use App\Models\Role;
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+/**
+ * @extends Factory<Role>
+ */
+class RoleFactory extends Factory
+{
+    protected $model = Role::class;
+
+    public function definition(): array
+    {
+        return [
+            'name' => fake()->unique()->jobTitle(),
+            'is_system' => false,
+        ];
+    }
+
+    /** Kurulumda gelen, silinemeyen rol. */
+    public function sistem(): static
+    {
+        return $this->state(fn () => ['is_system' => true]);
+    }
+}
