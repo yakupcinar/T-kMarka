@@ -100,5 +100,15 @@ test        arayüz yok → testler gözümüz
          tenant:create komutu · Caddy domain-check ucu
          tests/Tenancy/ ayrı paket (RefreshDatabase transaction'ı şemayı bozuyor)
          20 test yeşil · kırmızı görüldü (bootstrapper kapatınca 1 test kırıldı)
-0.6  ⏳  CI — GitHub Actions
+0.6  ✅  CI — GitHub Actions (.github/workflows/ci.yml)
+         her push + PR: lint:check · analyse · test
+         postgres 17 + redis servisleri · citext elle kuruluyor
+         phpunit.xml'de DB_HOST force KALDIRILDI (yerel: postgres, CI: 127.0.0.1)
+         if: always() → üç kontrol de çalışır, biçim hatası testleri gizlemesin
+         KIRMIZI GÖRÜLDÜ: ✅→❌→❌→✅
+           Pint ✗ biçim · Larastan ✓ tip doğru · Pest ✗ mantık yanlış
+           → statik analiz iş kuralı hatasını göremez, yalnızca test yakalar
+0.7  ✅  README (0.4b'den önce yazılmıştı) + CI rozeti
+
+════ FAZ 0 BİTTİ ════  iş mantığı hâlâ SIFIR — sıradaki: Faz 1A
 ```

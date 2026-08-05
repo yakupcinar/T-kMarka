@@ -1,5 +1,7 @@
 # TıkMarka
 
+[![CI](https://github.com/yakupcinar/T-kMarka/actions/workflows/ci.yml/badge.svg)](https://github.com/yakupcinar/T-kMarka/actions/workflows/ci.yml)
+
 Tek markanın kendi müşterisine sattığı e-ticaret uygulaması (D2C) — **çok kiracılı**
 kurulmuş: aynı kod tabanı N markaya hizmet eder, her marka kendi alan adında, kendi
 verisiyle.

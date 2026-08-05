@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-03**
 
 ```
-┌─ YOL HARİTASI ────────────────────────────── şu an: Faz 0.6 ───┐
+┌─ YOL HARİTASI ────────────────────────────── şu an: Faz 1A ───┐
 │                                                                │
 │  0 · TEMEL         git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -423,8 +423,22 @@ kanıtlanıyor**; CI yeşil dönüyor.
   > varsayımına dayanıyordu. Bizim iş akışımız imaj build etmiyor: PHP'yi `setup-php`
   > ile kuruyor, `postgres`/`redis`'i GitHub'ın servis mekanizması yönetiyor.
   > Anonim indirme kotası riski yok. (Plan kuralı 4)
-- [ ] Bilerek bozuk bir kod atıp CI'ın **kırmızı** döndüğünü doğrula, sonra düzelt
+- [x] Bilerek bozuk bir kod atıp CI'ın **kırmızı** döndüğünü doğrula, sonra düzelt
   > **Neden:** hiç kırmızı görmediğin bir CI, gerçekten çalıştığını kanıtlamaz.
+  >
+  > **Yapıldı:** `DomainCheckController`'daki kayıt kontrolü kaldırıldı, gönderildi.
+  > Geçmiş: ✅ → ❌ → ❌ → ✅
+  >
+  > ⚠️ **İlk kırmızıda bir eksik ortaya çıktı:** adımlar ilk hatada duruyordu, biçim
+  > hatası testlere sıra gelmesini engelledi. Önemsiz bir boşluk sorunu asıl mantık
+  > hatasını gizliyordu. `if: always()` eklendi — üç kontrol de çalışıyor, iş yine
+  > kırmızı dönüyor ama bütün resim tek bakışta görünüyor.
+  >
+  > **Üç aracın farklı iş yaptığı kanıtlandı:**
+  > `Pint ✗` biçim · `Larastan ✓` tip doğru, hata bulamadı · `Pest ✗` mantık yanlış.
+  > Kod tip olarak doğru ama iş kuralı yanlıştı — statik analiz bunu **göremez**,
+  > yalnızca test yakalar.
+- [x] README'ye CI rozeti eklendi
 
 ### 0.7 Belgeler
 
