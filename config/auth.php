@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Customer;
 use App\Models\User;
 
 return [
@@ -16,7 +17,7 @@ return [
     */
 
     'defaults' => [
-        'guard' => env('AUTH_GUARD', 'web'),
+        'guard' => env('AUTH_GUARD', 'customer'),
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
     ],
 
@@ -38,9 +39,30 @@ return [
     */
 
     'guards' => [
-        'web' => [
-            'driver' => 'session',
-            'provider' => 'users',
+        /*
+        | İKİ AYRI KİMLİK ALANI (1A.0).
+        |
+        | Müşteri ve personel farklı tablolarda, farklı yüzeylerden giriyor.
+        | Tek guard olsaydı "bu token hangi tabloya ait" sorusu her istekte
+        | tekrar sorulur ve bir gün biri unuturdu. Ayrı guard bu soruyu
+        | rotanın kendisinde cevaplıyor: `auth:staff` yazan bir uca müşteri
+        | token'ı giremez.
+        |
+        | İkisi de `sanctum` sürücüsü: kimlik doğrulama token tabanlı (K-12).
+        | Oturum çerezi kullanılmıyor — panel ileride ayrı alt alan adına
+        | taşınırsa çerez kapsamı sorun çıkarırdı.
+        */
+
+        // Vitrin tarafı — markanın müşterisi
+        'customer' => [
+            'driver' => 'sanctum',
+            'provider' => 'customers',
+        ],
+
+        // Panel tarafı — markanın personeli
+        'staff' => [
+            'driver' => 'sanctum',
+            'provider' => 'staff',
         ],
     ],
 
@@ -62,15 +84,22 @@ return [
     */
 
     'providers' => [
-        'users' => [
+        /*
+        | Provider = "kullanıcıyı nereden bulacağız".
+        | İkisi de marka şemasındaki tablolara bakıyor; hangi markanınki
+        | olduğu sorusu burada sorulmuyor — `search_path` zaten belirlemiş
+        | oluyor (M-2.1).
+        */
+
+        'customers' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', User::class),
+            'model' => Customer::class,
         ],
 
-        // 'users' => [
-        //     'driver' => 'database',
-        //     'table' => 'users',
-        // ],
+        'staff' => [
+            'driver' => 'eloquent',
+            'model' => User::class,
+        ],
     ],
 
     /*

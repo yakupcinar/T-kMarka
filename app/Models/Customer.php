@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Laravel\Sanctum\HasApiTokens;
 
 /**
  * Markanın MÜŞTERİSİ — vitrin tarafından giriş yapan kişi.
@@ -19,9 +20,10 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
  */
 class Customer extends Authenticatable
 {
+    use HasApiTokens;
+
     /** @use HasFactory<CustomerFactory> */
     use HasFactory;
-
     use HasUuids;
     use SoftDeletes;
 
