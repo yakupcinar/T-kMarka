@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Panel\AuthController as PanelAuth;
 use App\Http\Storefront\AuthController as VitrinAuth;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
@@ -57,7 +58,19 @@ Route::middleware([
 
     /*
     | PANEL — markanın personeli
-    | 1A.2'nin ikinci yarısında yazılacak. Kayıt ucu OLMAYACAK:
-    | personel davetle gelir (1A.3).
+    |
+    | ⚠️ KAYIT UCU YOK ve olmayacak. Personel davetle gelir (1A.3).
+    | Olsaydı markanın alan adını bilen herkes panele hesap açardı.
     */
+    Route::prefix('panel')->group(function () {
+
+        Route::post('/login', [PanelAuth::class, 'login'])->middleware('throttle:giris');
+
+        // auth:staff → yalnızca STAFF token'ı geçer.
+        // Müşteri token'ı buraya giremez (1A.0'da kanıtlandı).
+        Route::middleware('auth:staff')->group(function () {
+            Route::post('/logout', [PanelAuth::class, 'logout']);
+            Route::get('/me', [PanelAuth::class, 'me']);
+        });
+    });
 });
