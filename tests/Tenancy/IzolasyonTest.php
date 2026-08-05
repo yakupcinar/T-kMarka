@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 /*
 | Bu dosya 0.5'in ASIL ÇIKTISI: iki markanın verisinin karışmadığının
@@ -28,7 +29,7 @@ it('marka tablolari her semada ayri ayri kuruluyor', function () {
     tenancy()->initialize($a);
 
     // tenant/ klasöründeki migration çalışmış olmalı
-    expect(DB::getSchemaBuilder()->hasTable('users'))->toBeTrue();
+    expect(DB::getSchemaBuilder()->hasTable('customers'))->toBeTrue();
 });
 
 it('bir kiracida yazilan kayit digerinden GORUNMUYOR', function () {
@@ -36,39 +37,43 @@ it('bir kiracida yazilan kayit digerinden GORUNMUYOR', function () {
     $b = kiraciOlustur('marka-b.test');
 
     tenancy()->initialize($a);
-    DB::table('users')->insert([
+    DB::table('customers')->insert([
+        'uuid' => (string) Str::uuid(),
         'name' => 'A markasinin musterisi',
         'email' => 'ayni@adres.test',
-        'password' => 'x',
+        'created_at' => now(),
+        'updated_at' => now(),
     ]);
 
-    expect(DB::table('users')->count())->toBe(1);
+    expect(DB::table('customers')->count())->toBe(1);
 
     tenancy()->initialize($b);
 
-    expect(DB::table('users')->count())->toBe(0);
+    expect(DB::table('customers')->count())->toBe(0);
 });
 
 it('ayni e-posta iki markada ayri ayri kullanilabiliyor', function () {
     $a = kiraciOlustur('marka-a.test');
     $b = kiraciOlustur('marka-b.test');
 
-    // users.email UNIQUE — ama kısıt ŞEMA İÇİNDE geçerli.
+    // customers.email UNIQUE — ama kısıt ŞEMA İÇİNDE geçerli.
     // Aynı e-posta iki farklı markaya kayıt olabilmeli.
     foreach ([$a, $b] as $kiraci) {
         tenancy()->initialize($kiraci);
-        DB::table('users')->insert([
+        DB::table('customers')->insert([
+            'uuid' => (string) Str::uuid(),
             'name' => 'Ayni Kisi',
             'email' => 'ayni@adres.test',
-            'password' => 'x',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
     }
 
     tenancy()->initialize($a);
-    expect(DB::table('users')->count())->toBe(1);
+    expect(DB::table('customers')->count())->toBe(1);
 
     tenancy()->initialize($b);
-    expect(DB::table('users')->count())->toBe(1);
+    expect(DB::table('customers')->count())->toBe(1);
 });
 
 it('ayni cache anahtari iki kiracida FARKLI deger donuyor', function () {

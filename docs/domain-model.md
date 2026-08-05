@@ -12,7 +12,22 @@
 - Tüm `id` alanları `bigserial`; dışarıya açılan kayıtlarda ayrıca `uuid`.
 - Tüm tablolarda `created_at`, `updated_at`. Silme **soft delete** (`deleted_at`).
 - Zaman: `timestamptz`, UTC saklanır.
-- Metin karşılaştırmasında büyük/küçük harf duyarsızlık gereken alanlar (e-posta) **`citext`**.
+- Büyük/küçük harf duyarsızlık gereken alanlar (e-posta):
+  **`citext` DEĞİL — sınırda küçültme + `CHECK` kısıtı.**
+
+  > ⚠️ **0.5/1A.1'de denendi, kiracı şemasında ÇALIŞMIYOR.** `citext` eklentisi
+  > `public` şemasında duruyor; marka bağlantısının `search_path`'i yalnızca
+  > `tenant_xxx` olduğu için operatörleri bulunamıyor ve PostgreSQL **sessizce**
+  > düz metin karşılaştırmasına düşüyor — `Ali@site.com` ile `ali@site.com`
+  > farklı sayılıyor, hata da vermiyor. `public`'i `search_path`'e eklemek de
+  > çözüm değil: o zaman marka şemasında olmayan bir tablo sessizce merkezdekine
+  > düşer ve izolasyon delinir.
+  >
+  > **Uygulanan desen:** değer modelde küçültülür (sınırda normalleştirme, alan
+  > adlarında da böyle) + veritabanında `CHECK (email = lower(email))` ham SQL
+  > yolunu da kapatır. Benzersizlik düz `unique` ile sağlanır.
+  >
+  > `public` şemasındaki tablolar (`domains`) `citext` kullanmaya devam edebilir.
 
 ---
 
@@ -116,7 +131,7 @@ tablosundaydı; burada ayrılıyorlar.
 | Alan | Tip | Not |
 |------|-----|-----|
 | id, uuid | | |
-| email | citext unique null | **null olabilir** — misafir siparişi (§6) |
+| email | varchar(190) unique null | **null olabilir** — misafir siparişi (§6). `citext` değil — §0'daki nota bak |
 | password | varchar null | misafir müşteride null |
 | name, phone | varchar | |
 | accepts_marketing | boolean default false | KVKK — açık rıza, varsayılan kapalı |
@@ -129,7 +144,7 @@ tablosundaydı; burada ayrılıyorlar.
 | Alan | Tip | Not |
 |------|-----|-----|
 | id, uuid | | |
-| email | citext unique | |
+| email | varchar(190) unique | `citext` değil — §0 |
 | password | varchar | |
 | name | varchar(120) | |
 | is_owner | boolean default false | kurulumda oluşan sahip; **silinemez, rolü düşürülemez** |
@@ -328,7 +343,7 @@ fulfillment_items  → hangi satır, hangi pakette, kaç adet
 | id, uuid | | |
 | order_number | varchar(20) unique | müşteriye gösterilen numara |
 | customer_id | FK null | misafir siparişinde null |
-| email | citext | **her zaman dolu** — misafir siparişinin tek iletişim kanalı |
+| email | varchar(190) | **her zaman dolu** — misafir siparişinin tek iletişim kanalı |
 | **payment_status** | enum | `pending` / `paid` / `partially_refunded` / `refunded` / `failed` / `cancelled` |
 | **fulfillment_status** | enum | `unfulfilled` / `partial` / `fulfilled` — `fulfillments`'tan türetilir, önbelleklenir |
 | items_total | numeric(12,2) | satır toplamları |
