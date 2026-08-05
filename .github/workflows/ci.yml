@@ -96,13 +96,21 @@ jobs:
             -c "CREATE EXTENSION IF NOT EXISTS citext;"
 
       # 6) Üç kontrol. Biri bile kırılırsa iş kırmızı döner.
+      #
       #    ⚠ `lint` değil `lint:check` — CI dosyayı DÜZELTMEZ, sadece denetler.
       #      Düzeltseydi hatayı gizlemiş olurduk.
+      #
+      #    ⚠ `if: always()` — adımlar normalde ilk hatada durur. O zaman
+      #      önemsiz bir boşluk hatası, asıl mantık hatasını GİZLER ve
+      #      hatayı iki turda öğrenirsin. Bu satırla üçü de çalışır,
+      #      tek bakışta bütün resmi görürsün. İş yine kırmızı döner.
       - name: Biçim denetimi (Pint)
         run: composer lint:check
 
       - name: Statik analiz (Larastan, seviye 8)
+        if: always()
         run: composer analyse
 
       - name: Testler (Pest)
+        if: always()
         run: composer test
