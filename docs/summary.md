@@ -32,10 +32,16 @@ istek → public/index.php → middleware: KİRACI ÇÖZ (host → şema)
 
 ```
 app/Platform   merkez db: kiracı, alan adı, abonelik
-app/Tenancy    kiracılığın TAMAMI, tek yerde
-app/Domain     iş mantığı — kiracıdan HABERSİZ
-app/Http       Storefront · Panel · Platform
+app/Tenancy    kiracılık KOMUTLARI (kiracılık 5 yere yayılı, aşağı bak)
+app/Domain     iş mantığı — kiracıdan HABERSİZ (ölçüldü: sıfır geçiş)
+app/Http       Storefront · Panel · Platform — yalnızca ÇEVİRİR
 ```
+
+⚠ Kiracılığa dokunan yerler: `app/Tenancy` (komutlar) · `config/tenancy.php` ·
+`routes/tenant.php` (kapı görevlisi) · `bootstrap/app.php` · `tests/Pest.php`
+
+⚠ İş kuralı controller'a yazılmaz: HTTP dışından (artisan · kuyruk ·
+tohumlayıcı) atlanabilen kontrol `app/Domain/`'e girer.
 
 ## Kararlar
 
