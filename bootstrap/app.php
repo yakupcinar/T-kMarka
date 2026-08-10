@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\RequirePermission;
+use App\Http\Middleware\RequirePublishedStore;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -27,6 +28,12 @@ return Application::configure(basePath: dirname(__DIR__))
         */
         $middleware->alias([
             'izin' => RequirePermission::class,
+
+            /*
+            | Vitrin rotalarına takılır: mağaza kapalıysa 503.
+            | Panele TAKILMAZ — mağazayı tekrar açmanın tek yolu panel.
+            */
+            'magaza-acik' => RequirePublishedStore::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
