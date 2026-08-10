@@ -24,6 +24,7 @@ class Customer extends Authenticatable
 
     /** @use HasFactory<CustomerFactory> */
     use HasFactory;
+
     use HasUuids;
     use SoftDeletes;
 

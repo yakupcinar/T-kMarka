@@ -55,6 +55,16 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   değer"dir, geçmişi yoktur. Yasal metinler bu yüzden
   `legal_document_versions`'ta ve o tablo **salt-ekleme** — `UPDATE`/`DELETE`/
   `TRUNCATE` veritabanı tetiğiyle reddediliyor. Yayınlamak = yeni satır.
+- **Yerel `lint` yeşil ≠ CI yeşil. Otorite CI.** Bir kez `lint:check`
+  yerelde geçti, CI'da düştü (`class_attributes_separation`); fark 20 koşu
+  boyunca fark edilmedi. Sebep kesinleşmedi — muhtemelen Pint'in geçici
+  klasördeki önbelleğinde bayat kayıt. Gönderimden sonra durumu gör:
+  ```
+  curl -s "https://api.github.com/repos/yakupcinar/T-kMarka/commits/main/check-runs" \
+    | python3 -c "import sys,json;[print(c['name'],c['conclusion']) for c in json.load(sys.stdin)['check_runs']]"
+  ```
+  Hata ayrıntısı **anotasyonlarda** (günlükler yönetici yetkisi ister);
+  `.github/ci-kontrol.sh` çıktıyı oraya basıyor.
 - **Yeni marka geliştirmede HTTPS'e çıkmaz.** `docker/caddy/Caddyfile`'da alan
   adları elle sayılı; `tenant:create` başarılı görünür ama site açılmaz.
   Alan adını ekleyip `docker compose restart caddy`. (Faz 3: on-demand TLS.)
