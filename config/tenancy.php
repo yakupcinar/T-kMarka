@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Platform\Models\Tenant;
+use Database\Seeders\TenantDemoSeeder;
 use Stancl\Tenancy\Bootstrappers\CacheTenancyBootstrapper;
 use Stancl\Tenancy\Bootstrappers\DatabaseTenancyBootstrapper;
 use Stancl\Tenancy\Bootstrappers\FilesystemTenancyBootstrapper;
@@ -204,10 +205,18 @@ return [
     ],
 
     /**
-     * Parameters used by the tenants:seed command.
+     * `tenants:seed` komutunun kullandığı ayarlar.
+     *
+     * ⚠️ Varsayılan `DatabaseSeeder` DEĞİŞTİRİLDİ. O sınıf `db:seed` ile
+     * MERKEZ şemada da çalışıyor; ikisi aynı sınıfa bağlı kalsaydı "hangi
+     * şemadayım" belirsizleşir ve marka verisi merkeze yazılmaya
+     * çalışılırdı. Marka tohumlaması ayrı sınıfta.
+     *
+     * `--force` KAPALI: gösterim verisi bilinen parolalarla hesap açıyor,
+     * canlıda koşmamalı. TenantDemoSeeder ayrıca kendi içinde de canlı
+     * ortamı reddediyor (iki savunma hattı).
      */
     'seeder_parameters' => [
-        '--class' => 'DatabaseSeeder', // root seeder class
-        // '--force' => true, // This needs to be true to seed tenant databases in production
+        '--class' => TenantDemoSeeder::class,
     ],
 ];
