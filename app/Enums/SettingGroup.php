@@ -37,6 +37,18 @@ enum SettingGroup: string
      */
     case Payment = 'payment';
 
-    /** KVKK aydınlatma, mesafeli satış sözleşmesi, iade politikası. */
-    case Legal = 'legal';
+    /*
+    | ⚠️ `Legal` grubu BİLEREK YOK.
+    |
+    | KVKK aydınlatma, mesafeli satış sözleşmesi ve iade koşulları buraya
+    | yazılabilirdi ve hata da vermezdi — ama ayar "şu an geçerli değer"
+    | demektir, geçmişi yoktur. Yasal metnin geçmişi olmak ZORUNDA: her
+    | sipariş, verildiği andaki metne bağlı kalır.
+    |
+    | Metin ayara konsaydı marka bir virgül düzeltince geçmiş siparişlerin
+    | dayanağı da sessizce değişirdi. Bu yüzden yasal metinler kendi
+    | sürümlü tablolarında: App\Enums\LegalDocumentType.
+    |
+    | Grup burada dursaydı birinin bir gün oraya yazması an meselesiydi.
+    */
 }
