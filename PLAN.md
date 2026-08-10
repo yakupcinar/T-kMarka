@@ -2,10 +2,10 @@
 
 > **Bu dosya projenin tek yol haritasıdır.** Tüm geliştirme buna göre ilerler.
 > Kararların gerekçeleri `docs/pre-setup.md`'de, veri modeli `docs/domain-model.md`'de.
-> Son güncelleme: **2026-08-03**
+> Son güncelleme: **2026-08-10**
 
 ```
-┌─ YOL HARİTASI ────────────────────────────── şu an: 1A.4  ───┐
+┌─ YOL HARİTASI ────────────────────────────── şu an: 1A.5  ───┐
 │                                                                │
 │  0 · TEMEL         git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -82,8 +82,8 @@ Her blok bir öncekinin üstüne biniyor: ürün yoksa sepet olmaz, sepet yoksa 
 >
 > | Zorunluluk | Nerede |
 > |---|---|
-> | Yasal metinler (KVKK aydınlatma, iade politikası, mesafeli satış) | 1A.4 — `settings` alanları |
-> | **Mesafeli satış sözleşmesi onayı** | **1D** — `orders`'a kanıt kolonları |
+> | Yasal metinler (KVKK aydınlatma, iade politikası, mesafeli satış) | ✅ 1A.4 — `legal_document_versions` (sürümlü, değişmez). `settings` DEĞİL: sipariş kendi günündeki metne bağlı kalmalı |
+> | **Mesafeli satış sözleşmesi onayı** | **1D · 1E** — `orders.legal_version_id` + onay kanıtı. ⚠️ GÖSTERİLEN sürüme bağlanır, o anki güncele değil (1A.4) |
 > | Cayma hakkı (14 gün iade) | Faz 2 — iade akışı |
 > | **KVKK veri silme / anonimleştirme** | **Faz 2** |
 > | Müşterinin kendi verisini indirmesi | Faz 2 |
@@ -574,6 +574,23 @@ olmadığı testle kanıtlanır
 
 #### 1E — Ödeme
 
+> ⚠️ **1A.4'ten gelen zorunluluk: sipariş, onaylanan sözleşme SÜRÜMÜNE bağlanacak.**
+>
+> ```
+> 10:00:00  müşteri ödeme sayfasında, sürüm 7 metnini OKUDU ve onayladı
+> 10:00:03  marka sürüm 8'i yayınladı
+> 10:00:05  "siparişi tamamla" isteği geldi   →  sipariş hangi sürüme bağlanmalı?
+>
+>           7'ye. Çünkü müşterinin ONAYLADIĞI oydu.
+>           "yayındaki en son sürüm" demek, kişinin görmediği bir metne
+>           imza attırmak olur.
+> ```
+>
+> Yani ödeme formu, gösterdiği `legal_document_versions.id` değerini yanında taşır ve
+> sipariş **gösterilen** sürüme bağlanır, o anki güncel olana değil.
+> `orders.legal_version_id` → `ON DELETE RESTRICT` (sürüm satırı zaten silinemiyor,
+> bu ikinci savunma hattı).
+
 ```
         ┌──────────────────────────────────┐
         │  PaymentProvider   (arayüz)      │
@@ -824,17 +841,49 @@ Müşteri token'ıyla panel ucuna erişilemiyor — testle kanıtlanıyor.
   > kırıldı — hepsi sahibin personel yönetebilmesine dayananlar. Muafiyet olmadan sahip
   > (rolü olmadığı için) hiçbir şey yapamıyor: öngörülen kilitlenmenin ta kendisi.
 
-#### 1A.4 Mağaza ayarları (`settings`)
+#### 1A.4 Mağaza ayarları · yasal metinler · yayın durumu ✅
 
-- [ ] Ayar okuma/yazma servisi — grup bazlı, tipli
-- [ ] `is_encrypted` alanlar için `encrypted` cast
-- [ ] `GET / PUT /panel/settings` — `settings.write` izni gerekli
-- [ ] Kurulum varsayılanlarını `tenant:create`'e ekle (M-2.5 adım 4): KDV, kargo, yasal
-      metin şablonları
-- [ ] Testler:
-  - [ ] Şifreli ayar veritabanında **ham okunamıyor**
-  - [ ] `settings.write` izni olmayan personel yazamıyor
-  - [ ] İki kiracının aynı anahtarı **farklı değer** dönüyor
+- [x] `SettingsService` — grup bazlı okuma/yazma, grup bazlı önbellek
+- [x] Şifreli ayarlar **yazılır ama okunmaz** — panele `{"is_set": true}` döner
+- [x] Yasal metinler `settings`'ten **çıkarıldı**, sürümlü kendi tablolarına alındı
+- [x] `GET / PUT /panel/settings` + `/panel/legal/*` + `/panel/store/*` — `settings.write`
+- [x] `tenant:create` varsayılanları — son `TODO(1A.4)` kapandı
+- [x] 24 test (49 → 73), kırmızı görüldü
+
+> **PLANDAN SAPMA 1 — yasal metinler ayar değil.** Plan "`settings` alanları" diyordu.
+> Ayar *şu an geçerli değer*dir, geçmişi yoktur; yasal metnin geçmişi olmak **zorunda**:
+> 15 Mart'ta verilen sipariş, 20 Mart'ta değiştirilen sözleşmeye değil kendi günündeki
+> metne bağlı kalmalı. Ayarda dursaydı marka bir virgül düzeltince geçmiş siparişlerin
+> dayanağı sessizce değişirdi. → `legal_document_drafts` (değişken) +
+> `legal_document_versions` (yalnızca INSERT, veritabanı tetiğiyle korunuyor).
+> `SettingGroup::Legal` silindi — dursaydı biri oraya yazardı.
+>
+> **PLANDAN SAPMA 2 — mağaza yayın durumu eklendi.** Planda yoktu. Zorunlu yasal
+> bilgiler eksikken satış yapılabilmesi kabul edilemezdi. Yeni marka **kapalı doğuyor**;
+> açılması hazırlık denetiminden geçiyor.
+>
+> **Model: "önce kapat, sonra düzenle".** Alternatif "yayındayken tek tek engelle"
+> modeli, alanı *boşaltmayı* yasaklar ama *yanlış yazmayı* yasaklayamaz — vergi dairesi
+> değişince doğru değeri yazana kadar yayında yanlış bilgi durur. Kapalıyken o anı kimse
+> görmüyor.
+>
+> **Kilit sınırı** — ayırt edici soru: *"bu değer müşterinin onayladığı sözleşmenin içine
+> giriyor mu?"* Giriyorsa yayındayken kilitli (409). KDV oranı kanunla değişir, kargo
+> ücreti günlük iştir → serbest.
+>
+> **Yer tutucular yayın anında doldurulur.** Yasal taslaklar `{{unvan}}`, `{{vergi_no}}`
+> içeren iskeletlerle doğuyor. Yayınlarken mağaza bilgilerinden dolduruluyor; biri eksik
+> kalırsa **422, sürüm oluşmuyor**. Müşteri hiçbir koşulda süslü parantez göremez.
+> Yan fayda: metin o günkü bilgilerle **donuyor** — "sipariş fotoğraftır"ın metin tarafı.
+>
+> **Bulgular:** satır tetiği `TRUNCATE`'i görmüyor (PostgreSQL satırları tek tek silmiyor)
+> → ayrı `BEFORE TRUNCATE` tetiği · `published_by` FK **verilmedi**, verilseydi personel
+> çıkarılınca `ON DELETE SET NULL` satırı UPDATE etmeye çalışır ve tetik personel
+> çıkarmayı çökertirdi · yeni marka geliştirmede HTTPS'e çıkmıyor (Caddyfile'da alan
+> adları elle sayılı, on-demand TLS Faz 3'te) → komut çıktısına uyarı eklendi.
+>
+> **Ertelendi:** `store.publish` diye ikinci izin tartışıldı, eklenmedi — "kargo ayarını
+> değiştirebilsin ama mağazayı kapatamasın" rolü bugün kurulamıyor. Gerekirse bölünecek.
 
 #### 1A.5 Adres defteri
 
@@ -846,6 +895,16 @@ Müşteri token'ıyla panel ucuna erişilemiyor — testle kanıtlanıyor.
 
 #### 1A.6 Blok kapanışı
 
+- [ ] **Rol yönetimi ucu** — marka kendi rolünü kurabilsin (1A.4'te karar verildi)
+  > **Neden esnek:** katı roller güvenlik üretmez, **aşırı yetki** üretir. Markanın
+  > muhasebecisi yalnızca ciro raporu görecekse ve "sadece finans" rolü yoksa, marka
+  > Yönetici rolünü verir — muhasebeci ödeme anahtarlarını da görmeye başlar.
+  >
+  > **Sınırlar:** izinler yalnızca `Permission` enum'ından seçilir (marka yeni izin
+  > *türü* icat edemez) · 3 sistem rolü silinemez · **rol yönetimi izinle değil
+  > `is_owner` ile** — izin olsaydı `role.manage` sahibi kendine `settings.write`
+  > içeren bir rol kurup atardı. "Yetki dağıtan işlem, yetkiyle dağıtılmaz"
+  > (`staff.manage`'ı hiçbir role koymama kararıyla aynı mantık).
 - [ ] `tenant:create` artık tam çalışıyor: şema + migration + varsayılanlar + sahip kullanıcı
 - [ ] Seeder: 1 sahip, 4 rol, 2 personel (farklı rollerde), 2 müşteri, varsayılan ayarlar
   > **Neden:** sonraki bloklarda elle veri üretmemek için. 1B'de ürün eklerken hazır
@@ -932,6 +991,15 @@ Yayın · yedekleme · gözlemlenebilirlik
 | 3 | Ağır CPU işleri API'yi kilitliyor | İşleri kuyruğa devret (Redis/RabbitMQ/Kafka) | **Zaten yapıldı (0.2, 0.5).** Redis kuyruğu + ayrı `worker` konteyneri + `scheduler` çalışıyor. Görsel işleme, e-posta, olay kaydı oraya gidecek |
 | 4 | Gevşek tipler kritik sepet hatalarına yol açıyor | `strict_types` + PHPStan/Psalm | **Yarısı yapıldı (0.3).** Larastan **seviye 8** kurulu ve CI'da çalışıyor. Eksik olan: dosya başlarına `declare(strict_types=1)` zorunluluğu. Bu tek satırlık bir Pint kuralıyla eklenebilir |
 | 5 | Veritabanı bağlantı darboğazı | Connection pooling + PgBouncer/ProxySQL | ⚠️ **KARARIMIZLA ÇELİŞİYOR.** Zaten "Sonraya" listesinde ve şartıyla birlikte yazılı: `search_path` bir *oturum* ayarıdır, pgBouncer'ın verimli modu olan `transaction` modunda fiziksel bağlantı başka isteğe verilir ve **A markasının şeması B'ye geçer** — şema bazlı kiracılıkta bu doğrudan veri sızmasıdır. Eklenecekse `session` modu ya da her işlemde `search_path` yeniden kurulumu gerekir (M-2.4 / 5. tuzak) |
+
+### Ayrıca — 1A.4'ten çıkan, karara bağlanmamış fikir
+
+| Fikir | Ne çözer | Maliyeti |
+|---|---|---|
+| **Ayarlarda taslak (kesintisiz düzenleme)** | Bugün marka, sözleşmesindeki şirket bilgilerini değiştirmek için mağazasını **kapatmak** zorunda — satış duruyor. Taslak kopyada düzenleyip tek anda yayına geçirse mağaza hiç kapanmazdı | Ayarların **iki sürümünü** tutmak: taslak tablosu + yayın tablosu + geçiş işlemi. Yasal metinlerde bunu zaten yaptık; aynısını ayarlara yaymak demek |
+
+> Bugün gerek yok: şirket bilgileri yılda belki bir kez değişiyor ve düzenleme birkaç
+> dakika sürüyor. Ölçüm olmadan eklenmez.
 
 **Değerlendirme sırası geldiğinde sorulacak ilk soru** — K-6/M-2.0'daki ölçek prensibi:
 *bu problemi gerçekten yaşıyor muyuz, yoksa yaşayabileceğimizi mi düşünüyoruz?*

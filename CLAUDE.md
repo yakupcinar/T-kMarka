@@ -51,6 +51,13 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   kuyruk işçisi kodu belleğe alıyor, bayat kodla çalışmaya devam eder.
 - **Marka verisine dokunan zamanlanmış görev** `tenants:run <komut>` ile
   sarılır; doğrudan yazılan görev merkez bağlamda koşar ve hiçbir şey yapmaz.
+- **Sürümlenmesi gereken şey `settings`'e konmaz.** Ayar "şu an geçerli
+  değer"dir, geçmişi yoktur. Yasal metinler bu yüzden
+  `legal_document_versions`'ta ve o tablo **salt-ekleme** — `UPDATE`/`DELETE`/
+  `TRUNCATE` veritabanı tetiğiyle reddediliyor. Yayınlamak = yeni satır.
+- **Yeni marka geliştirmede HTTPS'e çıkmaz.** `docker/caddy/Caddyfile`'da alan
+  adları elle sayılı; `tenant:create` başarılı görünür ama site açılmaz.
+  Alan adını ekleyip `docker compose restart caddy`. (Faz 3: on-demand TLS.)
 
 ## Yapı
 

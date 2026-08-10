@@ -163,8 +163,50 @@ test        arayüz yok → testler gözümüz
          tenant:create artık rol + sahip kullanıcı da kuruyor
          KIRMIZI: sahip muafiyeti kaldırılınca 6 test kırıldı
 
-════ TOPLAM: 49 test · lint · analyse (seviye 8) yeşil ════
+1A.4 ✅  mağaza ayarları · yasal metinler · yayın durumu — 24 test
+         SettingsService: grup bazlı okuma/yazma + grup bazlı önbellek
+         ⚠ şifreli ayar YAZILIR ama OKUNMAZ → panele {"is_set":true}
+           (anahtarı okumaya gerek yok; düz metin dönseydi tarayıcı geçmişi,
+            log, ekran görüntüsü hepsi sızdıran kanal olurdu)
+         önbellek marka bilgisi TAŞIMIYOR — 0.5'in etiketli cache'i bedava
 
-SIRADAKİ: 1A.4 mağaza ayarları servisi + /panel/settings
-          (tenant:create'in son TODO'su: varsayılan KDV/kargo/yasal metinler)
+         YASAL METİNLER settings'ten ÇIKTI → sürümlü kendi tablosuna
+           gerekçe: ayar "şu an geçerli değer"dir, geçmişi yok
+                    yasal metnin geçmişi olmak ZORUNDA
+                    15 Mart siparişi 20 Mart'ta değişen metne bağlanamaz
+           legal_document_drafts    değişken, yarım kalabilir, dışarı çıkmaz
+           legal_document_versions  yalnızca INSERT · yayınla = YENİ SATIR
+           DEĞİŞMEZLİK VERİTABANINDA: UPDATE/DELETE/TRUNCATE tetikle yasak
+           BULGU: satır tetiği TRUNCATE'i GÖRMÜYOR → ayrı tetik eklendi
+           published_by FK YOK — olsaydı personel çıkarınca ON DELETE
+             SET NULL satırı UPDATE etmeye çalışır, tetik çökertirdi
+
+         YAYIN DURUMU (planda yoktu, eklendi): marka KAPALI doğuyor
+           KAPALI --yayinla(denetim)--> YAYINDA --kapat()--> KAPALI
+           model: "önce kapat, sonra düzenle"
+             alternatifi (yayındayken tek tek engelle) alanı BOŞALTMAYI
+             yasaklar ama YANLIŞ YAZMAYI yasaklayamaz
+           kilit sınırı: "bu değer sözleşmenin içine giriyor mu?"
+             kilitli  unvan · vergi no/dairesi · adres · telefon · eposta
+             serbest  KDV (kanunla değişir) · kargo (kampanya) · vitrin adı
+           taslağa YAZMAK serbest (görünmüyor) · YAYINLAMAK 409
+           409 seçildi: 403 değil (yetki var), 422 değil (veri geçerli) — ZAMAN
+           vitrin kapısı 503 + Retry-After (çıplak 503'ü arama motoru
+             kalıcı bozukluk sayabilir) · panele TAKILMIYOR
+
+         ★ YER TUTUCULAR YAYIN ANINDA DOLDURULUYOR
+           iskelet metinler {{unvan}} {{vergi_no}} … ile doğuyor
+           yayınlarken mağaza bilgilerinden dolduruluyor
+           biri eksik kalırsa 422, SÜRÜM OLUŞMUYOR
+           → müşteri hiçbir koşulda süslü parantez göremez
+           yan fayda: metin o günkü bilgilerle DONUYOR (sipariş fotoğrafı)
+
+         tenant:create son TODO kapandı — varsayılan KDV/kargo/misafir
+         contact_email BİLEREK BOŞ (sahibin kişisel adresi sözleşmeye basılmasın)
+         settings.write 1A.3'ten beri boş etiketti, ilk kez kapı bekliyor
+         KIRMIZI: yer tutucu + kilit denetimi bozuldu → 4 test kırıldı
+
+════ TOPLAM: 73 test · lint · analyse (seviye 8) yeşil ════
+
+SIRADAKİ: 1A.5 adres defteri (/api/addresses, sahiplik politikası)
 ```
