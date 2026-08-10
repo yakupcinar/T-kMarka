@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Identity\DefaultRoles;
+use App\Models\Customer;
 use App\Models\User;
 use App\Platform\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -116,4 +117,28 @@ function panelTokeni(string $alanAdi, string $eposta, string $parola = 'sifre123
         'email' => $eposta,
         'password' => $parola,
     ])->json('token');
+}
+
+/**
+ * Müşteri açar ve token'ını alır.
+ *
+ * `panelTokeni` ile aynı sebeple BU DOSYADA: `test()` yardımcısını
+ * kullanıyor ve statik analiz istisnası yalnızca bu dosyaya tanımlı.
+ * Test dosyasına yazılsaydı ya analiz kırılırdı ya da istisnayı tüm
+ * testlere yayıp gerçek yazım hatalarını görünmez kılardık.
+ *
+ * @return array{musteri: Customer, token: string}
+ */
+function musteriTokeni(string $alanAdi, string $eposta, string $parola = 'sifre1234'): array
+{
+    guardOnbelleginiTemizle();
+
+    $musteri = Customer::factory()->create(['email' => $eposta, 'password' => $parola]);
+
+    $token = (string) test()->postJson("http://{$alanAdi}/api/login", [
+        'email' => $eposta,
+        'password' => $parola,
+    ])->json('token');
+
+    return ['musteri' => $musteri, 'token' => $token];
 }

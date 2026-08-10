@@ -7,6 +7,7 @@ use App\Http\Panel\LegalController;
 use App\Http\Panel\SettingsController;
 use App\Http\Panel\StaffController;
 use App\Http\Panel\StoreController;
+use App\Http\Storefront\AddressController;
 use App\Http\Storefront\AuthController as VitrinAuth;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
@@ -57,6 +58,20 @@ Route::middleware([
         Route::middleware('auth:customer')->group(function () {
             Route::post('/logout', [VitrinAuth::class, 'logout']);
             Route::get('/me', [VitrinAuth::class, 'me']);
+
+            /*
+            | ADRES DEFTERİ.
+            |
+            | ⚠️ Sahiplik kontrolü burada DEĞİL, controller'da: her sorgu
+            | müşterinin ilişkisi üzerinden açılıyor, başkasının adresi
+            | sonuç kümesine hiç girmiyor. `{adres}` bir MODEL değil düz
+            | uuid — örtük rota bağlaması kullanılsaydı başkasının satırı
+            | belleğe gelirdi.
+            */
+            Route::get('/addresses', [AddressController::class, 'index']);
+            Route::post('/addresses', [AddressController::class, 'store']);
+            Route::put('/addresses/{adres}', [AddressController::class, 'update']);
+            Route::delete('/addresses/{adres}', [AddressController::class, 'destroy']);
         });
     });
 
