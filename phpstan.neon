@@ -42,3 +42,18 @@ parameters:
         -
             message: '#Call to an undefined method Pest\\#'
             path: tests/Pest.php
+
+        # Seeder::$command PHPDoc'ta null olamaz görünüyor, ama tohumlayıcı
+        # `new TenantDemoSeeder` ile doğrudan kurulduğunda GERÇEKTEN null
+        # oluyor — testlerimiz tam olarak bunu yapıyor.
+        #
+        # ÖLÇÜLDÜ: `?->` yerine `->` yazıldığında SeederTest'te 2 test
+        # "Call to a member function info() on null" ile kırıldı. Yani
+        # burada haklı olan kod, statik analiz değil.
+        #
+        # Genel `treatPhpDocTypesAsCertain: false` yerine bu dar istisna
+        # seçildi: o ayar tüm projede PHPDoc'a güveni kaldırır ve gerçek
+        # null hatalarını da görünmez yapardı.
+        -
+            identifier: nullsafe.neverNull
+            path: database/seeders/*
