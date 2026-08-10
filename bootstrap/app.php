@@ -4,6 +4,7 @@ use App\Domain\Legal\EmptyLegalDocumentException;
 use App\Domain\Legal\UnfilledPlaceholderException;
 use App\Domain\Settings\SettingLockedException;
 use App\Domain\Settings\StoreNotReadyException;
+use App\Http\Middleware\RequireOwner;
 use App\Http\Middleware\RequirePermission;
 use App\Http\Middleware\RequirePublishedStore;
 use Illuminate\Foundation\Application;
@@ -32,6 +33,12 @@ return Application::configure(basePath: dirname(__DIR__))
         */
         $middleware->alias([
             'izin' => RequirePermission::class,
+
+            /*
+            | Yalnızca marka sahibi. İZİN DEĞİL, BAYRAK — yetki dağıtan
+            | işlem yetkiyle dağıtılmaz (RequireOwner'da gerekçesi).
+            */
+            'sahip' => RequireOwner::class,
 
             /*
             | Vitrin rotalarına takılır: mağaza kapalıysa 503.

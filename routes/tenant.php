@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Panel\AuthController as PanelAuth;
 use App\Http\Panel\LegalController;
+use App\Http\Panel\RoleController;
 use App\Http\Panel\SettingsController;
 use App\Http\Panel\StaffController;
 use App\Http\Panel\StoreController;
@@ -113,6 +114,24 @@ Route::middleware([
             | değiştirme" ayrı izinler olsun mu diye tartışıldı, şimdilik
             | ayrılmadı (1A.4). Ayrım gerekirse `store.publish` eklenecek.
             */
+            /*
+            | ROL YÖNETİMİ — `sahip` kapısı, izin DEĞİL.
+            |
+            | `role.manage` diye bir izin olsaydı ona sahip kişi kendine
+            | `settings.write` içeren bir rol kurup atardı — yetki
+            | yükseltme. "Yetki dağıtan işlem, yetkiyle dağıtılmaz."
+            |
+            | Marka kendi rolünü kurabiliyor çünkü katı rol listesi
+            | güvenlik değil AŞIRI YETKİ üretir: "sadece finans" rolü
+            | yoksa marka muhasebecisine Yönetici verir.
+            */
+            Route::middleware('sahip')->group(function () {
+                Route::get('/roles', [RoleController::class, 'index']);
+                Route::post('/roles', [RoleController::class, 'store']);
+                Route::put('/roles/{rol}', [RoleController::class, 'update']);
+                Route::delete('/roles/{rol}', [RoleController::class, 'destroy']);
+            });
+
             Route::middleware('izin:settings.write')->group(function () {
                 Route::get('/settings', [SettingsController::class, 'index']);
                 Route::put('/settings', [SettingsController::class, 'update']);
