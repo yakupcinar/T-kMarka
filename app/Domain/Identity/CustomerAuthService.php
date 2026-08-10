@@ -53,7 +53,7 @@ class CustomerAuthService
      */
     public function girisYap(string $email, string $parola): array
     {
-        $musteri = Customer::where('email', mb_strtolower(trim($email)))->first();
+        $musteri = Customer::where('email', EmailNormalizer::normallestir($email))->first();
 
         /*
         | ⚠️ "Kullanıcı bulunamadı" ile "parola yanlış" AYRI mesaj vermiyor.

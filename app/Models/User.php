@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Identity\EmailNormalizer;
 use App\Enums\Permission;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -85,7 +86,7 @@ class User extends Authenticatable
     protected function email(): Attribute
     {
         return Attribute::make(
-            set: fn (string $value) => mb_strtolower(trim($value)),
+            set: fn (string $value) => (string) EmailNormalizer::normallestir($value),
         );
     }
 

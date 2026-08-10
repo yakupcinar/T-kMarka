@@ -2,6 +2,7 @@
 
 namespace App\Http\Panel\Requests;
 
+use App\Domain\Identity\EmailNormalizer;
 use App\Models\Role;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -14,7 +15,7 @@ class CreateStaffRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         if ($this->has('email')) {
-            $this->merge(['email' => mb_strtolower(trim((string) $this->input('email')))]);
+            $this->merge(['email' => EmailNormalizer::normallestir((string) $this->input('email'))]);
         }
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Identity\EmailNormalizer;
 use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -88,7 +89,7 @@ class Customer extends Authenticatable
     protected function email(): Attribute
     {
         return Attribute::make(
-            set: fn (?string $value) => $value === null ? null : mb_strtolower(trim($value)),
+            set: fn (?string $value) => EmailNormalizer::normallestir($value),
         );
     }
 

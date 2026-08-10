@@ -3,6 +3,7 @@
 namespace App\Tenancy\Commands;
 
 use App\Domain\Identity\DefaultRoles;
+use App\Domain\Identity\EmailNormalizer;
 use App\Domain\Settings\DefaultSettings;
 use App\Models\User;
 use App\Platform\Models\Tenant;
@@ -84,9 +85,9 @@ class CreateTenant extends Command
         | `run()` kiracı bağlamını açıp kapatıyor; olmasaydı bu kayıtlar
         | merkez şemaya gitmeye çalışır ve "tablo yok" hatası alınırdı.
         */
-        $sahipEposta = mb_strtolower(trim(
+        $sahipEposta = (string) EmailNormalizer::normallestir(
             (string) ($this->option('sahip-eposta') ?: "sahip@{$alanAdi}")
-        ));
+        );
         $sahipParola = (string) $this->option('sahip-parola');
 
         $tenant->run(function () use ($ad, $sahipEposta, $sahipParola) {

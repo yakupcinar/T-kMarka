@@ -28,7 +28,7 @@ class StaffAuthService
      */
     public function girisYap(string $email, string $parola): array
     {
-        $personel = User::where('email', mb_strtolower(trim($email)))->first();
+        $personel = User::where('email', EmailNormalizer::normallestir($email))->first();
 
         /*
         | Müşteri tarafındaki gerekçenin aynısı: "kullanıcı yok" ile "parola

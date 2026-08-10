@@ -1,7 +1,9 @@
 <?php
 
+use App\Domain\Identity\EmailNormalizer;
 use App\Models\Customer;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 /*
 | 1A.2'nin kanıtı. Şimdiye kadar bu uçları elle (curl) doğruladık — tek
@@ -224,4 +226,52 @@ it('A markasinin tokeni B markasinda gecersiz', function () {
     // token'ın kaydı bile yok.
     guardOnbelleginiTemizle();
     $this->getJson('http://marka-b.test/api/me', $basliklar)->assertUnauthorized();
+});
+
+/*
+| TÜRKÇE BÜYÜK İ TUZAĞI — 1B için ölçüm yapılırken bulundu.
+|
+| mb_strtolower('İSMAIL@x.com') → 'i̇smail@x.com' (i + AYRI birleşen nokta)
+| PostgreSQL lower()            → 'ismail@x.com'  (düz i)
+| İki dizgi FARKLI; CHECK kısıtı da benzersiz indeks de yakalamıyordu.
+*/
+
+it('Türkçe büyük İ ile yazılan e-posta AYNI hesaba düşüyor', function () {
+    markaKur('eposta-a.test');
+
+    $musteri = Customer::factory()->create(['email' => 'ismail@ornek.test', 'password' => 'sifre1234']);
+
+    // Kullanıcı Türkçe klavyeyle büyük yazdı. Düzeltilmeseydi eşleşme
+    // bulunamaz, "parola yanlış" derdik ve hesabı dururken kilitlenirdi.
+    guardOnbelleginiTemizle();
+    $this->postJson('http://eposta-a.test/api/login', [
+        'email' => 'İSMAIL@ornek.test',
+        'password' => 'sifre1234',
+    ])->assertOk()->assertJsonPath('customer.uuid', $musteri->uuid);
+});
+
+it('Türkçe büyük İ ile İKİNCİ hesap açılamıyor', function () {
+    markaKur('eposta-b.test');
+
+    Customer::factory()->create(['email' => 'ismail@ornek.test']);
+
+    // Düzeltmeden önce burası 201 dönüyordu: iki ayrı müşteri, aynı kişi.
+    guardOnbelleginiTemizle();
+    $this->postJson('http://eposta-b.test/api/register', [
+        'name' => 'İsmail',
+        'email' => 'İSMAIL@ornek.test',
+        'password' => 'sifre1234',
+        'password_confirmation' => 'sifre1234',
+    ])->assertStatus(422)->assertJsonValidationErrors(['email']);
+});
+
+it('e-posta normalleştirme PostgreSQL lower ile aynı sonucu veriyor', function () {
+    markaKur('eposta-c.test');
+
+    foreach (['İSMAIL@ornek.test', 'ISMAIL@ornek.test', 'Işık@ornek.test', 'ŞÜKRÜ@ornek.test'] as $ham) {
+        $php = EmailNormalizer::normallestir($ham);
+        $pg = DB::selectOne('SELECT lower(?) AS v', [$ham])->v;
+
+        expect($php)->toBe($pg, "uyuşmazlık: {$ham}");
+    }
 });

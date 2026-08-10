@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Domain\Identity\EmailNormalizer;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -49,7 +50,7 @@ class AppServiceProvider extends ServiceProvider
         // kilitlerdi. Sadece e-posta olsaydı saldırgan farklı adreslerle
         // sınırsız deneme yapardı.
         RateLimiter::for('giris', fn (Request $istek) => Limit::perMinute(5)
-            ->by(mb_strtolower((string) $istek->input('email')).'|'.$istek->ip()));
+            ->by(EmailNormalizer::normallestir((string) $istek->input('email')).'|'.$istek->ip()));
 
         // Kayıt: IP başına saatlik. Sahte hesap üretimini yavaşlatır.
         RateLimiter::for('kayit', fn (Request $istek) => Limit::perHour(10)->by($istek->ip()));
