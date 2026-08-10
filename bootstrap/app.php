@@ -1,5 +1,7 @@
 <?php
 
+use App\Domain\Catalog\CategoryCycleException;
+use App\Domain\Catalog\CategoryHasChildrenException;
 use App\Domain\Catalog\EmptySlugException;
 use App\Domain\Identity\RoleInUseException;
 use App\Domain\Identity\SystemRoleException;
@@ -130,6 +132,27 @@ return Application::configure(basePath: dirname(__DIR__))
                 'message' => $e->getMessage(),
                 'staff_count' => $e->personelSayisi,
                 'resolution' => 'Önce personeli başka bir role taşıyın.',
+            ], 409);
+        });
+
+        /*
+        | Kategori ağacı kuralları → 409 Conflict.
+        |
+        | Yine ZAMAN/DURUM sorunu: yetki var, veri geçerli — ağacın şu anki
+        | hâli bu işlemi kaldırmıyor.
+        */
+        $exceptions->render(function (CategoryCycleException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'resolution' => 'Önce hedef kategoriyi bu dalın dışına taşıyın.',
+            ], 409);
+        });
+
+        $exceptions->render(function (CategoryHasChildrenException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'children_count' => $e->altSayisi,
+                'resolution' => 'Önce alt kategorileri taşıyın veya silin.',
             ], 409);
         });
 

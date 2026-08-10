@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Panel\AuthController as PanelAuth;
+use App\Http\Panel\CategoryController;
 use App\Http\Panel\LegalController;
 use App\Http\Panel\OptionController;
 use App\Http\Panel\RoleController;
@@ -121,6 +122,20 @@ Route::middleware([
                 Route::post('/options', [OptionController::class, 'store']);
                 Route::put('/options/{option}', [OptionController::class, 'update']);
                 Route::delete('/options/{option}', [OptionController::class, 'destroy']);
+
+                /*
+                | KATEGORİ AĞACI.
+                |
+                | ⚠️ Taşıma AYRI uçta: kendi kuralı var (döngü engeli) ve
+                | alt ağacın tamamını yeniden yazıyor. Ad değiştirmekle aynı
+                | uçta olsaydı, yanlışlıkla gönderilen bir parent_uuid koca
+                | bir dalı taşırdı.
+                */
+                Route::get('/categories', [CategoryController::class, 'index']);
+                Route::post('/categories', [CategoryController::class, 'store']);
+                Route::put('/categories/{category}', [CategoryController::class, 'update']);
+                Route::post('/categories/{category}/move', [CategoryController::class, 'move']);
+                Route::delete('/categories/{category}', [CategoryController::class, 'destroy']);
 
                 Route::post('/options/{option}/values', [OptionController::class, 'storeValue']);
                 Route::put('/options/{option}/values/{deger}', [OptionController::class, 'updateValue']);
