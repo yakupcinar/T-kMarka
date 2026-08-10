@@ -125,10 +125,46 @@ test        arayüz yok → testler gözümüz
          tenant:create yarıda kalırsa artık arkasını topluyor
          DESEN: $fillable = "neyi ASLA dışarıdan almam" listesi
                 Address.customer_id · User.is_owner · Role.is_system
-1A.2 ~~  kimlik doğrulama
+1A.2 ✅  kimlik doğrulama — 16 test
          Sanctum · personal_access_tokens MARKA şemasında
          iki guard: customer (Customer) · staff (User)
          KANIT: müşteri token'ı staff guard'ından REDDEDİLİYOR
                 (Guard.php:145 → $tokenable instanceof $model)
-         ⏳ uçlar · hız sınırlama · testler
+         uçlar: /api/{register,login,logout,me} · /panel/{login,logout,me}
+                panelde KAYIT UCU YOK — personel davetle gelir
+         'api' middleware grubu, 'web' değil (CSRF token istemcisini kırardı)
+         yanlış parola = olmayan hesap → AYNI mesaj (hesap sayımı engeli)
+         hız sınırı: giris 5/dk (e-posta+IP) · kayit 10/saat (IP)
+         BULGU 1: accepts_marketing API'de null dönüyordu → refresh()
+         BULGU 2: doğrulama mesajları "validation.required" görünüyordu
+                  (APP_LOCALE=tr, fallback de tr, Türkçe dosya yok)
+                  → lang/tr/validation.php
+         TEST YAPAYLIĞI: testte guard önbelleği istekler arası sızıyor,
+                  gerçek HTTP'de sorun yok (curl ile doğrulandı)
+                  → guardOnbelleginiTemizle()
+         EK TEST: A'nın müşterisi B'de giriş yapamıyor · A'nın token'ı B'de geçersiz
+
+1A.3 ✅  izin sistemi ve personel yönetimi — 13 test
+         Permission enum: 9 izin, kodda SABİT liste
+         User::hasPermission() tek kapı · izinler rollerden, istek başına önbellek
+         ⚠ SAHİP her izne otomatik sahip — olmasaydı kendi rolünden
+           staff.manage'i kaldırınca markasına kilitlenirdi
+         3 sistem rolü: Yönetici · Katalog · Sipariş & Destek
+           "Sahip" ROL DEĞİL → users.is_owner bayrağı
+           Sipariş & Destek'te İADE izni yok (depocu örneği)
+           ⚠ staff.manage HİÇBİR rolde yok → pratikte yalnızca sahipte
+             (personel davet = yetki yükseltmeye en yakın işlem)
+         izin: middleware — Laravel'in can:/Gate'i KULLANILMADI
+               (Gate varsayılan guard'a bakıyor, bizde varsayılan customer)
+         /panel/staff (GET·POST·DELETE) · URL'de uuid · roller İSİMLE
+         3 EMNİYET KİLİDİ: is_owner $fillable dışında · sahip çıkarılamaz ·
+                           kimse kendini çıkaramaz
+         çıkarılan personelin token'ları da iptal ediliyor
+         tenant:create artık rol + sahip kullanıcı da kuruyor
+         KIRMIZI: sahip muafiyeti kaldırılınca 6 test kırıldı
+
+════ TOPLAM: 49 test · lint · analyse (seviye 8) yeşil ════
+
+SIRADAKİ: 1A.4 mağaza ayarları servisi + /panel/settings
+          (tenant:create'in son TODO'su: varsayılan KDV/kargo/yasal metinler)
 ```
