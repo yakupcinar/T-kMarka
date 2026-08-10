@@ -24,6 +24,8 @@ use Illuminate\Support\Facades\DB;
  */
 class LegalDocumentService
 {
+    public function __construct(private readonly LegalPlaceholders $yerTutucular) {}
+
     /** Üzerinde çalışılan metin. Yayınlanmamış olabilir, yarım olabilir. */
     public function taslak(LegalDocumentType $tur): ?string
     {
@@ -96,7 +98,12 @@ class LegalDocumentService
      * yürürlükte" demek; boş bir sürüm, sözleşmesi olmayan bir sipariş
      * üretirdi.
      *
+     * ⚠️ Yer tutucular BURADA doldurulur, okuma anında değil. Doldurulamayan
+     * biri kalırsa metin yayınlanmaz — müşteri hiçbir koşulda `{{unvan}}`
+     * göremez, çünkü öyle bir sürüm oluşamıyor.
+     *
      * @throws EmptyLegalDocumentException
+     * @throws UnfilledPlaceholderException
      */
     public function yayinla(LegalDocumentType $tur, ?User $yayinlayan = null): LegalDocumentVersion
     {
@@ -116,6 +123,10 @@ class LegalDocumentService
             if ($icerik === null || trim($icerik) === '') {
                 throw new EmptyLegalDocumentException($tur);
             }
+
+            // Yer tutucular mağaza bilgileriyle doldurulur; eksik kalırsa
+            // istisna fırlar ve transaction geri sarılır — sürüm oluşmaz.
+            $icerik = $this->yerTutucular->doldur($icerik);
 
             $sonNumara = LegalDocumentVersion::where('type', $tur)->max('version_no') ?? 0;
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Legal\EmptyLegalDocumentException;
+use App\Domain\Legal\UnfilledPlaceholderException;
 use App\Domain\Settings\SettingLockedException;
 use App\Domain\Settings\StoreNotReadyException;
 use App\Http\Middleware\RequirePermission;
@@ -83,6 +84,21 @@ return Application::configure(basePath: dirname(__DIR__))
             return response()->json([
                 'message' => 'Mağaza yayına hazır değil.',
                 'missing' => $e->eksikler,
+            ], 422);
+        });
+
+        /*
+        | Doldurulamayan yer tutucu → 422.
+        |
+        | Ya mağaza bilgisi eksik ya da tanınmayan bir yer tutucu yazılmış.
+        | İkisinde de metin yayınlanmıyor: müşteriye `{{unvan}}` gitmesindense
+        | hata iyidir.
+        */
+        $exceptions->render(function (UnfilledPlaceholderException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'placeholders' => $e->yerTutucular,
+                'resolution' => 'Mağaza bilgilerini tamamlayın veya yer tutucuyu metinden çıkarın.',
             ], 422);
         });
 

@@ -3,6 +3,7 @@
 namespace App\Tenancy\Commands;
 
 use App\Domain\Identity\DefaultRoles;
+use App\Domain\Settings\DefaultSettings;
 use App\Models\User;
 use App\Platform\Models\Tenant;
 use Illuminate\Console\Command;
@@ -98,9 +99,21 @@ class CreateTenant extends Command
             ])->forceFill(['is_owner' => true])->save();
             // ⚠️ `is_owner` $fillable dışında (istekle sahiplik alınamasın diye),
             // bu yüzden forceFill ile atanıyor — güvenilir yerden.
+
+            /*
+            | Varsayılan ayarlar + yasal metin iskeletleri.
+            |
+            | ⚠️ Mağaza KAPALI doğuyor ve zorunlu alanlar BOŞ bırakılıyor.
+            | Marka bunları doldurup üç yasal metni yayınlamadan satışa
+            | başlayamıyor (StoreReadiness).
+            |
+            | `app()->make()` kullanılıyor çünkü servislerin kendi
+            | bağımlılıkları var; elle kurmak zinciri burada tekrar etmek
+            | olurdu.
+            */
+            app()->make(DefaultSettings::class)->kur($ad);
         });
 
-        // TODO(1A.4): varsayılan ayarlar — KDV oranı, kargo ücreti, yasal metinler
         // TODO(Faz 3): durum alanı (provisioning → active) ve abonelik kaydı
         // TODO(Faz 3): tenant:delete komutu — kiracı silinince şeması düşüyor
         //              ama storage/tenant<kimlik>/ klasörü diskte kalıyor.
@@ -112,7 +125,17 @@ class CreateTenant extends Command
         $this->line("  adres    : https://{$alanAdi}");
         $this->newLine();
         $this->warn('⚠ Sahip parolası komut satırında görünüyor — ilk girişte değiştirilmeli.');
-        $this->warn('Eksik: varsayılan mağaza ayarları (1A.4).');
+        $this->warn('Mağaza KAPALI açıldı. Panelden şirket bilgilerini doldurup');
+        $this->warn('üç yasal metni yayınlayınca /panel/store/publish çalışacak.');
+
+        /*
+        | ⚠️ Geliştirmede alan adları Caddyfile'da ELLE sayılı; yeni marka
+        | HTTPS'e çıkmıyor. Faz 3'te on-demand TLS gelince bu not düşecek.
+        | Uyarmasaydık "komut başarılı ama site açılmıyor" diye aranırdı —
+        | 1A.1'deki öksüz kiracı olayının aynısı.
+        */
+        $this->warn("Geliştirme: {$alanAdi} adresini docker/caddy/Caddyfile'a ekleyip");
+        $this->warn('"docker compose restart caddy" demeden HTTPS açılmaz (Faz 3: on-demand TLS).');
 
         return self::SUCCESS;
     }
