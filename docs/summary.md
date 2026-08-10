@@ -305,5 +305,26 @@ test        arayüz yok → testler gözümüz
 
 ════ TOPLAM: 102 test · lint · analyse · CI hepsi yeşil ════
 
-SIRADAKİ: 1B katalog — kategori · ürün · varyant · görsel
+SIRADAKİ: 1B katalog — 10 karar alındı (PLAN.md 1B), araştırmayla doğrulandı
+
+  1B KARARLARI ÖZET
+    her ürünün en az 1 varyantı — istisna yok (istisna = her yerde if)
+    fiyat/stok VARYANTTA, KDV/metin ÜRÜNDE → ürün fiyatı TÜRETİLİR (en düşük)
+    eksenler (Renk/Beden) MAĞAZA seviyesinde — Magento modeli
+      ürüne ait olsaydı 200 üründe 200 ayrı "Renk", filtre çalışmaz
+      Shopify bile serbest alandan tanım tablosuna geçti (2024)
+    sınırlar DOĞRULAMADA: 3 eksen · 200 varyant (DB'ye koymak migration'a çevirir)
+    UNIQUE(product_id, options) — jsonb anahtar sırasını normalize ediyor, ölçülecek
+    kategori: parent_id + path("/1/5/12/" ID zinciri) + level
+      ⚠ ltree KULLANILMIYOR — İKİNCİ CITEXT, ölçüldü: marka şemasında
+        operatör bulunamadı (citext sessizdi, bu gürültülü patlıyor)
+      slug zinciri değil id zinciri: slug değişince alt ağaç yeniden yazılmaz
+      indeks: text_pattern_ops şart, yoksa LIKE 'x/%' tam tarama yapar
+    ürün↔kategori TEK · çoklu üyelik = koleksiyon (Faz 2, manuel + KURALLI)
+    satılamayan ürün vitrinde YOK, doğrudan bağlantı da 404
+      "tükendi" SAKLANMAZ, türetilir (is_published sakladık çünkü KARAR;
+       bu HESAP) · 1D rezervasyonu için kural TEK YERDE yazılacak
+      "yakında gelecek" Faz 2'ye: bayrak değil AKIŞ (işaretle→haber ver→e-posta)
+    ürün adresi DÜZ /urun/{slug} — Shopify canonical'ı da düz olana işaret ediyor
+    ProductQuery TEK KAPI: cost_price ve taslak sızıntısı ikisi de sessiz olurdu
 ```

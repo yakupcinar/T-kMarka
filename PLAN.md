@@ -481,30 +481,208 @@ kiracının verisi birbirine karışmıyor.
 
 ```
 PANEL TARAFI                         VİTRİN TARAFI
- ürün oluştur (draft)                 ProductQuery::forStorefront()
-   → varyant ekle (sku, fiyat, stok)    → kategori / filtre / sırala
-   → görsel yükle (sıralı)              → liste
-   → KDV oranı belirle                  → ürün detay (varyantlar + görseller)
+ eksen tanımla (Renk · Beden)         ProductQuery::forStorefront()
+ kategori ağacı kur                     → kategori (alt ağaç dahil)
+ ürün oluştur (draft)                   → liste (fiyat: en düşük varyant)
+   → ekseni seç, varyant üret           → ürün detay (eksenler + görseller)
+   → sku · fiyat · stok
+   → görsel yükle (sıralı)
    → status = active
 ```
 
-**Kural — ürün listeleme tek bir sorgu katmanından geçer.** Controller'a gömülü sorgu
-yazılmayacak. Kategori, koleksiyon, arama, öneri ve panel — beşi de
-`app/Domain/Catalog/ProductQuery` üzerinden geçer, yalnızca modu değişir:
+**Tablolar:** `options` · `option_values` · `categories` · `products` ·
+`product_options` · `product_variants` · `product_images`
+
+---
+
+##### Kararlar (araştırmayla doğrulandı — Shopify · Magento)
+
+**1B-K1 · Her ürünün en az bir varyantı olur. İstisna yok.**
+
+Tek seçenekli üründe (kitap) bile varyant kaydı açılır.
+
+> **Neden:** istisna olsaydı "ürün mü varyant mı" sorusu sepete ekleme, stok düşme,
+> sipariş satırı ve fiyat okuma yollarının **her birine** bir `if` olarak dağılırdı — ve
+> her biri bir gün yanlış dalı seçerdi. Tek satır fazla veri, yüzlerce satır az kod.
+
+**1B-K2 · Fiyat ve stok VARYANTTA, KDV ve metin ÜRÜNDE.**
+
+Sonucu: *ürünün fiyatı* diye bir alan yok, **türetiliyor** — aktif varyantların en düşüğü
+("1.299 TL'den başlayan fiyatlarla"). Her ürün listesi varyantlara bakmak zorunda; N+1
+tuzağının doğduğu yer burası ve `ProductQuery`'nin ilk görevi bunu tek yerde çözmek.
+
+**1B-K3 · Varyant eksenleri MAĞAZA seviyesinde tanımlanır (Magento modeli).**
 
 ```
-ProductQuery::forStorefront()  → sadece status=active ürün, is_active varyant
-ProductQuery::forPanel()       → taslak ve arşiv dahil hepsi
+options          id · name "Renk" · position                 MAĞAZA seviyesinde
+option_values    id · option_id · value "Kırmızı"
+                 · swatch (renk kodu, null) · position
+product_options  product_id · option_id · position           ürün hangi ekseni
+                                                             kullanıyor + SIRA
+variants.options jsonb {"renk":"Kırmızı","beden":"M"}         OKUMA KOLAYLIĞI kopyası
+                 UNIQUE(product_id, options)
 ```
 
-> **Neden:** "vitrinde hangi ürün görünür" kuralı beş yere kopyalanırsa bir gün birinde
-> unutulur ve **taslak hâlindeki, fiyatı girilmemiş ürün müşteriye görünür** — sessiz bir
-> hata. Panelin ayrı mod olması da tesadüf değil: panel taslakları görmek **zorunda**.
-> Sorunun iki doğru cevabı var, bu ayrım tek yerde yaşamalı. (TıkRota K-4/1'in karşılığı.)
+Üç model incelendi: Shopify klasik (üründe `option1/2/3` kolonları, denormalize, sabit
+3 eksen) · Shopify 2024 (`ProductOption`/`ProductOptionValue` tanım tablosu, **ürüne
+ait**) · Magento (super attribute, **mağazaya ait**).
 
-**Tablolar:** `categories` · `products` · `product_variants` · `product_images`
-**Bitiş ölçütü:** panelden varyantlı ürün eklenebiliyor · vitrin ucu **yalnızca** aktif
-olanları dönüyor · taslak ürünün vitrinde görünmediği testle kanıtlanıyor
+> **Neden serbest jsonb yetmiyor:** Shopify bile kendi modelini tanım tablosuna taşıdı.
+> Serbest metinde `{"renk":"Kırmızı"}` ve `{"Renk":"kırmızı"}` iki ayrı varyant olur,
+> hata vermez. Aynı gerekçeyle `SettingGroup`, `Permission` ve `LegalDocumentType`
+> enum'larını da sabitlemiştik.
+>
+> **Neden ürüne değil mağazaya ait:** fark ürün eklerken değil, **kategori sayfasında
+> filtre yazarken** görünüyor. Ürüne ait olsaydı 200 üründen sonra 200 ayrı "Renk"
+> ekseni birikir; "Renk: Kırmızı" filtresi dört ayrı seçenek gösterir. Ayrıca renk kodu
+> ve kumaş görseli eksene **bir kez** yazılıyor (Shopify'ın yeni modele "metafield bağı"
+> eklemesinin sebebi de bu). Filtreleme Faz 2 planında zaten var ve tutarlı değer
+> olmadan çalışmıyor.
+>
+> **Bedeli:** bir tablo fazla; marka ürün eklerken önce ekseni tanımlamak zorunda.
+
+**1B-K4 · Sınırlar veritabanında değil, DOĞRULAMADA.**
+
+En fazla **3 eksen** · ürün başına en fazla **200 varyant**.
+
+> Shopify 10+ yıl "3 eksen · 100 varyant" ile yaşadı; sebep kombinatorik patlama
+> (6×5×4×3 = 360 varyant panelde de sorguda da boğulur). Sınırı DB'ye koymak sonradan
+> gevşetmeyi migration'a çevirir; doğrulamada tutmak tek satırlık değişiklik.
+
+**1B-K5 · Varyant benzersizliği: `UNIQUE (product_id, options)`.**
+
+> jsonb üzerinde çalışır çünkü PostgreSQL anahtar sırasını normalize ediyor —
+> `{"renk":"K","beden":"M"}` ile `{"beden":"M","renk":"K"}` **aynı** değer.
+> ⚠️ Kod yazılmadan ölçülecek. Olmasaydı "Kırmızı/M" seçen müşteri hangi stoğu
+> düşürdüğünü bilemezdi.
+
+**1B-K6 · Kategori ağacı: `parent_id` + `path` (id zinciri) + `level`.**
+
+```
+categories   id · parent_id · name · slug · path "/1/5/12/" · level · position
+```
+
+- `parent_id` → ağacı **düzenlemek** için doğru yapı
+- `path` → **sorgu** için tekrarlı veri: "Giyim ve altındaki her şey" tek ön ek taraması
+  (`path LIKE '/1/5/%'`), özyinelemeli CTE'ye gerek kalmıyor
+- `level` → menüde "2 seviye göster" sorusunu path ayrıştırmadan cevaplıyor
+
+> **`ltree` KULLANILMIYOR — ikinci `citext`.** Ölçüldü: `search_path` marka şemasıyken
+> `'giyim'::ltree @> 'giyim.tisort'::ltree` → **operatör bulunamadı hatası**. Eklenti
+> `public`'te, marka onu görmüyor (paket `search_path`'i yalnızca şemaya kuruyor:
+> `PostgreSQLSchemaManager.php:49`). citext'ten farkı: citext sessizce `false` dönüyordu,
+> ltree gürültülü patlıyor — metin için `@>` operatörü olmadığından geri düşecek yer yok.
+> Yine de kullanılamaz; `path` düz `varchar`.
+>
+> **`path` neden id zinciri, slug zinciri değil:** Magento da entity id kullanıyor
+> (`path = "1/2/3"`). Slug tutulsaydı marka `tisort` → `t-shirt` düzeltmesi yapınca
+> **alt ağacın tamamının** path'i yeniden yazılırdı.
+>
+> **`children_count` ALINMADI** (Magento'da var): bakımı gereken ikinci tekrarlı veri ve
+> Magento belgelerinde bile "bozulursa path'ten yeniden hesaplayın" diye anlatılıyor —
+> bozulabilen alan demek. Bizim ölçeğimizde `EXISTS` yeterli.
+>
+> **İndeks ayrıntısı:** `CREATE INDEX ... ON categories (path text_pattern_ops)`.
+> Türkçe collation altında düz btree, `LIKE 'x/%'` için **kullanılmaz**; sorgu çalışır,
+> sadece her seferinde tam tarama yapar. 100 kategoride fark edilmez, 2000'de edilir.
+
+**1B-K7 · Ürün ↔ kategori TEK. Çoklu üyelik koleksiyonun işi (Faz 2).**
+
+```
+KATEGORİ = sınıflandırma       "bu ürün NEDİR"    ağaç · tek · kırıntı üretir
+KOLEKSİYON = vitrin düzenleme  "NEREDE göstereyim" düz · çok · Faz 2
+```
+
+> Shopify'ın ayrımı birebir aynı: Category (hiyerarşik, ürün başına tek, veri temizliği
+> ve vergi/kanal uyumu için) vs Collection (marka oluşturur, ürün başına çok, alışveriş
+> deneyimi için). Tek farkımız: Shopify'da kategori listesi **platform tarafından
+> sabit**, bizde marka kendi ağacını kuruyor — tek satıcılı D2C'de menü markanın kimliği.
+>
+> İkisi tek tabloda birleştirilseydi ürün üç "kategoride" olunca ekmek kırıntısı hangi
+> yolu göstereceğini bilemezdi.
+>
+> **Faz 2 notu:** koleksiyon **manuel + KURALLI** olmalı ("fiyatı 250₺ altındakiler
+> otomatik girsin"). Shopify'ın smart collection'ı; ilk planda yalnızca manuel yazılmıştı.
+
+**1B-K8 · Satılamayan ürün vitrinde YOK. Doğrudan bağlantı da 404.**
+
+```
+products.status  draft · active · archived      marka: "satıyor muyum"
+variants.is_active                              marka: "bu seçeneği satıyor muyum"
+variants.stock                                  SİSTEM: kaç adet kaldı
+```
+
+Türetilen tek cevap:
+
+```
+ürün.status = active  VE  en az bir varyant: is_active AND satın alınabilir
+                                                        ▲
+                                        1B: stock > 0
+                                        1D: stock - rezerve > 0   TEK YERDE değişir
+```
+
+> **"Tükendi" saklanan bir durum DEĞİL.** `status = 'sold_out'` kolonu olsaydı: müşteri
+> son adedi alınca kim çevirecek, marka stok girince kim geri çevirecek, iade gelince
+> kim? Her biri ayrı kod yolu; biri unutulunca "stokta var ama sayfada tükendi yazıyor"
+> olur ve **hata vermez**. Tükenmişlik bir durum değil, bir sonuç. (1A'da `is_published`
+> sakladık çünkü bir *karar*; "yayına hazır mı"yı saklamadık çünkü bir *hesap*.)
+>
+> ⚠️ **1D TUZAĞI, şimdiden kapatılıyor:** `stock > 0` kontrolü 1B'de üç-beş yere
+> serpiştirilirse 1D'de rezervasyon gelince hepsini bulmak gerekir; biri kaçarsa
+> **aşırı satış** olur, hatasız. Kural tek bir yerde yazılacak.
+>
+> **Doğrudan bağlantı 404:** listede yoksa hiç yok. "Sayfa açılsın ama tükendi yazsın"
+> seçeneği iki farklı görünürlük tanımı doğurur ve `ProductQuery`'nin tek kapı olma
+> iddiasını çatlatır.
+>
+> **Faz 2'ye ertelendi — "yakında gelecek" + stok bildirimi.** Marka bir ürünü bilinçli
+> olarak "geri gelecek" işaretleyebilmeli; ama bu bir bayrak değil bir **akış**:
+> işaretle → müşteri "haber ver" bırakır → stok girilince kuyruk işi e-posta atar.
+> Bayrağı tek başına koymak müşteriyi daha kibar bir çıkmaz sokağa götürürdü.
+
+**1B-K9 · Ürün adresi düz: `/urun/{slug}` — kategori yolu İÇERMEZ.**
+
+> Shopify iki adresi de kabul ediyor (`/collections/yaz/products/tisort` ve
+> `/products/tisort`) ama canonical **her zaman düz olana** işaret ediyor; tavsiye edilen
+> tema kodunda bile düz adrese bağlanmak. Sebep: ürün üç koleksiyondaysa üç adres doğuyor,
+> aynı içerik üç kez indeksleniyor ve bağlantı gücü bölünüyor.
+>
+> İkinci gerekçe bizim: kategori taşınınca (`Tişört`, `Giyim`'den `Erkek`'in altına)
+> **adres değişmiyor**, eski bağlantılar kırılmıyor.
+
+**1B-K10 · `ProductQuery` — tek kapı.**
+
+```
+forStorefront()                      forPanel()
+  status = active                      hepsi (draft · active · archived)
+  + satılabilir varyantı olanlar       tükenmiş de görünür
+  cost_price ASLA                      cost_price DAHİL
+  varyant + görsel DAİMA birlikte      
+```
+
+> **İki sızıntı riski var, ikisi de sessiz:** `cost_price` (maliyet) vitrine çıkarsa marka
+> rakibine kârını gösterir · taslak ürün vitrine çıkarsa yayınlanmamış kampanya sızar.
+> Her uçta ayrı sorgu yazılsaydı 1B'de doğru yazılır, 1C'de sepet ürünü çekerken
+> unutulurdu. **`Product::query()` doğrudan kullanılmayacak.**
+>
+> N+1 de burada çözülüyor: liste fiyat türetmek için varyantlara bakmak zorunda, bu yüzden
+> `forStorefront` varyantları ve görselleri **daima** birlikte yüklüyor.
+
+---
+
+##### Bloklar
+
+- [ ] **1B.1** eksen tanımları: `options` · `option_values` + panel uçları
+- [ ] **1B.2** `categories`: ağaç + `path`/`level` bakımı + döngü engeli (`CategoryService`)
+- [ ] **1B.3** `products` + `product_options` + `product_variants` (üretim + benzersizlik)
+- [ ] **1B.4** `product_images` — yükleme, sıra, kiracı klasörü (M-2.4/3)
+- [ ] **1B.5** `ProductQuery` + vitrin uçları (liste · detay · kategori)
+- [ ] **1B.6** blok kapanışı: testler · iki kiracıda doğrulama · CI
+
+**Bitiş ölçütü:** panelden çok eksenli varyantlı ürün eklenebiliyor · vitrin ucu yalnızca
+satılabilir olanları dönüyor · taslak ürünün ve `cost_price`'ın vitrine çıkmadığı testle
+kanıtlanıyor · kategori taşınınca alt ağacın `path`'i doğru güncelleniyor · aynı
+kombinasyondan ikinci varyant açılamıyor
 
 #### 1C — Sepet
 
