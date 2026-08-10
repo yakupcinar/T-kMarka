@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Catalog\EmptySlugException;
 use App\Domain\Identity\RoleInUseException;
 use App\Domain\Identity\SystemRoleException;
 use App\Domain\Legal\EmptyLegalDocumentException;
@@ -130,6 +131,20 @@ return Application::configure(basePath: dirname(__DIR__))
                 'staff_count' => $e->personelSayisi,
                 'resolution' => 'Önce personeli başka bir role taşıyın.',
             ], 409);
+        });
+
+        /*
+        | Slug üretilemeyen eksen/değer adı → 422.
+        |
+        | "★" gibi bir girdi `Str::slug`'tan boş dönüyor. Doğrulama
+        | katmanında yakalanamıyor çünkü ad o aşamada henüz slug'a
+        | çevrilmemiş oluyor.
+        */
+        $exceptions->render(function (EmptySlugException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => ['name' => [$e->getMessage()]],
+            ], 422);
         });
 
         /* Boş yasal metin yayınlama denemesi → 422. */

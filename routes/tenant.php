@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Panel\AuthController as PanelAuth;
 use App\Http\Panel\LegalController;
+use App\Http\Panel\OptionController;
 use App\Http\Panel\RoleController;
 use App\Http\Panel\SettingsController;
 use App\Http\Panel\StaffController;
@@ -102,6 +103,28 @@ Route::middleware([
                 Route::get('/staff', [StaffController::class, 'index']);
                 Route::post('/staff', [StaffController::class, 'store']);
                 Route::delete('/staff/{user}', [StaffController::class, 'destroy']);
+            });
+
+            /*
+            | KATALOG — `product.write`.
+            |
+            | Bu izin de 1A.3'ten beri boştu; ilk kez burada kapı bekliyor.
+            | Katalog rolünde var, yani ürün ekleyen personel eksen de
+            | tanımlayabiliyor — eksen katalogun yapısı.
+            |
+            | Eksenler MAĞAZA seviyesinde (1B-K3): "Renk" bir kez tanımlanır.
+            | Değer uçları eksenin ALTINDA çünkü değer tek başına anlamsız;
+            | ayrıca adres, değerin hangi eksene ait olduğunu da doğruluyor.
+            */
+            Route::middleware('izin:product.write')->group(function () {
+                Route::get('/options', [OptionController::class, 'index']);
+                Route::post('/options', [OptionController::class, 'store']);
+                Route::put('/options/{option}', [OptionController::class, 'update']);
+                Route::delete('/options/{option}', [OptionController::class, 'destroy']);
+
+                Route::post('/options/{option}/values', [OptionController::class, 'storeValue']);
+                Route::put('/options/{option}/values/{deger}', [OptionController::class, 'updateValue']);
+                Route::delete('/options/{option}/values/{deger}', [OptionController::class, 'destroyValue']);
             });
 
             /*
