@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 use App\Http\Panel\AuthController as PanelAuth;
+use App\Http\Panel\LegalController;
+use App\Http\Panel\SettingsController;
 use App\Http\Panel\StaffController;
+use App\Http\Panel\StoreController;
 use App\Http\Storefront\AuthController as VitrinAuth;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
@@ -83,6 +86,31 @@ Route::middleware([
                 Route::get('/staff', [StaffController::class, 'index']);
                 Route::post('/staff', [StaffController::class, 'store']);
                 Route::delete('/staff/{user}', [StaffController::class, 'destroy']);
+            });
+
+            /*
+            | MAĞAZA AYARLARI, YASAL METİNLER, YAYIN DURUMU — `settings.write`.
+            |
+            | Bu izin 1A.3'te tanımlanmıştı ama hiçbir yeri korumuyordu;
+            | ilk kez burada gerçek bir kapı bekliyor.
+            |
+            | Üçü de tek izin altında: "mağazayı kapatma" ile "kargo ücretini
+            | değiştirme" ayrı izinler olsun mu diye tartışıldı, şimdilik
+            | ayrılmadı (1A.4). Ayrım gerekirse `store.publish` eklenecek.
+            */
+            Route::middleware('izin:settings.write')->group(function () {
+                Route::get('/settings', [SettingsController::class, 'index']);
+                Route::put('/settings', [SettingsController::class, 'update']);
+
+                // {tur} enum'a bağlanıyor: geçersiz tür rotaya HİÇ girmiyor,
+                // controller'a gelmeden 404 oluyor.
+                Route::get('/legal', [LegalController::class, 'index']);
+                Route::put('/legal/{tur}', [LegalController::class, 'update']);
+                Route::post('/legal/{tur}/publish', [LegalController::class, 'publish']);
+
+                Route::get('/store/readiness', [StoreController::class, 'readiness']);
+                Route::post('/store/publish', [StoreController::class, 'publish']);
+                Route::post('/store/close', [StoreController::class, 'close']);
             });
         });
     });

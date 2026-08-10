@@ -1,5 +1,8 @@
 <?php
 
+use App\Domain\Legal\EmptyLegalDocumentException;
+use App\Domain\Settings\SettingLockedException;
+use App\Domain\Settings\StoreNotReadyException;
 use App\Http\Middleware\RequirePermission;
 use App\Http\Middleware\RequirePublishedStore;
 use Illuminate\Foundation\Application;
@@ -48,6 +51,47 @@ return Application::configure(basePath: dirname(__DIR__))
         */
         $exceptions->render(function (TenantCouldNotBeIdentifiedOnDomainException $e) {
             abort(404);
+        });
+
+        /*
+        | Aşağıdaki üç eşleme controller'lara try/catch yazmamak için burada.
+        | Her uçta tekrar yazılsaydı bir gün biri unutur, iş kuralı ihlali
+        | 500 olarak dönerdi.
+        */
+
+        /*
+        | Kilitli ayar / yayındayken yasal metin yayınlama → 409 Conflict.
+        |
+        | 403 DEĞİL: personelin yetkisi var.
+        | 422 DEĞİL: gönderilen veri geçerli.
+        | Yanlış olan ZAMAN — istek sistemin şu anki durumuyla çelişiyor.
+        */
+        $exceptions->render(function (SettingLockedException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'field' => $e->alan,
+                'resolution' => 'Önce /panel/store/close ile mağazayı kapatın.',
+            ], 409);
+        });
+
+        /*
+        | Eksik bilgiyle yayına alma denemesi → 422 + eksiklerin TAMAMI.
+        | Tek tek bildirilseydi marka her seferinde bir eksik görüp
+        | defalarca tur atardı.
+        */
+        $exceptions->render(function (StoreNotReadyException $e) {
+            return response()->json([
+                'message' => 'Mağaza yayına hazır değil.',
+                'missing' => $e->eksikler,
+            ], 422);
+        });
+
+        /* Boş yasal metin yayınlama denemesi → 422. */
+        $exceptions->render(function (EmptyLegalDocumentException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'document' => $e->tur->value,
+            ], 422);
         });
 
     })->create();

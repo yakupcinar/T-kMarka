@@ -93,6 +93,22 @@ class SettingsService
             ->all();
     }
 
+    /**
+     * Bu grup şifreli mi saklanıyor?
+     *
+     * ⚠️ Karar GRUP bazında, anahtar bazında değil. Anahtar bazında olsaydı
+     * marka `payment` grubuna yeni bir anahtar eklediğinde (`secret_key_v2`
+     * gibi) listede olmadığı için DÜZ METİN kaydedilirdi — hata vermeden.
+     * Grup bazında olunca gruba düşen her şey otomatik korunuyor.
+     *
+     * Karar burada duruyor, controller'da değil: yeni bir ayar ucu
+     * eklendiğinde tekrar hatırlanması gerekmesin diye.
+     */
+    public function sifreliMi(SettingGroup $grup): bool
+    {
+        return $grup === SettingGroup::Payment;
+    }
+
     private function onbellekAnahtari(SettingGroup $grup): string
     {
         return "settings:{$grup->value}";
