@@ -104,13 +104,17 @@ jobs:
       #      önemsiz bir boşluk hatası, asıl mantık hatasını GİZLER ve
       #      hatayı iki turda öğrenirsin. Bu satırla üçü de çalışır,
       #      tek bakışta bütün resmi görürsün. İş yine kırmızı döner.
+      #    ⚠ Sarmalayıcı: hata çıktısını ANOTASYONA da basıyor. Actions
+      #      günlüklerini indirmek depo yöneticiliği istiyor; anotasyonlar
+      #      herkese açık. Bu olmadan "CI neden kırmızı" sorusu yetkisiz
+      #      cevaplanamıyordu.
       - name: Biçim denetimi (Pint)
-        run: composer lint:check
+        run: bash .github/ci-kontrol.sh "pint" composer lint:check
 
       - name: Statik analiz (Larastan, seviye 8)
         if: always()
-        run: composer analyse
+        run: bash .github/ci-kontrol.sh "larastan" composer analyse
 
       - name: Testler (Pest)
         if: always()
-        run: composer test
+        run: bash .github/ci-kontrol.sh "pest" composer test
