@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-10**
 
 ```
-┌─ YOL HARİTASI ────────────────────────────── şu an: 1A.6  ───┐
+┌─ YOL HARİTASI ─────────────────────────────── şu an: 1B  ───┐
 │                                                                │
 │  0 · TEMEL         git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -932,9 +932,9 @@ Müşteri token'ıyla panel ucuna erişilemiyor — testle kanıtlanıyor.
 > **Kırmızı görüldü:** sahiplik daraltması kaldırılınca **2 test** kırıldı — liste
 > başkasının adresini gösterdi, yabancı adres 404 yerine 200 döndü.
 
-#### 1A.6 Blok kapanışı
+#### 1A.6 Blok kapanışı ✅
 
-- [ ] **Rol yönetimi ucu** — marka kendi rolünü kurabilsin (1A.4'te karar verildi)
+- [x] **Rol yönetimi ucu** — marka kendi rolünü kurabilsin (1A.4'te karar verildi)
   > **Neden esnek:** katı roller güvenlik üretmez, **aşırı yetki** üretir. Markanın
   > muhasebecisi yalnızca ciro raporu görecekse ve "sadece finans" rolü yoksa, marka
   > Yönetici rolünü verir — muhasebeci ödeme anahtarlarını da görmeye başlar.
@@ -944,14 +944,74 @@ Müşteri token'ıyla panel ucuna erişilemiyor — testle kanıtlanıyor.
   > `is_owner` ile** — izin olsaydı `role.manage` sahibi kendine `settings.write`
   > içeren bir rol kurup atardı. "Yetki dağıtan işlem, yetkiyle dağıtılmaz"
   > (`staff.manage`'ı hiçbir role koymama kararıyla aynı mantık).
-- [ ] `tenant:create` artık tam çalışıyor: şema + migration + varsayılanlar + sahip kullanıcı
-- [ ] Seeder: 1 sahip, 4 rol, 2 personel (farklı rollerde), 2 müşteri, varsayılan ayarlar
+- [x] `tenant:create` artık tam çalışıyor: şema + migration + varsayılanlar + sahip kullanıcı
+- [x] Seeder: 2 personel (farklı rollerde), 2 müşteri, 2 adres
   > **Neden:** sonraki bloklarda elle veri üretmemek için. 1B'de ürün eklerken hazır
   > yetkili personel bulunacak.
-- [ ] `lint` + `analyse` + `test` üçü de yeşil
-- [ ] CI yeşil
-- [ ] **İki kiracıda doğrulandı** (plan kuralı 6)
-- [ ] `docs/` içindeki bir sapma varsa güncellendi
+  >
+  > **TUZAK KAPANDI — merkez/marka tohumlayıcı ayrımı.** Laravel'in varsayılan
+  > `DatabaseSeeder`'ı `User::factory()` çağırıyor ve **merkez** bağlamda koşuyordu;
+  > `users` tablosu merkezde yok. Üstelik `config/tenancy.php`'deki `tenants:seed` de
+  > aynı sınıfı çağırıyordu — tek sınıf iki bağlamda, "hangi şemadayım" belirsiz.
+  > Ayrıldı: `DatabaseSeeder` (merkez, veri üretmiyor) · `TenantDemoSeeder` (marka).
+  > Rol ve sahip kullanıcı tohumlayıcıda **üretilmiyor** — onlar `tenant:create`'in işi;
+  > iki yerde üretilseydi "marka nasıl doğar" sorusunun iki cevabı olurdu.
+  > Üç savunma: canlı ortam reddi · kiracı bağlamı yoksa anlaşılır hata · rol yoksa hata.
+  > `firstOrCreate` ile tekrar çalıştırılabilir (üç kez koşturuldu, sayılar sabit).
+- [x] `lint` + `analyse` + `test` üçü de yeşil — **98 test**
+- [x] CI yeşil
+  > ★ **CI 20 KOŞUDUR KIRMIZIYMIŞ** — 1A.2/1'den (`be4168a`) beri, fark edilmeden.
+  > Sebep: `app/Models/Customer.php`, `class_attributes_separation` (docblock'lu
+  > `use` satırından sonra boş satır). Tek satırlık düzeltme.
+  >
+  > **İki ders, ikisi de süreçle ilgili:**
+  >
+  > 1. **Yerel kapı yalan söyledi.** `lint:check` yerelde PASS, CI'da FAIL — aynı
+  >    içerikte. Ölçüldü: dosya *tek başına* denetlenince yerelde de FAIL, *tüm proje*
+  >    denetlenince PASS. Bozuk sürüm koyunca tam koşu yakalıyor, yani dosyayı
+  >    inceliyor. Sebep kesinleşmedi (paralellik değil — `--parallel` kapalı); en makul
+  >    açıklama Pint'in geçici klasördeki önbelleğinde bayat kayıt, ama tekrar
+  >    üretilemedi. **Tahmin olarak kayıtta, kanıt değil.**
+  > 2. **Kural vardı, kimse bakmadı.** "CI yeşil" plan kuralı ve README rozeti dururken
+  >    19 commit kırmızı üstüne atıldı. *Kural, bakılmadığı sürece kural değildir.*
+  >
+  > Actions günlüklerini indirmek depo **yöneticiliği** istiyor (API 403); sebebi ancak
+  > `.github/ci-kontrol.sh` eklenip hata çıktısı **anotasyona** basılınca görebildik.
+  > Anotasyonlar herkese açık. CLAUDE.md'ye kontrol komutu yazıldı.
+- [x] **İki kiracıda doğrulandı** (plan kuralı 6) — gerçek HTTP, 6 başlık
+  > A token'ı B panelinde 401 · aynı e-posta iki markada ayrı iki kişi · A'nın adres
+  > uuid'si B'de 404 · katalogcu `/panel/settings` 403 ve `/panel/roles` 403, sahip 200 ·
+  > kargo ücreti A 11.11 / B 99.99 karışmıyor · A yayında (0 eksik), B kapalı (9 eksik).
+  >
+  > **BULGU — eski markalar varsayılanları almıyor.** `tenant:create` yeni markaya
+  > varsayılan ayar ve yasal taslakları kuruyor (1A.4), ama **önceden açılmış**
+  > markalara kimse gidip kurmuyor. B markası (0.5'te açıldı) yasal taslaksızdı.
+  > Elle uygulandı. Canlıda olsaydı eski markalar taslaksız kalır ve kimse fark
+  > etmezdi → Faz 3'e geri-doldurma komutu maddesi eklendi.
+- [x] `docs/` içindeki bir sapma varsa güncellendi
+
+---
+
+## ✅ FAZ 1A TAMAMLANDI
+
+```
+1A.0 kiracı iskeleti     1A.1 tablolar + modeller    1A.2 kimlik (iki guard)
+1A.3 izin + personel     1A.4 ayarlar + yasal        1A.5 adres defteri
+1A.6 rol yönetimi + tohum + doğrulama
+
+98 test · lint · analyse (seviye 8) · CI — hepsi yeşil
+```
+
+**1A'nın bıraktığı desenler** — sonraki bloklar bunları kullanacak:
+
+| Desen | Nerede doğdu | Nerede kullanılacak |
+|---|---|---|
+| `$fillable` = "asla dışarıdan almam" listesi | 1A.1 | her yeni model |
+| Daraltılmış sorgu = sahiplik kontrolü | 1A.5 | 1B · 1C · 1D · Faz 2 |
+| Sürümlü + değişmez kayıt (tetikle zorlanan) | 1A.4 | 1E sözleşme bağlama |
+| Kayıt bir fotoğraftır (kopyala, bağlama) | 1A.1 · 1A.4 | 1D sipariş satırları |
+| Yetki dağıtan işlem yetkiyle dağıtılmaz | 1A.3 · 1A.6 | yeni ayrıcalıklı uçlar |
+| Emniyeti bozup kırmızı görmeden yeşile güvenme | 0.4b'den beri | her blok |
 
 ---
 
@@ -972,6 +1032,16 @@ Kampanya ve kupon motoru · iade · arama · yorum · koleksiyonlar · terk edil
 ## Faz 3 — Satılabilirlik  *(henüz açılmadı)*
 
 Kontrol düzlemi · abonelik ve planlar · marka açma akışının tamamı · **gerçek on-demand TLS**
+
+**1A'dan devredilen maddeler:**
+
+- **Varsayılan geri-doldurma komutu.** `tenant:create` yeni markaya varsayılan ayarları
+  ve yasal taslakları kuruyor (1A.4), ama **önceden açılmış** markalara kimse gitmiyor.
+  1A.6'da ölçüldü: 0.5'te açılan B markası yasal taslaksızdı. Canlıda eski markalar
+  eksik doğar ve kimse fark etmez. Gereken: `tenants:backfill` gibi, eksik varsayılanı
+  olan markalara **var olanı ezmeden** ekleyen bir komut.
+- **Sahip parolası varsayılanı kaldırılacak.** `tenant:create --sahip-parola` şu an
+  `123`; kontrol düzlemi gelince marka kendi parolasını belirleyecek (1A.3).
 
 ## Faz 4 — Arayüz  *(henüz açılmadı)*
 

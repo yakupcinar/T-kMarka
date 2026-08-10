@@ -231,7 +231,57 @@ test        arayüz yok → testler gözümüz
          yumuşak silme: sipariş adresi zaten KOPYALIYOR, defter geri gelebilir
          KIRMIZI: sahiplik daraltması kaldırıldı → 2 test kırıldı
 
-════ TOPLAM: 83 test · lint · analyse (seviye 8) yeşil ════
+1A.6 ✅  blok kapanışı — rol yönetimi · tohumlayıcı · doğrulama — 15 test
+         ROL YÖNETİMİ /panel/roles — kapı `sahip` middleware'i, İZİN DEĞİL
+           role.manage izni olsaydı sahibi kendine settings.write'lı rol
+           kurup atardı → "yetki dağıtan işlem yetkiyle dağıtılmaz"
+           marka kendi rolünü kurabiliyor: katı liste güvenlik değil
+             AŞIRI YETKİ üretir ("sadece finans" yoksa Yönetici verilir)
+           sınırlar: izinler enum'dan · is_system yazılamaz ·
+             sistem rolü silinemez ama DÜZENLENEBİLİR ·
+             üzerinde personel olan rol silinemez (409 + sayı)
+           BULGU: yeni rolde is_system null dönüyordu — değer DB
+             varsayılanından geliyor, bellekteki nesnede yok → refresh()
+             (1A.2'deki accepts_marketing tuzağının aynısı)
 
-SIRADAKİ: 1A.6 blok kapanışı — rol yönetimi ucu · seeder · iki kiracıda doğrulama
+         TOHUMLAYICI — merkez/marka AYRILDI
+           Laravel'in DatabaseSeeder'ı User::factory() çağırıp MERKEZDE
+             koşuyordu; users merkezde YOK. tenants:seed de aynı sınıfı
+             çağırıyordu → "hangi şemadayım" belirsiz
+           DatabaseSeeder (merkez, veri yok) · TenantDemoSeeder (marka)
+           rol+sahip tohumda YOK — onlar tenant:create'in işi
+           3 savunma: canlı reddi · bağlam yoksa hata · rol yoksa hata
+
+         İKİ KİRACIDA DOĞRULAMA (gerçek HTTP, 6 başlık) — hepsi geçti
+           A token'ı B'de 401 · aynı e-posta iki markada ayrı kişi ·
+           A'nın adres uuid'si B'de 404 · katalogcu 403 sahip 200 ·
+           kargo A 11.11 B 99.99 · A yayında B kapalı
+
+         ★★ CI 20 KOŞUDUR KIRMIZIYMIŞ — 1A.2/1'den beri, fark edilmeden
+            sebep: Customer.php class_attributes_separation (1 boş satır)
+            DERS 1: yerel kapı yalan söyledi — lint:check yerelde PASS,
+              CI'da FAIL, AYNI içerikte. Dosya tek başına denetlenince
+              yerelde de FAIL, tüm projede PASS. Sebep kesinleşmedi
+              (paralellik değil); Pint önbelleği tahmini, kanıt değil
+            DERS 2: kural vardı, kimse bakmadı — rozet + plan kuralı
+              dururken 19 commit kırmızı üstüne atıldı
+              KURAL, BAKILMADIĞI SÜRECE KURAL DEĞİLDİR
+            günlükler yönetici yetkisi istiyor → .github/ci-kontrol.sh
+              hatayı ANOTASYONA basıyor (anotasyonlar herkese açık)
+
+         BULGU: eski markalar varsayılanları ALMIYOR — tenant:create yeni
+           markaya kuruyor ama önceden açılmışlara kimse gitmiyor
+           → Faz 3'e geri-doldurma komutu maddesi
+
+════ FAZ 1A BİTTİ · 98 test · lint · analyse · CI hepsi yeşil ════
+
+1A'NIN BIRAKTIĞI DESENLER (sonraki bloklar kullanacak)
+  $fillable = "asla dışarıdan almam" listesi          1A.1
+  daraltılmış sorgu = sahiplik kontrolü               1A.5 → 1B·1C·1D
+  sürümlü + değişmez kayıt (tetikle zorlanan)         1A.4 → 1E
+  kayıt bir fotoğraftır (kopyala, bağlama)            1A.1·1A.4 → 1D
+  yetki dağıtan işlem yetkiyle dağıtılmaz             1A.3·1A.6
+  emniyeti bozup kırmızı görmeden yeşile güvenme      0.4b'den beri
+
+SIRADAKİ: 1B katalog — kategori · ürün · varyant · görsel
 ```
