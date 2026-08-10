@@ -1013,6 +1013,49 @@ Müşteri token'ıyla panel ucuna erişilemiyor — testle kanıtlanıyor.
 | Yetki dağıtan işlem yetkiyle dağıtılmaz | 1A.3 · 1A.6 | yeni ayrıcalıklı uçlar |
 | Emniyeti bozup kırmızı görmeden yeşile güvenme | 0.4b'den beri | her blok |
 
+### 1A sonrası mimari inceleme — ölçülerek yapıldı
+
+**Tutan:** `app/Domain/` içinde `App\Tenancy`, `tenant(`, `tenancy(` geçişi **sıfır**.
+M-2.7'nin tek cümlesi 15 dosya ve 1359 satır sonra ayakta. Kiracılık bir gün değişse
+(şema → ayrı veritabanı) bu katmana dokunulmaz.
+
+**Tutmayan (düzeltildi):** iş mantığının nereye yazıldığı tutarsızdı. Kimlik, ayarlar ve
+yasal metinlerin Domain servisi vardı; **roller ve adresler tamamen controller'daydı**.
+`RoleController` gerçek iş kuralları taşıyordu:
+
+```
+"sistem rolü silinemez" · "üzerinde personel olan rol silinemez"
+        ▲
+bu kurallar HTTP katmanındayken bir artisan komutu, kuyruk işi ya da
+tohumlayıcı rol silerse ÇALIŞMAZLARDI — hata da vermezlerdi.
+1A.5'te adres için reddettiğimiz desenin ta kendisi.
+```
+
+→ `RoleService` yazıldı, kurallar Domain'e indi. **Kanıt:** iki yeni test HTTP'den
+geçmeden servisi doğrudan çağırıp kuralları doğruluyor; taşımadan önce bu testler
+yazılamazdı.
+
+`AddressController` bilerek servissiz kaldı: oradaki tek kural sahiplik daraltması
+(`$musteri->addresses()`) ve o, unutulabilir bir *kontrol* değil, ilişkinin kendisi.
+HTTP dışından yazan bir çağıran da doğal olarak aynı ilişkiden geçer.
+
+> **KURAL (CLAUDE.md'ye de yazıldı):** bir kontrol, HTTP dışından
+> (artisan · kuyruk · tohumlayıcı) atlanabiliyorsa `app/Domain/`'e girer.
+> Controller yalnızca çevirir: isteği al, servisi çağır, cevabı biçimle.
+
+**Diğer düzeltmeler:**
+
+| Bulgu | Düzeltme |
+|---|---|
+| `magazayiHazirla` / `sirketBilgileriniDoldur` iki dosyada kopya; 1B'de üçüncüsü yazılacaktı | `tests/Pest.php`'ye toplandı (`ornekAdres` de) |
+| CLAUDE.md "app/Tenancy = kiracılığın TAMAMI" — gerçekte 142 satır, kiracılık 5 yere yayılı | Cümle düzeltildi, beş yerin listesi yazıldı |
+| `tests/Feature/ExampleTest.php` Laravel varsayılanı olarak duruyordu | `MerkezTest.php` ile değiştirildi: merkez adres · `/up` · tanımsız alan adı 404 |
+
+**Notlandı, düzeltilmedi:** 9 izinden 7'sinin hâlâ kapısı yok (1B/1D'de gelecek) — ama
+bu bir kez ısırdı: `settings.write` üç blok boyunca hiçbir şeyi korumuyordu ve kimse fark
+etmedi. · `bootstrap/app.php`'deki istisna→HTTP eşlemesi 6'ya çıktı; 1D/1E'de 10+ olunca
+ayrı dosyaya taşınmalı.
+
 ---
 
 ## Faz 2 — Olgunlaştırma  *(henüz açılmadı)*

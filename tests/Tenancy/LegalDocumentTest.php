@@ -12,24 +12,6 @@ use App\Models\LegalDocumentVersion;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
-/** Zorunlu şirket bilgilerini doldurur — yer tutucular dolabilsin diye. */
-function sirketBilgileriniDoldur(): void
-{
-    $ayarlar = app(SettingsService::class);
-
-    foreach ([
-        'name' => 'Test Markası',
-        'legal_name' => 'Test Ticaret Ltd. Şti.',
-        'tax_number' => '1234567890',
-        'tax_office' => 'Kadıköy',
-        'address' => 'Test Cad. No:1',
-        'phone' => '+902161112233',
-        'contact_email' => 'destek@test.com',
-    ] as $anahtar => $deger) {
-        $ayarlar->yaz(SettingGroup::Store, $anahtar, $deger);
-    }
-}
-
 it('taslağa yazmak yayınlamıyor', function () {
     markaKur('yasal-a.test');
     $belgeler = app(LegalDocumentService::class);

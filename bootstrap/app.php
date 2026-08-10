@@ -1,5 +1,7 @@
 <?php
 
+use App\Domain\Identity\RoleInUseException;
+use App\Domain\Identity\SystemRoleException;
 use App\Domain\Legal\EmptyLegalDocumentException;
 use App\Domain\Legal\UnfilledPlaceholderException;
 use App\Domain\Settings\SettingLockedException;
@@ -107,6 +109,27 @@ return Application::configure(basePath: dirname(__DIR__))
                 'placeholders' => $e->yerTutucular,
                 'resolution' => 'Mağaza bilgilerini tamamlayın veya yer tutucuyu metinden çıkarın.',
             ], 422);
+        });
+
+        /*
+        | Rol silme kuralları → 409 Conflict.
+        |
+        | Yine ZAMAN/DURUM sorunu: sahibin yetkisi var, gönderdiği veri de
+        | geçerli — rolün şu anki durumu silmeye elverişli değil.
+        */
+        $exceptions->render(function (SystemRoleException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'resolution' => 'İzinlerini düzenleyebilirsiniz.',
+            ], 409);
+        });
+
+        $exceptions->render(function (RoleInUseException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'staff_count' => $e->personelSayisi,
+                'resolution' => 'Önce personeli başka bir role taşıyın.',
+            ], 409);
         });
 
         /* Boş yasal metin yayınlama denemesi → 422. */

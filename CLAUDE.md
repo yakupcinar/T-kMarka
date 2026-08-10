@@ -73,12 +73,24 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
 
 ```
 app/Platform/   merkez şema (Tenant)          app/Models/    marka şeması modelleri
-app/Tenancy/    kiracılığın TAMAMI            app/Http/      Platform · (Panel · Storefront)
+app/Tenancy/    kiracılık KOMUTLARI           app/Http/      Platform · (Panel · Storefront)
 app/Domain/     iş mantığı — kiracıdan habersiz
 ```
 
+⚠️ Kiracılık **tek klasörde toplanmıyor** — `app/Tenancy/` yalnızca komutları
+tutuyor (142 satır). Kiracılığa dokunan yerlerin tamamı:
+`config/tenancy.php` (paket ayarı, tohumlayıcı sınıfı) · `routes/tenant.php`
+(kapı görevlisi middleware zinciri) · `bootstrap/app.php` (takma adlar,
+istisna eşlemeleri) · `tests/Pest.php` (kiracı kurulumu ve temizlik).
+Bir kiracılık davranışı ararken bu beşine bak.
+
 `app/Domain/` içindeki hiçbir dosya `Tenancy` sınıflarını import etmez ve
-"hangi kiracıdayım" diye sormaz (M-2.7).
+"hangi kiracıdayım" diye sormaz (M-2.7). **Ölçüldü:** `app/Domain/` içinde
+`App\Tenancy`, `tenant(`, `tenancy(` geçişi sıfır.
+
+**İş kuralı controller'a yazılmaz.** Kural: bir kontrol, HTTP dışından
+(artisan komutu · kuyruk işi · tohumlayıcı) atlanabiliyorsa `app/Domain/`'e
+girer. Controller yalnızca çevirir: isteği al, servisi çağır, cevabı biçimle.
 
 Testler: `tests/Feature/` → `RefreshDatabase` var. `tests/Tenancy/` → **yok**
 (transaction, şema oluşturmayı bozuyor); temizlik `tests/Pest.php`'de.

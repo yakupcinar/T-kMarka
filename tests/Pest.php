@@ -1,6 +1,10 @@
 <?php
 
 use App\Domain\Identity\DefaultRoles;
+use App\Domain\Legal\LegalDocumentService;
+use App\Domain\Settings\SettingsService;
+use App\Enums\LegalDocumentType;
+use App\Enums\SettingGroup;
 use App\Models\Customer;
 use App\Models\User;
 use App\Platform\Models\Tenant;
@@ -141,4 +145,68 @@ function musteriTokeni(string $alanAdi, string $eposta, string $parola = 'sifre1
     ])->json('token');
 
     return ['musteri' => $musteri, 'token' => $token];
+}
+
+/**
+ * Mesafeli satış sözleşmesinin içermek zorunda olduğu satıcı bilgilerini
+ * doldurur — yer tutucular dolabilsin ve hazırlık denetimi geçebilsin diye.
+ *
+ * ⚠️ Burada duruyor çünkü ÜÇ test dosyası buna ihtiyaç duyuyor. Önce her
+ * dosyada ayrı bir kopya vardı (`magazayiHazirla`, `sirketBilgileriniDoldur`);
+ * biri değişince diğerini güncellemeyi unutmak an meselesiydi.
+ */
+function sirketBilgileriniDoldur(): void
+{
+    $ayarlar = app(SettingsService::class);
+
+    foreach ([
+        'name' => 'Test Markası',
+        'legal_name' => 'Test Ticaret Ltd. Şti.',
+        'tax_number' => '1234567890',
+        'tax_office' => 'Kadıköy',
+        'address' => 'Test Cad. No:1',
+        'phone' => '+902161112233',
+        'contact_email' => 'destek@test.com',
+    ] as $anahtar => $deger) {
+        $ayarlar->yaz(SettingGroup::Store, $anahtar, $deger);
+    }
+}
+
+/**
+ * Mağazayı yayına hazır hâle getirir: şirket bilgileri + üç yasal metnin
+ * yayınlanmış sürümü. Mağazayı AÇMIYOR — açmak testin kendi işi.
+ */
+function magazayiHazirla(): void
+{
+    sirketBilgileriniDoldur();
+
+    $belgeler = app(LegalDocumentService::class);
+
+    foreach (LegalDocumentType::cases() as $tur) {
+        $belgeler->taslagaYaz($tur, "{$tur->value} metni");
+        $belgeler->yayinla($tur);
+    }
+}
+
+/**
+ * Örnek adres gövdesi.
+ *
+ * Kütle atama testinde `customer_id` (int) de gönderiliyor; bu yüzden
+ * değer tipi `mixed`.
+ *
+ * @param  array<string, mixed>  $degisiklikler
+ * @return array<string, mixed>
+ */
+function ornekAdres(array $degisiklikler = []): array
+{
+    return array_merge([
+        'title' => 'Ev',
+        'full_name' => 'Ayşe Yılmaz',
+        'phone' => '+905321112233',
+        'city' => 'İstanbul',
+        'district' => 'Kadıköy',
+        'neighborhood' => 'Caferağa',
+        'line1' => 'Moda Cad. No:12 D:4',
+        'postal_code' => '34710',
+    ], $degisiklikler);
 }

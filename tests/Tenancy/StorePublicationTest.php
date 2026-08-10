@@ -1,40 +1,11 @@
 <?php
 
-use App\Domain\Legal\LegalDocumentService;
 use App\Domain\Settings\SettingsService;
 use App\Domain\Settings\StorePublication;
-use App\Enums\LegalDocumentType;
 use App\Enums\SettingGroup;
 use App\Models\Role;
 use App\Models\User;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
-
-/**
- * Mağazayı yayına hazır hâle getirir: şirket bilgileri + üç yasal metin.
- */
-function magazayiHazirla(): void
-{
-    $ayarlar = app(SettingsService::class);
-
-    foreach ([
-        'name' => 'Test Markası',
-        'legal_name' => 'Test Ticaret Ltd. Şti.',
-        'tax_number' => '1234567890',
-        'tax_office' => 'Kadıköy',
-        'address' => 'Test Cad. No:1',
-        'phone' => '+902161112233',
-        'contact_email' => 'destek@test.com',
-    ] as $anahtar => $deger) {
-        $ayarlar->yaz(SettingGroup::Store, $anahtar, $deger);
-    }
-
-    $belgeler = app(LegalDocumentService::class);
-
-    foreach (LegalDocumentType::cases() as $tur) {
-        $belgeler->taslagaYaz($tur, "{$tur->value} metni");
-        $belgeler->yayinla($tur);
-    }
-}
 
 it('yeni marka kapalı doğuyor ve eksikleri BİRDEN bildiriyor', function () {
     $marka = markaKur('yayin-a.test');

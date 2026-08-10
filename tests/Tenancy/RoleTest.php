@@ -1,5 +1,8 @@
 <?php
 
+use App\Domain\Identity\RoleInUseException;
+use App\Domain\Identity\RoleService;
+use App\Domain\Identity\SystemRoleException;
 use App\Models\Role;
 use App\Models\User;
 
@@ -185,4 +188,33 @@ it('müşteri token ı rol yönetimine giremiyor', function () {
 
     guardOnbelleginiTemizle();
     $this->withToken($m['token'])->getJson('http://rol-k.test/panel/roles')->assertStatus(401);
+});
+
+/*
+| Aşağıdaki iki test HTTP'den GEÇMİYOR — servisi doğrudan çağırıyor.
+|
+| Kurallar controller'da dururken bu testler yazılamazdı: bir artisan
+| komutu, kuyruk işi ya da tohumlayıcı rol silseydi kurallar hiç
+| çalışmazdı ve kimse hata almazdı. Bu iki test, taşımanın gerekçesi.
+*/
+
+it('sistem rolü kuralı HTTP olmadan da geçerli', function () {
+    markaKur('rol-l.test');
+
+    $katalog = Role::where('name', 'Katalog')->firstOrFail();
+
+    expect(fn () => app(RoleService::class)->sil($katalog))
+        ->toThrow(SystemRoleException::class);
+
+    expect(Role::find($katalog->id))->not->toBeNull();
+});
+
+it('personelli rol kuralı HTTP olmadan da geçerli', function () {
+    markaKur('rol-m.test');
+
+    $rol = Role::create(['name' => 'Depo']);
+    User::factory()->create(['email' => 'depo@rol-m.test'])->roles()->sync([$rol->id]);
+
+    expect(fn () => app(RoleService::class)->sil($rol))
+        ->toThrow(RoleInUseException::class);
 });

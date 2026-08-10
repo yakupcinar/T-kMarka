@@ -283,5 +283,21 @@ test        arayüz yok → testler gözümüz
   yetki dağıtan işlem yetkiyle dağıtılmaz             1A.3·1A.6
   emniyeti bozup kırmızı görmeden yeşile güvenme      0.4b'den beri
 
+1A-inceleme ✅  geriye dönük mimari gözden geçirme — ölçülerek
+         TUTAN: app/Domain'de Tenancy/tenant() geçişi SIFIR (M-2.7 ayakta)
+         TUTMAYAN: iş mantığı yeri tutarsızdı — roller controller'daydı
+           "sistem rolü silinemez" gibi kurallar HTTP katmanında dururken
+           artisan/kuyruk/tohumlayıcı onları ATLAYABİLİRDİ, hatasız
+           → RoleService yazıldı; 2 yeni test HTTP'siz doğruluyor
+           AddressController bilerek servissiz: oradaki tek kural ilişkinin
+             kendisi ($musteri->addresses()), unutulabilir bir kontrol değil
+         YENİ KURAL: HTTP dışından atlanabilen kontrol app/Domain'e girer
+         test yardımcıları Pest.php'de toplandı (3 dosyadaki kopya bitti)
+         CLAUDE.md "app/Tenancy = kiracılığın TAMAMI" yanlıştı — kiracılık
+           5 yere yayılı (config · routes/tenant · bootstrap · Pest.php)
+         ExampleTest → MerkezTest (merkez adres · /up · tanımsız alan 404)
+
+════ TOPLAM: 102 test · lint · analyse · CI hepsi yeşil ════
+
 SIRADAKİ: 1B katalog — kategori · ürün · varyant · görsel
 ```

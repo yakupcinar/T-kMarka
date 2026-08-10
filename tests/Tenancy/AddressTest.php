@@ -8,27 +8,6 @@ use App\Models\Customer;
 | ilk uygulaması: "sahibi olmadığın kaynağa erişemezsin".
 */
 
-/**
- * Kütle atama testinde `customer_id` (int) de gönderiliyor; bu yüzden
- * değer tipi `mixed`.
- *
- * @param  array<string, mixed>  $degisiklikler
- * @return array<string, mixed>
- */
-function ornekAdres(array $degisiklikler = []): array
-{
-    return array_merge([
-        'title' => 'Ev',
-        'full_name' => 'Ayşe Yılmaz',
-        'phone' => '+905321112233',
-        'city' => 'İstanbul',
-        'district' => 'Kadıköy',
-        'neighborhood' => 'Caferağa',
-        'line1' => 'Moda Cad. No:12 D:4',
-        'postal_code' => '34710',
-    ], $degisiklikler);
-}
-
 it('müşteri adres ekliyor ve listeliyor', function () {
     markaKur('adres-a.test');
     $m = musteriTokeni('adres-a.test', 'ayse@adres-a.test');
