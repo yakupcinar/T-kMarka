@@ -206,7 +206,32 @@ test        arayüz yok → testler gözümüz
          settings.write 1A.3'ten beri boş etiketti, ilk kez kapı bekliyor
          KIRMIZI: yer tutucu + kilit denetimi bozuldu → 4 test kırıldı
 
-════ TOPLAM: 73 test · lint · analyse (seviye 8) yeşil ════
+1A.5 ✅  adres defteri — /api/addresses (GET·POST·PUT·DELETE) — 10 test
+         ★ DESEN: sahiplik kontrolü ayrı bir "if" DEĞİL, SORGUNUN KENDİSİ
+             $musteri->addresses()->where('uuid',$u)->firstOrFail()
+           yükle-sonra-kontrol olsaydı satır belleğe gelirdi ve kontrolü
+           yazmayı unutan uç başkasının adresini döndürürdü, hatasız
+           search_path ilkesinin aynısı: ayıklamak değil ERİŞİLEMEZ kılmak
+           → 1B ürün · 1C sepet · 1D sipariş · Faz 2 iade hep bunu kullanacak
 
-SIRADAKİ: 1A.5 adres defteri (/api/addresses, sahiplik politikası)
+         404 seçildi (plan 403 diyordu) — 403 "var ama senin değil" demek,
+           varlık bilgisi sızdırır; daraltılmış sorgunun doğal sonucu da 404
+
+         uuid EKLENDİ (planda yoktu, UUIDv7): ardışık id ile müşteri komşu
+           numaraları tarayıp mağazadaki adres SAYISINI çıkarabiliyordu
+           id içeride kaldı, uuid dışarı açılan kimlik (customers/users deseni)
+           migration 3 adım: nullable → PHP'de backfill → not null+unique
+           (backfill PHP'de: gen_random_uuid() v4 üretir, karışık kolon olmasın)
+
+         HATA DÜZELTİLDİ: önce örtük rota bağlaması (Address $adres) yazmıştım
+           o uuid'yi TÜM tabloda arıyor → başkasının satırı belleğe geliyor
+           "hiç yükleme" ilkesinin tersi; rota artık düz uuid alıyor
+
+         customer_id $fillable dışında + ilişki üzerinden create → kütle atama yok
+         yumuşak silme: sipariş adresi zaten KOPYALIYOR, defter geri gelebilir
+         KIRMIZI: sahiplik daraltması kaldırıldı → 2 test kırıldı
+
+════ TOPLAM: 83 test · lint · analyse (seviye 8) yeşil ════
+
+SIRADAKİ: 1A.6 blok kapanışı — rol yönetimi ucu · seeder · iki kiracıda doğrulama
 ```

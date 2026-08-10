@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-10**
 
 ```
-┌─ YOL HARİTASI ────────────────────────────── şu an: 1A.5  ───┐
+┌─ YOL HARİTASI ────────────────────────────── şu an: 1A.6  ───┐
 │                                                                │
 │  0 · TEMEL         git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -885,13 +885,52 @@ Müşteri token'ıyla panel ucuna erişilemiyor — testle kanıtlanıyor.
 > **Ertelendi:** `store.publish` diye ikinci izin tartışıldı, eklenmedi — "kargo ayarını
 > değiştirebilsin ama mağazayı kapatamasın" rolü bugün kurulamıyor. Gerekirse bölünecek.
 
-#### 1A.5 Adres defteri
+#### 1A.5 Adres defteri ✅
 
-- [ ] `GET / POST / PUT / DELETE /api/addresses`
-- [ ] Policy: müşteri yalnızca **kendi** adreslerini görür ve değiştirir
-- [ ] Test: başka müşterinin adresine erişim **403** dönüyor
+- [x] `GET / POST / PUT / DELETE /api/addresses`
+- [x] Müşteri yalnızca **kendi** adreslerini görür ve değiştirir
+- [x] Adreslere `uuid` (UUIDv7) eklendi
+- [x] 10 test (73 → 83), kırmızı görüldü
   > **Neden:** bu, projedeki en tekrar eden güvenlik kuralının ilk uygulaması — "sahibi
   > olmadığın kaynağa erişemezsin". Deseni burada oturtuyoruz.
+
+> **DESEN — Policy değil, DARALTILMIŞ SORGU.** Plan "Policy" diyordu; Laravel'in klasik
+> policy kalıbı *yükle-sonra-kontrol et*tir ve satırı belleğe getirir:
+>
+> ```
+> YÜKLE-SONRA-KONTROL (kullanılmadı)      HİÇ YÜKLEME (kullanıldı)
+> $a = Address::find($id);                $musteri->addresses()
+> if ($a->customer_id !== $ben)             ->where('uuid', $uuid)
+>     abort(403);                           ->firstOrFail();
+>        ▲                                          ▲
+> satır belleğe geldi; kontrolü          sorgu zaten WHERE customer_id = <ben>
+> yazmayı unutan uç başkasının           içeriyor. Kontrolü unutmak mümkün
+> adresini döndürür, hata vermez         değil — kontrol sorgunun kendisi
+> ```
+>
+> `search_path` ile kiracılıkta kullandığımız ilkenin aynısı: yanlış veriyi *sonra
+> ayıklamak* yerine **erişilemez** kılmak. Sonraki bloklarda (1B ürün, 1C sepet,
+> 1D sipariş, Faz 2 iade) hep bu kullanılacak.
+>
+> **PLANDAN SAPMA 1 — 403 değil 404.** 403 "böyle bir adres **var** ama senin değil"
+> demek olur ve saldırgana varlık bilgisi verir; ayrıca daraltılmış sorgunun doğal
+> sonucu zaten 404.
+>
+> **PLANDAN SAPMA 2 — `uuid` eklendi (planda yoktu).** Ardışık `id` ile müşteri komşu
+> numaraları tarayıp mağazadaki toplam adres sayısını çıkarabiliyordu. Veri sızmıyordu
+> (sorgu daraltılı) ama **sayı** sızıyordu. `id` içeride kaldı, `uuid` dışarı açılan
+> kimlik oldu — `customers`/`users` ile aynı desen. Migration üç adımda yazıldı
+> (nullable → PHP tarafında backfill → not null + unique); tek adımda yazılsaydı mevcut
+> satırı olan bir markada çökerdi. Backfill PHP'de çünkü PostgreSQL'in
+> `gen_random_uuid()`'si v4 üretir, karışık sürümlü kolon istemiyoruz.
+>
+> **Kendi hatam, düzeltildi:** ilk yazımda örtük rota bağlaması (`Address $adres`)
+> kullanmıştım. O, uuid'yi **tüm tabloda** arar — başkasının satırı belleğe gelir.
+> "Hiç yükleme" ilkesini savunup tersini yapmak olurdu; o satır bir gün bir loga, hata
+> mesajına ya da `dd()`'ye düşerdi. Rota artık düz uuid alıyor.
+>
+> **Kırmızı görüldü:** sahiplik daraltması kaldırılınca **2 test** kırıldı — liste
+> başkasının adresini gösterdi, yabancı adres 404 yerine 200 döndü.
 
 #### 1A.6 Blok kapanışı
 
