@@ -4,6 +4,7 @@ namespace App\Http\Panel\Requests;
 
 use App\Domain\Identity\EmailNormalizer;
 use App\Models\Role;
+use App\Rules\AsciiEmail;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -24,7 +25,7 @@ class CreateStaffRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:120'],
-            'email' => ['required', 'email', 'max:190', 'unique:users,email'],
+            'email' => ['required', 'email', 'max:190', 'unique:users,email', new AsciiEmail],
             'password' => ['required', 'string', 'min:8'],
 
             /*

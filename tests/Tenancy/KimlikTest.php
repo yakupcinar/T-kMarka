@@ -3,6 +3,7 @@
 use App\Domain\Identity\EmailNormalizer;
 use App\Models\Customer;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 /*
@@ -274,4 +275,33 @@ it('e-posta normalleştirme PostgreSQL lower ile aynı sonucu veriyor', function
 
         expect($php)->toBe($pg, "uyuşmazlık: {$ham}");
     }
+});
+
+it('Türkçe karakterli e-posta REDDEDİLİYOR — teslim edilemeyeceği için', function () {
+    markaKur('eposta-d.test');
+
+    /*
+    | RFC 6531 (SMTPUTF8) desteği alan adlarının ~%10'unda var; Türkçe
+    | karakterli adrese posta çoğu sunucudan teslim edilemiyor. Kabul
+    | etseydik kullanıcıya "kaydoldun" deyip hiçbir e-postayı alamayacağı
+    | bir hesap açmış olurduk.
+    */
+    $this->postJson('http://eposta-d.test/api/register', [
+        'name' => 'Şükrü',
+        'email' => 'şükrü@ornek.test',
+        'password' => 'sifre1234',
+        'password_confirmation' => 'sifre1234',
+    ])->assertStatus(422)->assertJsonValidationErrors(['email']);
+});
+
+it('ASCII kısıtı VERİTABANINDA da zorlanıyor', function () {
+    markaKur('eposta-e.test');
+
+    /*
+    | Doğrulama katmanı yalnızca HTTP'yi kapsıyor. Bir artisan komutu ya da
+    | içe aktarma işi doğrudan Customer::create() çağırırsa onu atlar —
+    | 1A'daki `email = lower(email)` emniyetinin aynısı.
+    */
+    expect(fn () => Customer::factory()->create(['email' => 'şükrü@ornek.test']))
+        ->toThrow(QueryException::class);
 });

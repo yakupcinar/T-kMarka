@@ -3,6 +3,7 @@
 namespace App\Http\Storefront\Requests;
 
 use App\Domain\Identity\EmailNormalizer;
+use App\Rules\AsciiEmail;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -32,7 +33,7 @@ class RegisterRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:120'],
-            'email' => ['required', 'email', 'max:190', 'unique:customers,email'],
+            'email' => ['required', 'email', 'max:190', 'unique:customers,email', new AsciiEmail],
             'password' => ['required', 'string', 'min:8'],
             'phone' => ['nullable', 'string', 'max:20'],
             'accepts_marketing' => ['sometimes', 'boolean'],

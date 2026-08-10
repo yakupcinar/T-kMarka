@@ -3,6 +3,7 @@
 namespace App\Http\Panel\Requests;
 
 use App\Domain\Identity\EmailNormalizer;
+use App\Rules\AsciiEmail;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -25,7 +26,7 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'email'],
+            'email' => ['required', 'email', new AsciiEmail],
             'password' => ['required', 'string'],
         ];
     }
