@@ -2,15 +2,18 @@
 
 namespace App\Http\Panel;
 
+use App\Domain\Catalog\ProductImageService;
 use App\Domain\Catalog\ProductService;
 use App\Domain\Catalog\VariantService;
 use App\Enums\ProductStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Panel\Requests\ProductImageRequest;
 use App\Http\Panel\Requests\ProductRequest;
 use App\Http\Panel\Requests\VariantRequest;
 use App\Models\Category;
 use App\Models\Option;
 use App\Models\Product;
+use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,6 +31,7 @@ class ProductController extends Controller
     public function __construct(
         private readonly ProductService $urunler,
         private readonly VariantService $varyantlar,
+        private readonly ProductImageService $gorseller,
     ) {}
 
     public function index(): JsonResponse
@@ -151,6 +155,45 @@ class ProductController extends Controller
         return response()->json(['message' => 'Varyant silindi.']);
     }
 
+    public function storeImage(ProductImageRequest $istek, Product $product): JsonResponse
+    {
+        $varyantUuid = $istek->validated('variant_uuid');
+
+        $gorsel = $this->gorseller->yukle(
+            $product,
+            $istek->file('image'),
+            is_string($varyantUuid) ? $this->varyantiBul($product, $varyantUuid) : null,
+            $istek->validated('alt'),
+        );
+
+        return response()->json(['image' => $this->gorselGoster($gorsel)], 201);
+    }
+
+    /** Sıralama ayrı uçta: tek tek PUT yerine tam liste gönderiliyor. */
+    public function reorderImages(Request $istek, Product $product): JsonResponse
+    {
+        $veri = $istek->validate([
+            'uuids' => ['present', 'array'],
+            'uuids.*' => ['uuid'],
+        ]);
+
+        $this->gorseller->sirala($product, $veri['uuids']);
+
+        return response()->json([
+            'images' => $this->gorseller->listele($product)->map(fn (ProductImage $g) => $this->gorselGoster($g)),
+        ]);
+    }
+
+    public function destroyImage(Product $product, string $image): JsonResponse
+    {
+        /** @var ProductImage $gorsel */
+        $gorsel = $product->images()->where('uuid', $image)->firstOrFail();
+
+        $this->gorseller->sil($gorsel);
+
+        return response()->json(['message' => 'Görsel silindi.']);
+    }
+
     /**
      * ⚠️ Varyant ÜRÜNE DARALTILMIŞ sorgudan çözülüyor — 1A.5 deseni.
      * Düz `ProductVariant::where('uuid', …)` kullanılsaydı
@@ -176,7 +219,7 @@ class ProductController extends Controller
     /** @return array<string, mixed> */
     private function goster(Product $urun): array
     {
-        $urun->loadMissing(['category', 'options', 'variants']);
+        $urun->loadMissing(['category', 'options', 'variants', 'images']);
 
         return [
             'uuid' => $urun->uuid,
@@ -191,6 +234,25 @@ class ProductController extends Controller
             'category_uuid' => $urun->category?->uuid,
             'options' => $urun->options->map(fn (Option $e) => ['uuid' => $e->uuid, 'name' => $e->name, 'slug' => $e->slug]),
             'variants' => $urun->variants->map(fn (ProductVariant $v) => $this->varyantGoster($v)),
+            'images' => $urun->images->map(fn (ProductImage $g) => $this->gorselGoster($g)),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function gorselGoster(ProductImage $gorsel): array
+    {
+        return [
+            'uuid' => $gorsel->uuid,
+            'path' => $gorsel->path,
+
+            // ⚠️ `Storage::url()` DEĞİL: o merkez alan adını ve merkez yolu
+            // üretiyor (ölçüldü). `tenant_asset()` markanın kendi adresinde
+            // ve markanın kendi klasöründen sunuyor.
+            'url' => $gorsel->url(),
+
+            'alt' => $gorsel->alt,
+            'position' => $gorsel->position,
+            'variant_uuid' => $gorsel->variant?->uuid,
         ];
     }
 

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Platform\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\File;
 use Tests\TestCase;
 
 /*
@@ -45,7 +46,30 @@ pest()->extend(TestCase::class)->in('Tenancy');
 uses()->afterEach(function () {
     tenancy()->end();
 
-    Tenant::all()->each->delete();
+    /*
+    | ⚠️ Kiracı silinince ŞEMASI düşüyor ama DOSYA KLASÖRÜ diskte kalıyor
+    | (`storage/tenant<id>/`). Ölçüldü: 158 klasör birikmişti.
+    |
+    | Bu, `tenant:delete` için Faz 3'e not düştüğümüz boşluğun test
+    | tarafındaki yansıması — orada da aynı temizlik gerekecek.
+    */
+    $kiracilar = Tenant::all();
+
+    /** @var list<string> $klasorler */
+    $klasorler = [];
+
+    foreach ($kiracilar as $kiraci) {
+        /** @var Tenant $kiraci */
+        $klasorler[] = storage_path("tenant{$kiraci->id}");
+    }
+
+    $kiracilar->each->delete();
+
+    foreach ($klasorler as $klasor) {
+        if (is_dir($klasor)) {
+            File::deleteDirectory($klasor);
+        }
+    }
 
     // Testler gerçek Redis kullanıyor (ayrı veritabanı: 15).
     // Kalan anahtarlar sonraki teste sızmasın.

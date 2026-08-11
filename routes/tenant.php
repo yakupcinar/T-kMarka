@@ -142,6 +142,10 @@ Route::middleware([
                 Route::put('/products/{product}/options', [ProductController::class, 'setOptions']);
                 Route::post('/products/{product}/status', [ProductController::class, 'setStatus']);
 
+                Route::post('/products/{product}/images', [ProductController::class, 'storeImage']);
+                Route::post('/products/{product}/images/reorder', [ProductController::class, 'reorderImages']);
+                Route::delete('/products/{product}/images/{image}', [ProductController::class, 'destroyImage']);
+
                 Route::post('/products/{product}/variants', [ProductController::class, 'storeVariant']);
                 Route::post('/products/{product}/variants/generate', [ProductController::class, 'generateVariants']);
                 Route::put('/products/{product}/variants/{variant}', [ProductController::class, 'updateVariant']);
