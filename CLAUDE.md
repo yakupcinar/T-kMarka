@@ -42,6 +42,14 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   Köke düşen dosya kazara merkez şemaya gider.
 - **`timestampsTz()`** kullan, `timestamps()` değil. Laravel'in varsayılanı
   saat dilimi taşımayan damga üretiyor (`docs/domain-model.md` §0).
+- **Zaman karşılaştırması oturum saat dilimine bağlı.** Laravel `now()`'ı sorguya
+  **ofissiz** metin bağlıyor (`'2026-08-11 14:01:38'`); PostgreSQL ofissiz metni
+  oturumun `TimeZone`'una göre yorumluyor. Ölçüldü: 15 dk sonra dolacak bir
+  rezervasyon, oturum `UTC` iken yaşıyor, `America/New_York` iken **ölmüş**
+  sayılıyor — aynı satır, aynı an. WooCommerce'te aynısı yaşandı (#43593),
+  Brisbane'de siparişler süre dolmadan iptal ediliyordu. Kapatıldı:
+  `config/database.php`'de `'timezone' => 'UTC'` + `tests/Feature/ZamanDilimiTest`.
+  Sunucu varsayılanı zaten UTC'ydi — yani **tesadüfen** doğruyduk, artık ayarla.
 - **`citext` marka şemasında çalışmıyor** — eklenti `public`'te, marka
   `search_path`'i görmüyor, sessizce düz metin karşılaştırmasına düşüyor.
   E-posta için: modelde küçültme + `CHECK (email = lower(email))`.

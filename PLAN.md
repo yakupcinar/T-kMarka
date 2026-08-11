@@ -1267,8 +1267,23 @@ sağlayıcı  →  POST /webhooks/payment  →  hangi şema?
 >   veritabanı kararımızın aynısı)
 > · WooCommerce — [bekleyen ödeme ve tutulan stok](https://krokedil.com/pending-payment-orders-and-held-stock/)
 >   (varsayılan 60 dk) · [#43593 siparişler erken iptal ediliyor](https://github.com/woocommerce/woocommerce/issues/43593)
->   — kök sebep **GMT ile yerel saat karışması**; `timestampsTz()` kuralımızın
->   gerçek dünyadaki karşılığı
+>   — kök sebep **GMT ile yerel saat karışması** (WordPress site saat dilimi ayarı,
+>   müşterinin cihazı değil); HPOS siparişleri GMT'de saklıyor ama iptal görevi
+>   `current_time()` ile yerel saat kullanıyordu. Brisbane'de (UTC+10) 60 dakika
+>   dolmadan iptal oluyordu.
+>
+>   ⚠️ **Bu okundu ve BİZDE DE ÖLÇÜLDÜ — vardı.** Laravel `now()`'ı ofissiz metin
+>   olarak bağlıyor, PostgreSQL onu oturumun `TimeZone`'una göre yorumluyor:
+>
+>   ```
+>   15 dk sonra dolacak rezervasyon      oturum UTC              → yaşıyor  ✓
+>   AYNI satır, AYNI an                  oturum America/New_York → ÖLMÜŞ    ✗
+>   ```
+>
+>   Sunucu varsayılanı zaten UTC'ydi, yani **tesadüfen** doğruyduk; bunu sağlayan
+>   bir şey yoktu. Kapatıldı: `config/database.php`'de `'timezone' => 'UTC'`
+>   (ayarın gerçekten oturumu sürdüğü New_York'a çevrilerek kanıtlandı) +
+>   `tests/Feature/ZamanDilimiTest`. Kural `CLAUDE.md`'ye eklendi.
 > · Stripe deseni — [idempotanslık, tekrar, eşzamanlılık](https://www.snowinch.com/en/blog/stripe-webhook-idempotency-duplicates) ·
 >   [webhook tekilleştirme](https://www.hooklistener.com/learn/webhook-idempotency-and-deduplication)
 

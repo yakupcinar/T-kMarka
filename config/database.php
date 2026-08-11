@@ -97,6 +97,29 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+
+            /*
+            | ⚠️ OTURUM SAAT DİLİMİ SABİTLENİYOR — sessiz hata kapısı.
+            |
+            | Laravel `now()`'ı sorguya OFİSSİZ metin olarak bağlıyor
+            | ('2026-08-11 14:01:38'). PostgreSQL ofissiz metni oturumun
+            | TimeZone'una göre yorumluyor. Yani karşılaştırmanın sonucu
+            | oturum ayarına bağlı:
+            |
+            |   oturum UTC              → 15 dk sonra dolacak rezervasyon YAŞIYOR
+            |   oturum America/New_York → AYNI satır ÖLMÜŞ sayılıyor      ← ölçüldü
+            |
+            | Bu tam olarak WooCommerce #43593: tutma süresi GMT, kontrol
+            | yerel saat üzerinden hesaplanıyordu; Brisbane'de siparişler
+            | 60 dakika dolmadan iptal ediliyordu. Bizde karşılığı,
+            | rezervasyonun erken düşürülüp müşteri ödeme sayfasındayken
+            | stoğun kapılması olurdu.
+            |
+            | Şu an sunucu zaten UTC — ama bunu SAĞLAYAN bir şey yoktu.
+            | Burası o güvenceyi veriyor; `tests/Feature/ZamanDilimiTest`
+            | de bekçilik ediyor.
+            */
+            'timezone' => 'UTC',
         ],
 
         'sqlsrv' => [
