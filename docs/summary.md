@@ -455,5 +455,42 @@ SIRADAKİ: 1B katalog — 10 karar alındı (PLAN.md 1B), araştırmayla doğrul
   text_pattern_ops    Bitmap Heap Scan 46 · Seq Scan 77
   Storage::url()      iki markada AYNI adres
 
-SIRADAKİ: 1C sepet — misafir sepeti · oturum anahtarı · giriş sonrası birleştirme
+1C   ✅  sepet — misafir sepeti · birleştirme — 4 uç · 15 test
+         ★ 1C-K5 ARAŞTIRMADAN ÇIKTI: birleştirmeden SONRA stok kontrolü
+           Magento TOPLUYOR: setQty(mevcut + gelen) → magento2 #26981
+             "guest cart assignToCustomer stok/uygunluk kontrolü YAPMADAN
+              birleştiriyor" — kayıtlı hata
+           WooCommerce birleştirmeyi bir ara TAMAMEN KALDIRMIŞ, topluluk
+             baskısıyla geri koymuş
+           BİZ: topla değil BÜYÜĞÜ AL + sonrasında stok kontrolü
+           test Magento davranışını taklit edince kırılıyor
+         ★ misafir kimliği X-Cart-Token BAŞLIĞI (64 karakter kripto rastgele)
+           Shopify farklı: cart id = <token>?key=<secret>, iki parçalı ve
+             birinci taraf ÇEREZDE; key "alıcının özel verisini koruyor"
+             çünkü token adreste görünebiliyor
+           bizde bölmeye gerek yok (token yalnızca başlıkta)
+           çerez de seçilmedi: vitrin Faz 4'te, teknolojisi belli değil —
+             çerez API'yi henüz var olmayan istemciye bağlardı
+         ★ SAHİPLİK VERİTABANINDA: CHECK (customer_id IS NOT NULL)
+             <> (session_token IS NOT NULL)  ← XOR
+           uygulamaya bırakılsaydı ikisi de boş sepet oluşur, kime ait
+             olduğu bilinemezdi
+           müşteri başına tek aktif sepet: KISMİ indeks (status='active')
+             düz unique olsaydı geçmiş converted sepetler çakışır,
+             müşteri ikinci kez alışveriş yapamazdı
+         ölü satır SİLİNMİYOR işaretleniyor · ödeme adımı ona kilitli
+         stok EKLERKEN yumuşak (kırpar) · ÖDEMEDE sert
+         sepette FİYAT YOK, canlı okunuyor (test: fiyat değişince toplam da)
+         quantity > 0 CHECK · para bcmath (float YASAK)
+         birleştirme GİRİŞ ANINDA (AuthController) — sepet ucunda olsaydı
+           giriş yapıp sepete uğramayanın misafir sepeti ortada kalırdı
+         BULGU: Cart::$fillable boş olunca update([...]) de kapanıyor —
+           kendi kuralımızın beklenmedik ama doğru sonucu
+
+════ TOPLAM: 176 test · lint · analyse · CI hepsi yeşil ════
+
+SIRADAKİ: 1D stok + sipariş + sevkiyat — EN ZOR BLOK
+          eşzamanlılık (iki müşteri son ürünü aynı anda alırsa)
+          satır kilidi · rezervasyon · satinAlinabilirMi() → stock-rezerve
+          "sipariş bir fotoğraftır" ilkesi ilk kez gerçek veriye uygulanacak
 ```
