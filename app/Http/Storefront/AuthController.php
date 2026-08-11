@@ -2,6 +2,7 @@
 
 namespace App\Http\Storefront;
 
+use App\Domain\Cart\CartService;
 use App\Domain\Identity\CustomerAuthService;
 use App\Http\Storefront\Requests\LoginRequest;
 use App\Http\Storefront\Requests\RegisterRequest;
@@ -18,7 +19,10 @@ use Illuminate\Http\Request;
  */
 class AuthController
 {
-    public function __construct(private readonly CustomerAuthService $servis) {}
+    public function __construct(
+        private readonly CustomerAuthService $servis,
+        private readonly CartService $sepetler,
+    ) {}
 
     public function register(RegisterRequest $istek): JsonResponse
     {
@@ -27,6 +31,7 @@ class AuthController
         return response()->json([
             'customer' => $this->musteriCiktisi($sonuc['customer']),
             'token' => $sonuc['token'],
+            'cart_merged' => $this->sepetiBirlestir($istek, $sonuc['customer']),
         ], 201);
     }
 
@@ -40,7 +45,34 @@ class AuthController
         return response()->json([
             'customer' => $this->musteriCiktisi($sonuc['customer']),
             'token' => $sonuc['token'],
+            'cart_merged' => $this->sepetiBirlestir($istek, $sonuc['customer']),
         ]);
+    }
+
+    /**
+     * Misafir sepetini müşterinin sepetine taşır — GİRİŞ ANINDA. (1C-K5)
+     *
+     * ⚠️ Neden burada: birleştirme "giriş yapıldı" olayına bağlı. Sepet
+     * ucunda yapılsaydı, giriş yapıp sepete hiç uğramayan kullanıcının
+     * misafir sepeti ortada kalır ve bir daha kimse ona bakmazdı.
+     *
+     * ⚠️ Kayıt olurken de çağrılıyor: misafir sepetiyle gezip ödeme
+     * adımında hesap açan kullanıcı en tipik senaryo.
+     *
+     * Cevapta `cart_merged` dönüyor ki istemci artık misafir token'ını
+     * atması gerektiğini bilsin.
+     */
+    private function sepetiBirlestir(Request $istek, Customer $musteri): bool
+    {
+        $misafirSepeti = $this->sepetler->misafirSepetiBul($istek->header('X-Cart-Token'));
+
+        if ($misafirSepeti === null) {
+            return false;
+        }
+
+        $this->sepetler->birlestir($misafirSepeti, $musteri);
+
+        return true;
     }
 
     public function logout(Request $istek): JsonResponse

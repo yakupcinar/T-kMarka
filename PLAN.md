@@ -743,10 +743,69 @@ giriş yapıldığında
 > Toplama sessizce yanlış siparişe yol açar; büyüğü almak en kötü ihtimalle sepette fazla
 > bir adet bırakır ve kullanıcı onu görür.
 
+---
+
+##### Kararlar (araştırmayla doğrulandı — Shopify · Magento · WooCommerce)
+
+**1C-K1 · Misafir kimliği: sunucu üretir, istemci `X-Cart-Token` başlığında taşır.**
+
+```
+POST /api/cart      → {"cart_token": "<64 karakter kriptografik rastgele>"}
+sonraki istekler    → X-Cart-Token: <token>
+```
+
+> **Shopify'ın yolu farklı ve sebebi var:** onlarda sepet kimliği `<token>?key=<secret>`
+> biçiminde İKİ PARÇALI ve birinci taraf **çerezde** duruyor. `key`, "alıcının özel
+> verisini koruyan" gizli parça; `token` ise adreste/günlükte görünebiliyor.
+>
+> **Bizde ikiye bölmeye gerek yok:** token yalnızca BAŞLIKTA gidiyor, adreste ve
+> günlükte görünmüyor — tek uzun rastgele dizgi aynı işi görüyor.
+>
+> **Çerez neden değil:** Shopify'ın vitrini kendi ürünü, alan adı ve ödeme aynı yerde.
+> Bizde vitrin Faz 4'te ve teknolojisi seçilmedi (M-3); çerez seçersek API'yi henüz var
+> olmayan bir istemciye bağlarız. Başlık hem SPA hem SSR için çalışıyor ve kimlik
+> doğrulamayla aynı zihin modeli.
+>
+> ⚠️ Token **kriptografik rastgele** olmak zorunda. Ardışık/tahmin edilebilir olsaydı
+> biri başkasının sepetini okurdu — adres yok ama ne aldığı görünür.
+
+**1C-K2 · Satın alınamaz hâle gelen satır SİLİNMEZ, işaretlenir.**
+
+```
+satır durur + "artık mevcut değil"  →  ödeme adımı o satır kaldırılana kadar KİLİTLİ
+```
+
+> Sessizce silinseydi kullanıcı ne kaybettiğini bilmezdi. 1A.4'teki "sessiz yanlış
+> yerine görünür eksik" kararının aynısı. Shopify ve BigCommerce de satırı işaretliyor.
+
+**1C-K3 · Stok: eklerken YUMUŞAK, ödemede SERT.**
+
+> Sepet **rezerve etmiyor** (rezervasyon 1D). Eklerken kontrol yardımcı olsun diye;
+> bağlayıcı kontrol ödeme adımında. İkisi de `satinAlinabilirMi()` tek kapısından geçiyor
+> (1B-K8).
+
+**1C-K4 · Müşteri başına TEK aktif sepet — kısmi benzersiz indeks.**
+
+> Olmasaydı "hangi sepet" sorusu doğar, iki cihazda iki sepet birikir ve birleştirme
+> kuralı hangisine uygulanacağını bilemezdi.
+
+**1C-K5 · Birleştirmeden SONRA da stok kontrolü koşar.**
+
+> ★ Bu madde araştırmadan çıktı. **Magento adetleri TOPLUYOR**
+> (`setQty($quoteItem->getQty() + $item->getQty())`) ve bu kayıtlı bir hata kaynağı
+> (magento2 **#26981**: "guest cart `assignToCustomer` stok/uygunluk kontrolü YAPMADAN
+> birleştiriyor"). **WooCommerce** ise birleştirmeyi bir ara tamamen kaldırmış, topluluk
+> baskısıyla geri koymuş.
+>
+> Bizim kuralımız ikisinin arasında: **topla değil, büyüğü al** — ve birleştirme
+> sonucunu da aynı stok kapısından geçir. Magento'nun atladığı adım tam olarak bu.
+
+---
+
 **Tablolar:** `carts` · `cart_items`
 **Bitiş ölçütü:** misafir sepete ekleyebiliyor · giriş sonrası sepet birleşiyor ·
 `customer_id` ve `session_token`'dan tam olarak birinin dolu olması veritabanı `CHECK`'i
-ile zorlanıyor
+ile zorlanıyor · ölü satır işaretli kalıyor · birleştirme stok kontrolünden geçiyor
 
 #### 1D — Stok + Sipariş + Sevkiyat  ← **en zor blok**
 

@@ -13,6 +13,7 @@ use App\Http\Panel\StaffController;
 use App\Http\Panel\StoreController;
 use App\Http\Storefront\AddressController;
 use App\Http\Storefront\AuthController as VitrinAuth;
+use App\Http\Storefront\CartController;
 use App\Http\Storefront\CatalogController;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
@@ -68,6 +69,23 @@ Route::middleware([
             Route::get('/products', [CatalogController::class, 'index']);
             Route::get('/products/{slug}', [CatalogController::class, 'show']);
             Route::get('/categories', [CatalogController::class, 'categories']);
+
+            /*
+            | SEPET — kimlik doğrulama İSTEĞE BAĞLI.
+            |
+            | ⚠️ `auth:customer` YOK: misafir sepeti var (M-1). Kimin
+            | sepeti olduğu controller'da çözülüyor — giriş yapmışsa
+            | müşteri sepeti, yapmamışsa X-Cart-Token başlığındaki misafir
+            | sepeti (1C-K1).
+            |
+            | ⚠️ Satır adresi VARYANT uuid'si ile: sepet satırının kendi
+            | kimliğini dışarı vermeye gerek yok, müşteri zaten hangi
+            | varyantı değiştirdiğini biliyor.
+            */
+            Route::get('/cart', [CartController::class, 'show']);
+            Route::post('/cart/items', [CartController::class, 'addItem']);
+            Route::put('/cart/items/{variant}', [CartController::class, 'updateItem']);
+            Route::delete('/cart/items/{variant}', [CartController::class, 'removeItem']);
         });
 
         // Hız sınırları AppServiceProvider'da tanımlı.
