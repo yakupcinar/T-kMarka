@@ -13,6 +13,7 @@ use App\Http\Panel\StaffController;
 use App\Http\Panel\StoreController;
 use App\Http\Storefront\AddressController;
 use App\Http\Storefront\AuthController as VitrinAuth;
+use App\Http\Storefront\CatalogController;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
@@ -51,6 +52,23 @@ Route::middleware([
     | VİTRİN — markanın müşterisi
     */
     Route::prefix('api')->group(function () {
+
+        /*
+        | KATALOG — herkese açık, kimlik doğrulama YOK.
+        |
+        | ⚠️ `magaza-acik` kapısı İLK KEZ gerçek bir rotada: mağaza
+        | kapalıysa 503 + Retry-After (1A.4'te yazıldı, burada bağlandı).
+        | Panel bu kapının DIŞINDA — marka mağazasını kapatınca kendini de
+        | dışarıda bırakmasın.
+        |
+        | ⚠️ Sorgular ProductQuery'den geçiyor: maliyet ve taslak sızıntısı
+        | ikisi de sessiz olurdu (1B-K10).
+        */
+        Route::middleware('magaza-acik')->group(function () {
+            Route::get('/products', [CatalogController::class, 'index']);
+            Route::get('/products/{slug}', [CatalogController::class, 'show']);
+            Route::get('/categories', [CatalogController::class, 'categories']);
+        });
 
         // Hız sınırları AppServiceProvider'da tanımlı.
         // M-4.1/3: Caddy'de hız sınırlaması yok, koruma bilerek burada.

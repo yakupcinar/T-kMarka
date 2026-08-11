@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -107,5 +108,26 @@ class ProductVariant extends Model
     public function satinAlinabilirMi(): bool
     {
         return $this->is_active && $this->stock > 0;
+    }
+
+    /**
+     * ★ Yukarıdaki kuralın SQL İKİZİ — sorguda kullanılır.
+     *
+     * ⚠️ İKİSİ BİR ÇİFTTİR, BİRLİKTE DEĞİŞİR.
+     *
+     * Tek uygulama mümkün değil: liste sorgusu bunu veritabanında çözmek
+     * zorunda (50 ürünün tüm varyantlarını PHP'ye çekip süzmek anlamsız),
+     * tek nesnede ise PHP'de. Bu yüzden yan yana duruyorlar ve
+     * ProductTest'te bir test ikisinin AYNI cevabı verdiğini koruyor —
+     * biri değişip diğeri unutulursa test kırılır.
+     *
+     * 1D'de `stock - rezerve > 0` olduğunda İKİSİ birden güncellenecek.
+     *
+     * @param  Builder<ProductVariant>  $sorgu
+     * @return Builder<ProductVariant>
+     */
+    public function scopeSatinAlinabilir($sorgu)
+    {
+        return $sorgu->where('is_active', true)->where('stock', '>', 0);
     }
 }
