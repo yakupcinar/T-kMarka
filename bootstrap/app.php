@@ -1,7 +1,7 @@
 <?php
 
-use App\Domain\Catalog\CategoryCycleException;
-use App\Domain\Catalog\CategoryHasChildrenException;
+use App\Domain\Catalog\CatalogConflictException;
+use App\Domain\Catalog\CatalogRuleException;
 use App\Domain\Catalog\EmptySlugException;
 use App\Domain\Identity\RoleInUseException;
 use App\Domain\Identity\SystemRoleException;
@@ -136,24 +136,28 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         /*
-        | Kategori ağacı kuralları → 409 Conflict.
+        | KATALOG istisnaları — iki taban sınıf, iki eşleme.
         |
-        | Yine ZAMAN/DURUM sorunu: yetki var, veri geçerli — ağacın şu anki
-        | hâli bu işlemi kaldırmıyor.
+        | 1B.3 tek başına yedi yeni kural getiriyor; her birine ayrı render
+        | yazmak bu dosyayı okunamaz hâle getirirdi (1A incelemesinde not
+        | düşülmüştü). Gerekçeler istisna sınıflarının kendi docblock'larında.
+        |
+        | Conflict → yetki var, veri geçerli, ZAMAN yanlış.
+        | Rule     → verinin kendisi geçersiz; beş dakika sonra da geçersiz.
         */
-        $exceptions->render(function (CategoryCycleException $e) {
+        $exceptions->render(function (CatalogConflictException $e) {
             return response()->json([
                 'message' => $e->getMessage(),
-                'resolution' => 'Önce hedef kategoriyi bu dalın dışına taşıyın.',
+                'resolution' => $e->cozum(),
+                ...$e->ayrintilar(),
             ], 409);
         });
 
-        $exceptions->render(function (CategoryHasChildrenException $e) {
+        $exceptions->render(function (CatalogRuleException $e) {
             return response()->json([
                 'message' => $e->getMessage(),
-                'children_count' => $e->altSayisi,
-                'resolution' => 'Önce alt kategorileri taşıyın veya silin.',
-            ], 409);
+                'errors' => $e->alanHatalari(),
+            ], 422);
         });
 
         /*

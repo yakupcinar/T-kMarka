@@ -3,6 +3,7 @@
 namespace App\Domain\Catalog;
 
 use App\Models\Category;
+use App\Models\Product;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -137,6 +138,7 @@ class CategoryService
 
     /**
      * @throws CategoryHasChildrenException
+     * @throws CategoryHasProductsException
      */
     public function sil(Category $kategori): void
     {
@@ -151,8 +153,19 @@ class CategoryService
             throw new CategoryHasChildrenException($kategori->name, $kategori->children()->count());
         }
 
-        // TODO(1B.3): bu kategoride ürün varsa silinemesin.
-        // `products.category_id` 1B.3'te doğacak.
+        /*
+        | ⚠️ İçinde ürün olan kategori de silinemez.
+        |
+        | `nullOnDelete` seçilseydi marka kategoriyi silince ürünler
+        | sessizce kategorisiz kalır, menüden düşer ve "neden kimse bu
+        | ürünleri görmüyor" sorusu doğardı. FK'de `restrictOnDelete` var,
+        | bu kontrol onun anlaşılır yüzü.
+        */
+        $urunSayisi = Product::where('category_id', $kategori->id)->count();
+
+        if ($urunSayisi > 0) {
+            throw new CategoryHasProductsException($kategori->name, $urunSayisi);
+        }
 
         $kategori->delete();
     }

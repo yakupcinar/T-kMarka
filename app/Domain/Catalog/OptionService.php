@@ -4,7 +4,9 @@ namespace App\Domain\Catalog;
 
 use App\Models\Option;
 use App\Models\OptionValue;
+use App\Models\ProductVariant;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -72,21 +74,37 @@ class OptionService
         return $deger;
     }
 
+    /** @throws OptionInUseException */
     public function sil(Option $option): void
     {
-        // TODO(1B.3): ürün bu ekseni kullanıyorsa silinemesin.
-        // `product_options` tablosu 1B.3'te doğacak; o blokta buraya
-        // rol silmedeki gibi bir kullanım kontrolü eklenecek (409).
+        // Veritabanında `restrictOnDelete` de var; bu kontrol onun
+        // anlaşılır yüzü. İkisi birlikte: biri unutulsa diğeri tutuyor.
+        $urunSayisi = DB::table('product_options')->where('option_id', $option->id)->count();
+
+        if ($urunSayisi > 0) {
+            throw new OptionInUseException($option->name, $urunSayisi);
+        }
 
         $option->delete();   // değerler cascadeOnDelete ile düşüyor
     }
 
+    /** @throws OptionValueInUseException */
     public function degerSil(OptionValue $deger): void
     {
-        // TODO(1B.3): bu değeri kullanan varyant varsa silinemesin.
-        // Silinirse varyantın `options` jsonb'sinde artık var olmayan bir
-        // değer kalır ve vitrin "Kırmızı" yazan ama seçilemeyen bir
-        // seçenek gösterir.
+        /*
+        | ⚠️ Bu kontrolün veritabanı karşılığı YOK: değer varyantın jsonb
+        | alanının İÇİNDE duruyor, yabancı anahtar kurulamıyor. Yani bu
+        | kural yalnızca burada yaşıyor — kaçarsa kaçar.
+        |
+        | `options ->> 'renk' = 'kirmizi'` — jsonb'den metin çıkarma.
+        */
+        $eksenSlug = $deger->option()->value('slug');
+
+        $varyantSayisi = ProductVariant::whereRaw('options ->> ? = ?', [$eksenSlug, $deger->slug])->count();
+
+        if ($varyantSayisi > 0) {
+            throw new OptionValueInUseException($deger->value, $varyantSayisi);
+        }
 
         $deger->delete();
     }

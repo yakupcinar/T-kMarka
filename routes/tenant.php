@@ -6,6 +6,7 @@ use App\Http\Panel\AuthController as PanelAuth;
 use App\Http\Panel\CategoryController;
 use App\Http\Panel\LegalController;
 use App\Http\Panel\OptionController;
+use App\Http\Panel\ProductController;
 use App\Http\Panel\RoleController;
 use App\Http\Panel\SettingsController;
 use App\Http\Panel\StaffController;
@@ -122,6 +123,29 @@ Route::middleware([
                 Route::post('/options', [OptionController::class, 'store']);
                 Route::put('/options/{option}', [OptionController::class, 'update']);
                 Route::delete('/options/{option}', [OptionController::class, 'destroy']);
+
+                /*
+                | ÜRÜN ve VARYANTLAR.
+                |
+                | ⚠️ Durum değişikliği ve eksen ayarı AYRI uçlarda: ikisinin
+                | de kendi şartı var (satışa almak varyant ister, eksen
+                | değiştirmek varyantsızlık ister). Genel `update` içine
+                | konsaydı basit bir başlık düzeltmesi bu kuralları
+                | tetikleyebilirdi.
+                */
+                Route::get('/products', [ProductController::class, 'index']);
+                Route::post('/products', [ProductController::class, 'store']);
+                Route::get('/products/{product}', [ProductController::class, 'show']);
+                Route::put('/products/{product}', [ProductController::class, 'update']);
+                Route::delete('/products/{product}', [ProductController::class, 'destroy']);
+
+                Route::put('/products/{product}/options', [ProductController::class, 'setOptions']);
+                Route::post('/products/{product}/status', [ProductController::class, 'setStatus']);
+
+                Route::post('/products/{product}/variants', [ProductController::class, 'storeVariant']);
+                Route::post('/products/{product}/variants/generate', [ProductController::class, 'generateVariants']);
+                Route::put('/products/{product}/variants/{variant}', [ProductController::class, 'updateVariant']);
+                Route::delete('/products/{product}/variants/{variant}', [ProductController::class, 'destroyVariant']);
 
                 /*
                 | KATEGORİ AĞACI.
