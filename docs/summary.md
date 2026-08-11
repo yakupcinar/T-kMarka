@@ -415,8 +415,45 @@ SIRADAKİ: 1B katalog — 10 karar alındı (PLAN.md 1B), araştırmayla doğrul
          BULGU: testler 158 kiracı klasörü biriktirmiş (tenant:delete
            boşluğunun test yansıması) → Pest.php'ye temizlik
 
-════ TOPLAM: 152 test · lint · analyse · CI hepsi yeşil ════
+1B.5 ✅  ProductQuery TEK KAPI + İLK VİTRİN UÇLARI — 9 test
+         /api/products · /api/products/{slug} · /api/categories
+         ★ cost_price sorguda HİÇ SEÇİLMİYOR (VITRIN_VARYANT_KOLONLARI)
+           sunumda gizlemek yetmezdi: biri modeli JSON'a çevirse sızardı
+         ★ taslak/arşiv listede yok, doğrudan bağlantıyla da 404
+           detay AYNI forStorefront sorgusundan geçiyor; ayrı yazılsaydı
+           liste ile detay farklı davranırdı
+         ★ magaza-acik kapısı İLK KEZ gerçek rotada (1A.4'te yazılmıştı)
+           vitrin 503 + Retry-After · PANEL kapının DIŞINDA
+         ★ AYNI KURAL İKİ DİLDE — ve bir test onları bağlıyor
+           satinAlinabilirMi() PHP · scopeSatinAlinabilir() SQL
+           tek uygulama mümkün değil (liste sorgusu DB'de çözmek zorunda)
+           4 stok/aktiflik kombinasyonunda aynı cevabı verdikleri test edildi
+           1D'de ikisi birden değişecek; biri unutulursa test kırılır
+         kategori filtresi ALT AĞACI kapsıyor · kırıntı path'ten
+         TESTİMİN HATASI: eksensiz üründe options={} ve UNIQUE(product_id,
+           options) ikinci varyantı reddediyor → kısıt "tek seçenekli üründe
+           tek varyant" kuralını KENDİLİĞİNDEN zorluyormuş
 
-SIRADAKİ: 1B.5 ProductQuery tek kapısı + İLK VİTRİN UÇLARI
-          orada iki sessiz sızıntı kanıtlanacak: cost_price ve taslak ürün
+1B.6 ✅  blok kapanışı — tohumlayıcıya katalog + iki kiracıda doğrulama
+         tohum: kategori ağacı · 2 eksen (renk kodlu) · 9 varyantlı ürün ·
+           tek varyantlı ürün · BİR TASLAK ürün (1C'de "taslak sepete
+           eklenebiliyor mu" sınavı için) · GD ile gerçek görsel
+         İKİ KİRACIDA GERÇEK HTTP — 7 başlık, hepsi geçti:
+           vitrin 200 (kimlik yok) · taslak 404 · cost_price hiç geçmiyor
+           from_price tükenmişi atlıyor (99.90 değil 249.90)
+           kategori alt ağacı (giyim 2, tisort 1)
+           görsel sahibinden 200 yabancıdan 404
+           mağaza kapanınca vitrin 503+Retry-After, PANEL 200, B etkilenmiyor
+
+════ FAZ 1B BİTTİ · 161 test · lint · analyse · CI hepsi yeşil ════
+
+1B'NİN ÖLÇEREK ÖĞRETTİKLERİ (hiçbiri tahmin değil)
+  Türkçe küçük harf   Kırmızı→kırmızı ama KIRMIZI→kirmizi
+  jsonb vs json       sıra normalize ediliyor / edilmiyor
+  ltree marka şeması  operatör bulunamıyor (ikinci citext, ama gürültülü)
+  substring(text,?)   metin parametre → REGEX sürümü seçiliyor, NULL
+  text_pattern_ops    Bitmap Heap Scan 46 · Seq Scan 77
+  Storage::url()      iki markada AYNI adres
+
+SIRADAKİ: 1C sepet — misafir sepeti · oturum anahtarı · giriş sonrası birleştirme
 ```

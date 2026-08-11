@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-11**
 
 ```
-┌─ YOL HARİTASI ───────────────────────────── şu an: 1B.5  ───┐
+┌─ YOL HARİTASI ─────────────────────────────── şu an: 1C  ───┐
 │                                                                │
 │  0 · TEMEL         git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -676,8 +676,44 @@ forStorefront()                      forPanel()
 - [x] **1B.2** `categories`: ağaç + `path`/`level` bakımı + döngü engeli (`CategoryService`)
 - [x] **1B.3** `products` + `product_options` + `product_variants` (üretim + benzersizlik)
 - [x] **1B.4** `product_images` — yükleme, sıra, kiracı klasörü (M-2.4/3)
-- [ ] **1B.5** `ProductQuery` + vitrin uçları (liste · detay · kategori)
-- [ ] **1B.6** blok kapanışı: testler · iki kiracıda doğrulama · CI
+- [x] **1B.5** `ProductQuery` + vitrin uçları (liste · detay · kategori)
+- [x] **1B.6** blok kapanışı: tohumlayıcıya katalog · iki kiracıda doğrulama · CI
+
+> **İKİ KİRACIDA DOĞRULANDI** (gerçek HTTP, 7 başlık — hepsi geçti):
+> vitrin listesi kimlik doğrulama olmadan 200 · taslak ürüne doğrudan bağlantı 404 ·
+> cevapta `cost_price` **hiç geçmiyor** (anahtar da değer de) · `from_price` tükenmiş
+> varyantı atlıyor (99.90 yerine 249.90) · kategori filtresi alt ağacı kapsıyor
+> (giyim 2, tisort 1) · görsel sahibinden 200 yabancıdan 404 · mağaza kapanınca
+> vitrin 503 + `Retry-After`, **panel 200**, ve B markası etkilenmiyor.
+>
+> **Tohumlayıcıya katalog eklendi:** kategori ağacı · iki eksen (renk kodlarıyla) ·
+> 9 varyantlı ürün · tek varyantlı ürün (1B-K1'in canlı örneği) · **bir taslak ürün**.
+> Taslak gösterim için değil sınav için: 1C'de "taslak ürün sepete eklenebiliyor mu"
+> sorusunu elle veri üretmeden deneyebilelim. Görseller GD ile üretilip gerçek
+> dosya olarak marka klasörüne yazılıyor.
+
+---
+
+## ✅ FAZ 1B TAMAMLANDI
+
+```
+1B.1 eksenler (mağaza seviyesinde)   1B.2 kategori ağacı (path + level)
+1B.3 ürün · eksen bağlama · varyant  1B.4 görseller (kiracı klasörü)
+1B.5 ProductQuery + ilk vitrin uçları
+
+161 test · lint · analyse (seviye 8) · CI — hepsi yeşil
+```
+
+**1B'nin ölçerek öğrettikleri** — hiçbiri tahmin değil:
+
+| Ölçüm | Sonuç | Olmasaydı |
+|---|---|---|
+| Türkçe küçük harf | `Kırmızı`→`kırmızı` ama `KIRMIZI`→`kirmizi` | aynı eksen iki satır, filtre ikiye bölünür |
+| `jsonb` vs `json` | sıra normalize ediliyor / edilmiyor | `UNIQUE` sıra değişen kopyayı yakalamaz |
+| `ltree` marka şemasında | operatör bulunamıyor | ikinci `citext` — ama bu gürültülü patlıyor |
+| `substring(text,?)` | metin parametre → REGEX sürümü, `NULL` | alt ağacın tamamı sessizce `NULL` olurdu |
+| `text_pattern_ops` | Bitmap Heap Scan 46 · Seq Scan 77 | sorgu çalışır, sessizce tam tarama yapar |
+| `Storage::url()` | iki markada AYNI adres | görseller merkez yoldan sunulur, izolasyon yok |
 
 **Bitiş ölçütü:** panelden çok eksenli varyantlı ürün eklenebiliyor · vitrin ucu yalnızca
 satılabilir olanları dönüyor · taslak ürünün ve `cost_price`'ın vitrine çıkmadığı testle
