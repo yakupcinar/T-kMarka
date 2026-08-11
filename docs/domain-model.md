@@ -362,13 +362,26 @@ fulfillment_items  → hangi satır, hangi pakette, kaç adet
 | **billing_tax_number** | varchar(11) null | kurumsal fatura — §8.3 |
 | **billing_tax_office** | varchar(100) null | kurumsal fatura — §8.3 |
 | **terms_accepted_at** | timestamptz | mesafeli satış sözleşmesi onay anı |
-| **terms_version** | varchar(20) | onaylanan sözleşme sürümü |
+| **legal_version_id** | FK → `legal_document_versions` | onaylanan sözleşmenin KENDİSİ. `ON DELETE RESTRICT` |
 | placed_at | timestamptz | |
 
-> ⚠️ **`terms_*` alanları sonradan eklenemez.** Marka sözleşme metnini değiştirdiğinde eski
-> siparişler eski sürüme bağlı kalmalı — hangi metnin hangi siparişte onaylandığı ancak
-> **o an** yakalanabilir. Sipariş bir fotoğraftır; bu da fotoğrafın parçası.
-> `settings.legal.distance_sales_text` her değiştiğinde sürüm numarası artar (§4).
+> ⚠️ **Sözleşme onayı sonradan eklenemez.** Marka metni değiştirdiğinde eski siparişler
+> eski sürüme bağlı kalmalı — hangi metnin hangi siparişte onaylandığı ancak **o an**
+> yakalanabilir. Sipariş bir fotoğraftır; bu da fotoğrafın parçası.
+>
+> ⚠️ **DÜZELTME (1A.4 · 1D-K2).** Bu satır önce `terms_version varchar(20)` idi ve yasal
+> metinler `settings`'te dururken yazılmıştı. 1A.4'te metinler **sürümlü kendi tablosuna**
+> alındı (`legal_document_versions`, salt-ekleme, tetikle korunuyor), bu yüzden alan
+> **FK'ye** çevrildi:
+>
+> ```
+> varchar "v3"        → metne ulaşamıyorsun; numaralandırma bozulursa kimse fark etmez
+> legal_version_id FK → satırın kendisi; metin okunabilir, satır zaten silinemiyor
+> ```
+>
+> ⚠️ Sipariş **GÖSTERİLEN** sürüme bağlanır, o anki güncele değil: müşteri 10:00:00'da
+> sürüm 7'yi onayladıysa 10:00:03'te sürüm 8 yayınlansa bile sipariş 7'ye bağlanır.
+> "En son sürüm" demek, kişinin görmediği bir metne imza attırmaktır.
 
 > **Neden tek `status` değil iki ayrı alan:** "ödenmiş ama gönderilmemiş" ile "gönderilmiş
 > ama iade edilmiş" aynı eksende ifade edilemez. Tek alana sıkıştırılırsa `paid_shipped`,

@@ -839,11 +839,88 @@ SEVKİYAT — sonradan, panelden. Bir sipariş birden çok pakette çıkabilir.
 > eski sürüme bağlı kalmalı. Sipariş bir fotoğraftır — o an yakalanmazsa bir daha
 > yakalanamaz (`docs/domain-model.md` §7).
 
+---
+
+##### Kararlar (araştırmayla doğrulandı — Shopify envanter durumları)
+
+**1D-K1 · Stok İKİ KOLON: `stock` (fiziksel) + `committed` (bağlanmış).**
+
+```
+variants.stock      = on_hand — fiziksel olarak elde olan
+variants.committed  = siparişe bağlanmış, henüz sevk edilmemiş
+available           = stock − committed        ← TEK SATIRDA, join yok
+stock_reservations  = denetim izi + süre dolumu
+```
+
+> **Shopify'ın modeli birebir bu** ve orada da "her konumda **tutması gereken
+> özdeşlik**" olarak tarif ediliyor: `on_hand − committed − damaged − safety_stock =
+> available`. Bizde `damaged`/`safety_stock` yok (Faz 2+), o yüzden iki terim.
+>
+> **Neden rezervasyon tablosundan TOPLAMIYORUZ:** `available = stock − SUM(rezervasyon)`
+> her ürün listesinde bir alt sorgu demek — 1B'de kaçındığımız N+1'in kardeşi. Sayı
+> materyalleştiriliyor, tablo denetim izi olarak duruyor.
+>
+> **Neden doğrudan stoktan düşmüyoruz:** o zaman "fiziksel stok" bilgisi kaybolur ve
+> çöken bir ödeme stoğu sessizce sızdırır.
+>
+> **Bedeli ve karşılığı:** iki yerde tutulan sayının tutarlı kalması gerekiyor.
+> → **Gece denetimi (cron):** aktif rezervasyonların toplamı `committed` kolonuna eşit mi?
+> Değilse uyarı. Materyalleştirilmiş sayacın bedeli budur ve ödenmesi gerekir; 1B.5'teki
+> "SQL ikizi"ni testle bağlamakla aynı fikir, bu sefer çalışma anında.
+>
+> ⚠️ **1B'de verilen söz burada ödeniyor:** `satinAlinabilirMi()` ve `scopeSatinAlinabilir()`
+> **birlikte** `stock − committed > 0` olacak. İkisini bağlayan test 1B.5'te yazıldı.
+
+**1D-K2 · Sözleşme onayı: `legal_version_id` FK — `terms_version` varchar DEĞİL.**
+
+> `domain-model.md` §7'de `terms_version varchar(20)` yazıyordu; o satır yasal metinler
+> **`settings`'te dururken** yazılmıştı. 1A.4'te metinler sürümlü kendi tablosuna alındı.
+>
+> ```
+> varchar "v3"        → metne ulaşamıyorsun; "v3" neydi? numaralandırma
+>                        bozulursa kimse fark etmez
+> legal_version_id FK → satırın kendisi, metin okunabilir
+>                        sürüm satırı zaten SİLİNEMİYOR (tetik, 1A.4)
+>                        ON DELETE RESTRICT ikinci savunma hattı
+> ```
+>
+> ⚠️ Sipariş **GÖSTERİLEN** sürüme bağlanır, o anki güncele değil (1A.4'te kararlaştırıldı):
+> müşteri 10:00:00'da sürüm 7'yi onayladıysa, 10:00:03'te sürüm 8 yayınlansa bile sipariş
+> 7'ye bağlanır. "En son sürüm" demek, kişinin görmediği bir metne imza attırmaktır.
+>
+> **`domain-model.md` §7 düzeltildi.**
+
+**1D-K3 · Rezervasyon 15 dakika; süresi dolanı ZAMANLANMIŞ GÖREV düşürür.**
+
+> ⚠️ **Beşinci tuzağın ilk gerçek kullanımı.** Marka verisine dokunan görev
+> `tenants:run` ile sarılmak zorunda (0.5'te ölçüldü). Doğrudan yazılan görev merkez
+> bağlamda koşar ve **hiçbir şey yapmaz** — rezervasyonlar asla düşmez, stok sonsuza
+> kadar bağlı kalır ve hata da vermez.
+
+**1D-K4 · Sipariş numarası: `TM-2026-000123` — marka içinde artan.**
+
+> Tahmin edilebilir olması sorun değil: siparişi görüntülemek zaten kimlik doğrulaması
+> istiyor (misafirde e-posta + numara). Yıl öneki, markanın kendi muhasebesinde ayırt
+> etmesini kolaylaştırıyor.
+
+**1D-K5 · Satır kilidi: `SELECT … FOR UPDATE`; ödeme transaction'ın DIŞINDA.**
+
+```
+kilitsiz:  A okur 1 · B okur 1 · ikisi de committed=1  → AŞIRI SATIŞ, hatasız
+kilitli:   A kilitler · B BEKLER · A commit · B okur 0 → reddedilir ✓
+```
+
+> Ödemenin neden dışarıda olduğu zaten yukarıda: dış servis yavaşlarsa satırlar
+> dakikalarca kilitli kalır ve tüm mağaza donar.
+
+---
+
 **Tablolar:** `orders` · `order_items` · `fulfillments` · `fulfillment_items` ·
 `stock_reservations`
 **Bitiş ölçütü:** uçtan uca test — misafir sipariş verir, stok düşer, sipariş **kısmi**
 sevk edilir, `fulfillment_status` doğru hesaplanır · eşzamanlı iki siparişte aşırı satış
-olmadığı testle kanıtlanır
+olmadığı testle kanıtlanır · `committed` ile rezervasyon toplamının tutarlılığı denetimle
+doğrulanıyor
 
 #### 1E — Ödeme
 
