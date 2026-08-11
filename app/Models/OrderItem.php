@@ -15,8 +15,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * `variant_id` yalnızca referans ve NULL olabilir — varyant silinse bile
  * bu satır siparişin ne olduğunu tek başına anlatıyor.
  *
+ * ⚠️ Para alanları `decimal:2` yüzünden METİN döndürüyor.
+ *
  * @property array<string, string> $variant_options
  * @property int $quantity
+ * @property string $unit_price
+ * @property string $line_total
+ * @property string $tax_rate
+ * @property string $tax_amount
  */
 class OrderItem extends Model
 {

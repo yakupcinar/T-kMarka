@@ -19,8 +19,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * `paid_partially_shipped_partially_refunded` gibi kombinasyon patlaması
  * başlardı.
  *
+ * ⚠️ Para alanları `decimal:2` cast'i yüzünden METİN döndürüyor; statik
+ * analiz kolonu gördüğü için float sanıyor.
+ *
  * @property PaymentStatus $payment_status
  * @property FulfillmentStatus $fulfillment_status
+ * @property string $items_total
+ * @property string $discount_total
+ * @property string $shipping_total
+ * @property string $tax_total
+ * @property string $grand_total
  */
 class Order extends Model
 {

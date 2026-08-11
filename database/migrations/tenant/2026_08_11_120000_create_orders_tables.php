@@ -72,16 +72,35 @@ return new class extends Migration
             | Bağlansaydı müşteri altı ay sonra adresini düzelttiğinde
             | geçmiş siparişlerin "nereye gitti" bilgisi de değişirdi.
             */
-            foreach (['shipping', 'billing'] as $tur) {
-                $table->string("{$tur}_full_name", 120);
-                $table->string("{$tur}_phone", 20);
-                $table->string("{$tur}_city", 60);
-                $table->string("{$tur}_district", 60);
-                $table->string("{$tur}_neighborhood", 100)->nullable();
-                $table->string("{$tur}_line1", 255);
-                $table->string("{$tur}_line2", 255)->nullable();
-                $table->string("{$tur}_postal_code", 10)->nullable();
-            }
+            /*
+            | ⚠️ Kolonlar TEK TEK yazılıyor, döngüyle DEĞİL.
+            |
+            | İlk yazımda `foreach (['shipping','billing'] …)` ile
+            | üretilmişlerdi — kısa ama statik analiz onları GÖREMEDİ:
+            | Larastan model alanlarını migration'ı okuyarak çıkarıyor ve
+            | döngüyü çalıştıramıyor. Sonuç: `$order->billing_city`
+            | "tanımsız özellik" diye işaretlendi.
+            |
+            | Zekice yazım, aracı kör etti. Uzun hâli hem analiz için hem
+            | `grep` için daha iyi.
+            */
+            $table->string('shipping_full_name', 120);
+            $table->string('shipping_phone', 20);
+            $table->string('shipping_city', 60);
+            $table->string('shipping_district', 60);
+            $table->string('shipping_neighborhood', 100)->nullable();
+            $table->string('shipping_line1', 255);
+            $table->string('shipping_line2', 255)->nullable();
+            $table->string('shipping_postal_code', 10)->nullable();
+
+            $table->string('billing_full_name', 120);
+            $table->string('billing_phone', 20);
+            $table->string('billing_city', 60);
+            $table->string('billing_district', 60);
+            $table->string('billing_neighborhood', 100)->nullable();
+            $table->string('billing_line1', 255);
+            $table->string('billing_line2', 255)->nullable();
+            $table->string('billing_postal_code', 10)->nullable();
 
             // Kurumsal fatura (§8.3). Faz 1'de toplanıyor ve biçimsel
             // doğrulanıyor; e-fatura gönderimi Faz 5.

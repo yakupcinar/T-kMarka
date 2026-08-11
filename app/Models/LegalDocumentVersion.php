@@ -15,6 +15,12 @@ use Illuminate\Database\Eloquent\Model;
  * ⚠️ Bu modelde `update()` ve `delete()` KULLANILMAZ. Kural yalnızca burada
  * yazılı değil — veritabanında tetikle zorlanıyor, deneyen `RAISE EXCEPTION`
  * alır (migration'a bakılabilir).
+ *
+ * ⚠️ `@property` notu şart: statik analiz `casts()`'ten enum'u çıkaramıyor,
+ * kolonu varchar gördüğü için `type`'ı metin sanıyor.
+ *
+ * @property LegalDocumentType $type
+ * @property int $version_no
  */
 class LegalDocumentVersion extends Model
 {

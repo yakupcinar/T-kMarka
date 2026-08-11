@@ -56,4 +56,18 @@ class StockReservation extends Model
     {
         return $this->belongsTo(Cart::class);
     }
+
+    /**
+     * Rezervasyonu tüketen sipariş.
+     *
+     * Sipariş oluştuktan sonra sepet `converted` oluyor; ödemenin sonucuna
+     * göre rezervasyonu kesinleştirmek/serbest bırakmak gerektiğinde
+     * elimizde sepet değil SİPARİŞ oluyor.
+     *
+     * @return BelongsTo<Order, $this>
+     */
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
+    }
 }
