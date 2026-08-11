@@ -327,4 +327,96 @@ SIRADAKİ: 1B katalog — 10 karar alındı (PLAN.md 1B), araştırmayla doğrul
       "yakında gelecek" Faz 2'ye: bayrak değil AKIŞ (işaretle→haber ver→e-posta)
     ürün adresi DÜZ /urun/{slug} — Shopify canonical'ı da düz olana işaret ediyor
     ProductQuery TEK KAPI: cost_price ve taslak sızıntısı ikisi de sessiz olurdu
+
+──── 1A DÜZELTMESİ (1B ölçümü sırasında bulundu) ────────────────────────
+     ★ TÜRKÇE BÜYÜK İ TUZAĞI — iki ayrı hesap doğuruyordu
+       mb_strtolower('İSMAIL@x') → 'i̇smail@x'  (i + AYRI birleşen nokta)
+       PostgreSQL lower()        → 'ismail@x'   (düz i)
+       CHECK kısıtı ikisini de "küçük harf" sayıyor, unique de yakalamıyor
+       → ismail@x ile İSMAIL@x İKİ AYRI MÜŞTERİ; üstelik küçük harfle
+         kayıt olan büyük yazınca "parola yanlış" alıp kilitleniyordu
+       kural 10 yerde tekrarlıyordu → EmailNormalizer, tek kapı
+       TESTİN YAKALADIĞI FAZLA DÜZELTME: 'ı' da ASCII'ye çevrilmişti,
+         PostgreSQL 'ı'yı bırakıyor → uyum bozuluyordu. Bozuk olan TEK
+         harf 'İ'. Artık bir test PHP=PostgreSQL çıktısını koruyor.
+     ASCII DIŞI E-POSTA YASAKLANDI (araştırma: RFC 6531/SMTPUTF8 desteği
+       alan adlarının ~%10'unda; Türkçe karakterli adrese posta teslim
+       edilemiyor). İki katman: App\Rules\AsciiEmail + CHECK kısıtı.
+       ⚠ SIRA: önce normalleştir (İ→i), sonra ASCII denetle — tersi olsa
+         Caps Lock'la yazan kullanıcı kendi geçerli adresini reddedilmiş
+         görürdü. Ölçüldü: Laravel'in 'email' kuralı bunu elemiyor.
+
+1B.1 ✅  varyant eksenleri — options + option_values · 7 uç · 10 test
+         ★ BENZERSİZLİK ANAHTARI SLUG, küçük harf DEĞİL
+           'Kırmızı'→'kırmızı' ama 'KIRMIZI'→'kirmizi' → iki ayrı eksen
+           Str::slug hepsini 'kirmizi'de birleştiriyor; filtre adresi de o
+         slug/option_id $fillable dışında · boş slug reddediliyor ("★")
+         benzersizlik değerlerde EKSEN İÇİNDE ("Standart" hem Beden hem Boy)
+         swatch (renk kodu) DEĞERDE — eksen mağaza seviyesinde, bir kez yazılıyor
+         product.write izni 1A.3'ten beri boştu, ilk kez kapı bekliyor
+         TESTİN KENDİ ZAYIFLIĞI BULUNDU: ilk Türkçe testi 'Renk'/'RENK'
+           kullanıyordu, o adda I yok → tuzağı HİÇ denemiyordu. 'İncelik'
+           ile değiştirildi. Yeşil test, doğru şeyi test ettiği anlamına gelmiyor.
+
+1B.2 ✅  kategori ağacı — parent_id + path + level · 5 uç · 11 test
+         taşıma ALT AĞACIN TAMAMINI tek sorguda günceller (transaction)
+           yalnızca taşınan güncellenseydi torunlar eski yolu gösterir,
+           "Erkek'in altındaki her şey" onları BULAMAZDI — hatasız
+         döngü engeli: hedefin path'i taşınanın path'iyle başlıyorsa reddet
+         ★ BULGU: PostgreSQL'de İKİ substring var
+           substring(text,int) konumdan kes · substring(text,text) REGEX
+           parametre metin gidince regex seçildi, NULL döndü
+           path NOT NULL olduğu için PATLADI — nullable olsaydı alt ağacın
+           TAMAMI sessizce NULL olur, kategoriler ağaçtan düşerdi → ?::int
+         ÖLÇÜM: text_pattern_ops iddiası doğrulandı (3000 kategori)
+           text_pattern_ops → Bitmap Heap Scan 46.31
+           düz btree        → Seq Scan         77.50
+         alt kategorisi olan silinemez (409) · ad değişince path DEĞİŞMEZ
+         ekmek kırıntısı path'ten çıkıyor, ek sorgu yok
+
+1B.3 ✅  ürün · eksen bağlama · varyant — 11 uç · 15 test
+         ★ ÖLÇÜM: jsonb mi json mu
+           jsonb {"renk":"K","beden":"M"} = {"beden":"M","renk":"K"} → TRUE
+           json  aynı karşılaştırma                                  → FALSE
+           json seçseydik UNIQUE kısıtı sıra değişen kopyayı YAKALAMAZDI
+           jsonb büyük/küçük duyarlı → varyantta DEĞER SLUG'I saklanıyor
+         ★ VARYANT DOĞRULAMASI — üç hata, tek sonuç
+           eksik anahtar · fazla anahtar · tanımsız değer
+           üçü de müşterinin SEÇEMEYECEĞİ bir varyant üretirdi, hatasız
+         ★ satinAlinabilirMi() TEK KAPI — 1D'de `stock - rezerve > 0`
+           olacak ve YALNIZCA orası değişecek (aşırı satış riski)
+         ürün TASLAK doğar, satışa almak varyant ister (1A.4 asimetrisi)
+         KDV boşsa mağaza ayarından DOLDURULUYOR, kolon varsayılanına değil
+         varyant varken eksen DEĞİŞTİRİLEMEZ (409)
+         başlık değişince slug DEĞİŞMEZ · aynı başlık SONEK alıyor (tisort-2)
+         üç TODO kapandı: kullanımdaki eksen/değer + içinde ürün olan kategori
+           değer kontrolünün DB karşılığı YOK (jsonb içinde, FK kurulamıyor)
+         TOPARLAMA: katalog istisnaları iki taban sınıfa bağlandı
+           (Conflict→409, Rule→422) — 1A incelemesindeki notun uygulaması
+         BULGU (3. KEZ): kolon varsayılanı modele ULAŞMIYOR
+           is_active null okundu → satinAlinabilirMi() false döndü
+           bu sefer refresh() değil modelde $attributes → kaynağında bitti
+           CLAUDE.md'ye kural yazıldı
+
+1B.4 ✅  ürün görselleri + kiracı DOSYA izolasyonu — 3 uç · 9 test
+         ★ ÖLÇÜM: Storage::url() SESSİZCE YANLIŞ ADRES ÜRETİYOR
+           disk kökü çevriliyor (storage/tenant<id>/app/public/)
+           ama URL çevrilmiyor: iki markada da http://localhost/storage/...
+           yanlış alan adı + merkez yol, üstelik public/storage bağı YOK
+           → paketin tenant_asset() yardımcısı, izolasyon ADRES üzerinden
+           bedeli: görselleri PHP sunuyor → Faz 6'da S3/Caddy kuralı
+         GERÇEK HTTP: sahibi 200 · yabancı 404 · merkez 404 · ../.env 404
+         tür DOSYA İÇERİĞİNDEN · ad ve uzantı İSTEMCİDEN ALINMIYOR
+         putFileAs (put+get() değil: get() false dönüp BOŞ dosya yazardı)
+         silme dosyayı da kaldırıyor
+         İKİ TEST YAPAYLIĞI belgelendi: paket test modunda bilerek 500
+           fırlatıyor (üretimde 404) · fake dosya mime'ı UZANTIDAN tahmin
+           ediyor, "doğru uzantı yanlış içerik" senaryosu kurulamıyor
+         BULGU: testler 158 kiracı klasörü biriktirmiş (tenant:delete
+           boşluğunun test yansıması) → Pest.php'ye temizlik
+
+════ TOPLAM: 152 test · lint · analyse · CI hepsi yeşil ════
+
+SIRADAKİ: 1B.5 ProductQuery tek kapısı + İLK VİTRİN UÇLARI
+          orada iki sessiz sızıntı kanıtlanacak: cost_price ve taslak ürün
 ```

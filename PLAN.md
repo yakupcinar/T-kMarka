@@ -2,10 +2,10 @@
 
 > **Bu dosya projenin tek yol haritasıdır.** Tüm geliştirme buna göre ilerler.
 > Kararların gerekçeleri `docs/pre-setup.md`'de, veri modeli `docs/domain-model.md`'de.
-> Son güncelleme: **2026-08-10**
+> Son güncelleme: **2026-08-11**
 
 ```
-┌─ YOL HARİTASI ─────────────────────────────── şu an: 1B  ───┐
+┌─ YOL HARİTASI ───────────────────────────── şu an: 1B.5  ───┐
 │                                                                │
 │  0 · TEMEL         git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -672,10 +672,10 @@ forStorefront()                      forPanel()
 
 ##### Bloklar
 
-- [ ] **1B.1** eksen tanımları: `options` · `option_values` + panel uçları
-- [ ] **1B.2** `categories`: ağaç + `path`/`level` bakımı + döngü engeli (`CategoryService`)
-- [ ] **1B.3** `products` + `product_options` + `product_variants` (üretim + benzersizlik)
-- [ ] **1B.4** `product_images` — yükleme, sıra, kiracı klasörü (M-2.4/3)
+- [x] **1B.1** eksen tanımları: `options` · `option_values` + panel uçları
+- [x] **1B.2** `categories`: ağaç + `path`/`level` bakımı + döngü engeli (`CategoryService`)
+- [x] **1B.3** `products` + `product_options` + `product_variants` (üretim + benzersizlik)
+- [x] **1B.4** `product_images` — yükleme, sıra, kiracı klasörü (M-2.4/3)
 - [ ] **1B.5** `ProductQuery` + vitrin uçları (liste · detay · kategori)
 - [ ] **1B.6** blok kapanışı: testler · iki kiracıda doğrulama · CI
 
