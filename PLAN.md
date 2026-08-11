@@ -460,7 +460,7 @@ sepete atar → ödeme yapar → sipariş oluşur → stok düşer → sipariş 
 edilir → olaylar kaydedilir. Ve aynı akış **ikinci bir kiracıda** da çalışıyor, iki
 kiracının verisi birbirine karışmıyor.
 
-> 🔜 Blok blok açılacak. **1A açık**, diğerleri sırası gelince yazılacak.
+> 🔜 Blok blok açılacak. **1A-1D kapandı, 1E açık**; kalanı sırası gelince yazılacak.
 
 - [x] **1A — Kimlik, yetki ve mağaza ayarları** ✅ ← aşağıda
 - [x] 1B — Katalog ✅
@@ -897,6 +897,42 @@ stock_reservations  = denetim izi + süre dolumu
 > bağlamda koşar ve **hiçbir şey yapmaz** — rezervasyonlar asla düşmez, stok sonsuza
 > kadar bağlı kalır ve hata da vermez.
 
+> ### ⟳ 1E araştırmasıyla GÜNCELLENDİ — tek süre YETMİYOR
+>
+> 15 dakika, "müşteri ödeme sayfasında oyalanıyor" varsayımıyla seçilmişti. 1E
+> araştırması varsayımın **yarısının yanlış** olduğunu gösterdi: süre bizim
+> elimizde değil, sağlayıcının takviminde.
+>
+> ```
+> iyzico webhook takvimi          bizim rezervasyonumuz
+> ilk bildirim   10-15 saniye  →  ✓
+> 1. tekrar      +15 dakika    →  TAM SINIRDA
+> 2. tekrar      +30 dakika    →  rezervasyon ÖLDÜ
+> 3. tekrar      +45 dakika    →  ÖLDÜ
+> ```
+>
+> Bildirim ilk seferde kaçarsa (deploy anı, kısa kesinti, 5xx) ikinci deneme
+> rezervasyonun öldüğü dakikaya denk geliyor. Kıyas: **WooCommerce varsayılanı 60
+> dakika** — bizim dört katımız; ve o bile PayPal'da yetmediği için "sipariş erken
+> iptal edildi" bilinen bir sorun.
+>
+> **Süreyi 60'a çıkarmak yanlış çözüm:** ödemeye hiç başlamamış terk edilmiş sepet
+> stoğu bir saat rehin tutardı. Değişen şey süre değil, **süreyi neyin belirlediği:**
+>
+> ```
+> rezervasyon oluştu           15 dk   sepet bekliyor, süreç BİZDE
+>      │
+>      └─ ödeme BAŞLATILDI  →  60 dk   süreç DIŞARIDA, geri alamayız
+>                                      temizlik görevi buna DOKUNMAZ
+> ```
+>
+> Yani rezervasyonun bir **durumu** oluyor: `held` (sepet) → `paying` (ödeme yolda).
+> Uygulaması 1E.2'de; `StockService` ile `stok:rezervasyon-temizle` ikisi de etkileniyor.
+>
+> ⚠️ Bu değişiklikten sonra bile "para geldi, rezervasyon ölmüş" senaryosu
+> **imkânsız olmuyor** — yalnızca nadirleşiyor. 60 dakikayı da aşan bildirim
+> gelebilir. O yüzden 1E-K3'teki karşılama davranışı yine de gerekli.
+
 **1D-K4 · Sipariş numarası: `TM-2026-000123` — marka içinde artan.**
 
 > Tahmin edilebilir olması sorun değil: siparişi görüntülemek zaten kimlik doğrulaması
@@ -1021,7 +1057,7 @@ vitrinde yasal metin ucu        →  HİÇ YOKTU
 **İki kiracıda doğrulandı:** iki markada da `TM-2026-000001` üretildi (sıralar ayrı
 şemalarda, çakışma yok) · her panel yalnızca kendi siparişini gördü.
 
-#### 1E — Ödeme
+#### 1E — Ödeme  ← **AÇIK BLOK**
 
 > ⚠️ **1A.4'ten gelen zorunluluk: sipariş, onaylanan sözleşme SÜRÜMÜNE bağlanacak.**
 >
@@ -1061,9 +1097,220 @@ vitrinde yasal metin ucu        →  HİÇ YOKTU
 >
 > Kart verisi hiçbir zaman sisteme girmez. Sağlayıcı anahtarları `settings`'te şifreli.
 
-**Tablolar:** `payments`
-**Bitiş ölçütü:** sahte sağlayıcıyla ödeme uçtan uca çalışıyor · başarısız ödemede
-rezervasyon serbest bırakılıyor · imzasız webhook reddediliyor
+---
+
+##### 1E'nin asıl şekli — ödeme BİZİM sürecimizde değil
+
+Alışkanlık "sağlayıcıyı çağır, cevabı işle" der. Türkiye'de kartla ödeme öyle
+çalışmıyor: **3D Secure zorunlu** ve müşteri sürecin ortasında bizden çıkıyor.
+
+```
+MÜŞTERİ           BİZ                    SAĞLAYICI            BANKA
+   │               │                         │                  │
+   │─"öde"────────▶│                         │                  │
+   │               │──ödeme başlat──────────▶│                  │
+   │               │◀─"şu adrese yolla"──────│                  │
+   │◀──yönlendir───│                         │                  │
+   │                                                            │
+   │══════════ BİZ ARTIK SÜREÇTE YOKUZ ═══════════════════════▶ │
+   │              (müşteri SMS kodunu bankaya giriyor)          │
+   │                                                            │
+   │◀═════════════════════════════════════════════════════════ │
+   │               │                         │                  │
+   │──geri dön────▶│  ① tarayıcı geri geldi  │                  │
+   │               │◀──webhook───────────────│  ② sunucu haberi │
+```
+
+**1E'nin bütün zorluğu bu iki okta.** İkisi de "ödeme oldu" diyor; hangisine inanılır?
+
+---
+
+##### 1E-K1 · GERÇEK ② webhook'tur. ① yalnızca ekran çevirir.
+
+> ① müşterinin tarayıcısından geliyor — adres çubuğuna `?status=success` yazan herkes
+> üretebilir. ② sağlayıcının sunucusundan ve **imzalı** geliyor.
+>
+> ⚠️ Bu bizim tahminimiz değil, **iyzico kendi belgesinde yazıyor:** geri dönüş
+> yönlendirmesi ödemenin tamamlandığının güvenilir göstergesi *değildir* — kullanıcı o
+> ekrana hiç ulaşmayabilir, sekmeyi kapatabilir, geri tuşuna basabilir, bağlantısı
+> kopabilir. Callback **kullanıcıyı bilgilendirmek** içindir.
+>
+> Sonuç: callback ucu **hiçbir şey kaydetmez**. "Teşekkürler" ya da "bekleniyor"
+> gösterir, o kadar. Tek yazan yer webhook.
+
+##### 1E-K2 · Sipariş ödemeden ÖNCE doğar. (1D'de zaten öyle — burada gerekçesi)
+
+```
+SHOPIFY                         MAGENTO · WOOCOMMERCE · BİZ
+"checkout" nesnesi              sipariş HEMEN doğuyor (pending)
+sipariş ödeme başarılı          ödeme sonucu yalnızca DURUMU değiştirir
+  olunca DOĞAR
+```
+
+> Shopify'ın modelinin belgelenmiş bedeli var: müşteri ödedikten sonra "teşekkürler"
+> sayfasına ulaşamadan sekmeyi kapatırsa sipariş **hiç doğmuyor**, kayıt "terk edilmiş
+> sepet" olarak kalıyor. Satıcı topluluğunda tam bu başlıkla açılmış konular var:
+> *ödeme onaylandı ama terk edilmiş sepette görünüyor.* Para çekilmiş, sipariş yok.
+>
+> Bizde webhook geldiğinde bağlanacağı satır **zaten var**. Bu yüzden 1D'nin
+> `pending` doğan siparişi değişmiyor.
+
+##### 1E-K3 · Webhook "EN AZ BİR KEZ" gelir. Tekrarı veritabanı reddeder.
+
+```
+webhook #1  →  stok düş, paid yap        ✓
+webhook #2  →  stok DÜŞ, paid yap        ✗ iki kez düştü
+webhook #3  →  stok DÜŞ, paid yap        ✗ üç kez        — hepsi SESSİZ
+```
+
+> Tekrar teslim **arıza değil tasarım**: Stripe'ın ifadesiyle teslim "en az bir kez",
+> aynı olay kimliği iki kez gelebilir. iyzico somut takvim veriyor: ilk bildirim
+> **10-15 saniye** sonra, sunucu 2xx dönmezse **15 dakikada bir, 3 kez daha.**
+>
+> Sektörün ortak çözümü tek cümle: *sağlayıcının olay kimliğini idempotanslık anahtarı
+> yap ve **veritabanı UNIQUE kısıtıyla** koru* — uygulamada "önce bir bakayım işledim
+> mi" kontrolü yarış koşulunu çözmez, kısıt çözer.
+>
+> ```
+> payments (provider, provider_ref)  UNIQUE   ← ikinci kayıt DB'de reddedilir
+> ```
+>
+> Bu, projenin tekrarlayan deseni: **unutmayı imkânsız kıl.**
+
+##### 1E-K4 · Müşteri iki kez "öde"ye basarsa: idempotanslık anahtarı
+
+> UNIQUE burada yetmiyor — sağlayıcı iki **farklı** işlem numarası üretir, ikisi de
+> geçerlidir, müşterinin parası iki kez çekilir.
+>
+> Çözüm sağlayıcıya *giderken* taşınan anahtar: aynı anahtarla ikinci istek gelirse
+> sağlayıcı yeni çekim yapmaz, ilkinin sonucunu döndürür. **Anahtar = sipariş
+> numarası** (`TM-2026-000123`) — marka içinde tekil ve zaten üretilmiş.
+>
+> ⚠️ Bu borç 1D'nin kilitleme tartışmasında not edilmişti; burada kapanıyor.
+
+##### 1E-K5 · ★ "Para geldi, mal yok" → KABUL ET, İŞARETLE, markaya sor
+
+```
+10:00  sipariş verildi, 3 tişört rezerve
+11:05  rezervasyon öldü (60 dk), stok serbest
+11:06  başka müşteri o 3 tişörtü aldı
+11:08  webhook: "ödeme başarılı"        ← PARA ÇEKİLDİ, MAL YOK
+```
+
+> 1D-K3 güncellemesi bu senaryoyu **nadirleştiriyor ama yok etmiyor.** Üç seçenek:
+>
+> ```
+> A  ödemeyi reddet + iade et      müşteri parasını 3-5 günde alır, kötü deneyim
+> B  kabul et, stok EKSİYE düşsün  marka gönderemeyeceği siparişi görür
+> C  kabul et + "stok bekliyor"    marka karar verir: tedarik mi, iade mi   ← SEÇİLEN
+> ```
+>
+> **Sektör de C yapıyor.** Shopify eksi stoğa izin veriyor, sipariş normal doğuyor,
+> satırlar stok gelene kadar sevk edilmemiş kalıyor. Satıcı cephesinden bakıldığında
+> bu "en kötü operasyonel arızalardan biri" olarak tarif ediliyor — ödenmiş ama
+> karşılanamayan siparişle kalıyorsun: iade et, geciktir, ya da zararına tedarik et.
+>
+> ⚠️ **Ama Shopify'ın asıl uyarısı şu: sorun eksi stoğa izin vermek değil, HABER
+> VERMEDEN izin vermek.** Açık mesaj yoksa "bu ayar çözdüğünden fazla sorun yaratır"
+> deniyor.
+>
+> Bu yüzden C'nin şartı var: durum yalnızca veritabanında değil **panelde görünür bir
+> uyarı** olmalı. Marka satırı açmadan göremiyorsa C sessiz arızaya döner — tam olarak
+> bu projede kovaladığımız şeye.
+
+##### 1E-K6 · Sahte sağlayıcı GERÇEK akışı taklit eder
+
+> "Başarılı" diyen bir sınıf yazmak kolay, ama 1E'nin **hiçbir zorluğunu** sınamaz:
+> yönlendirme yok, gecikme yok, tekrar yok, imza yok. O sahte sağlayıcıyla yeşil olan
+> testler iyzico takıldığı gün hiçbir şey söylemez.
+>
+> `FakePaymentProvider` şunları üretecek: yönlendirme adresi · **gecikmeli** webhook ·
+> **aynı olayı birden çok kez** gönderme · imzalı ve imzasız istek · başarısız sonuç.
+
+##### Kiracılık: webhook hangi markaya ait?
+
+```
+sağlayıcı  →  POST /webhooks/payment  →  hangi şema?
+```
+
+> ⚠️ 0.5'te ölçtüğümüz kiracılık tuzağının yeni yüzü: **yanlış şemaya yazılan ödeme
+> hata vermez.** A markasının tahsilatı B'nin defterinde görünür.
+>
+> Uç, alan adından çözülüyor (`marka-a.localhost/webhooks/payment`) — kiracı
+> tanımlaması zaten alan adı üzerinden (M-2). Sabit tek adrese yollayan sağlayıcı
+> çıkarsa marka ayrımı yükün içindeki bir alandan yapılır; o zaman **merkez şemada**
+> eşleme tablosu gerekir. Faz 1'de gerek yok, notu duruyor.
+>
+> ⚠️ Bu uç **kimlik doğrulamasız** olmak zorunda — sağlayıcı bizim token'ımızı bilmez.
+> Tek koruma **imza**: iyzico `X-IYZ-SIGNATURE-V3`, HMAC-SHA256, gizli anahtar +
+> belirli alanlar sırayla. Gizli anahtar `settings`'te şifreli, marka başına ayrı (§4).
+
+---
+
+##### Bu kararların dayandığı kaynaklar
+
+> Beş karar da tahminle değil **okunarak** verildi; biri (1D-K3) araştırma yüzünden
+> değişti. Kaynaklar sonradan doğrulanabilsin diye burada:
+>
+> · iyzico — [Webhook](https://docs.iyzico.com/ek-servisler/webhook) (imza, 10-15 sn +
+>   15 dk × 3 tekrar) · [3DS entegrasyonu](https://docs.iyzico.com/odeme-metotlari/api/3ds/3ds-entegrasyonu)
+>   (callback güvenilir gösterge değildir)
+> · ikas — [Orders API](https://ikas.dev/docs/api/admin-api/orders): `orderPaymentStatus`
+>   ile `orderPackageStatus` **ayrı alanlar** (iki eksen kararımızı doğruluyor;
+>   rezervasyon alanı yayınlamıyorlar)
+> · Shopify — [terk edilmiş sepetler](https://help.shopify.com/en/manual/promoting-marketing/create-marketing/abandoned-checkouts) ·
+>   [ödeme onaylandı ama terk edilmiş sepette](https://community.shopify.com/t/payment-gateway-issue-payment-completed-but-order-is-in-abandoned-checkouts/40400) ·
+>   [stok tükendiğinde satışa devam](https://help.shopify.com/en/manual/products/inventory/getting-started-with-inventory/selling-when-out-of-stock) ·
+>   [aşırı satış sorunu](https://www.lasyncro.com/blog/shopify-overselling-problem) ·
+>   [envanter rezervasyonlarını ölçeklemek](https://shopify.engineering/scaling-inventory-reservations)
+>   ("ACID across reserve and claim" — Redis'ten MySQL'e geri döndüler; bizim tek
+>   veritabanı kararımızın aynısı)
+> · WooCommerce — [bekleyen ödeme ve tutulan stok](https://krokedil.com/pending-payment-orders-and-held-stock/)
+>   (varsayılan 60 dk) · [#43593 siparişler erken iptal ediliyor](https://github.com/woocommerce/woocommerce/issues/43593)
+>   — kök sebep **GMT ile yerel saat karışması**; `timestampsTz()` kuralımızın
+>   gerçek dünyadaki karşılığı
+> · Stripe deseni — [idempotanslık, tekrar, eşzamanlılık](https://www.snowinch.com/en/blog/stripe-webhook-idempotency-duplicates) ·
+>   [webhook tekilleştirme](https://www.hooklistener.com/learn/webhook-idempotency-and-deduplication)
+
+---
+
+##### Madde listesi
+
+```
+1E.1  PaymentProvider arayüzü + FakePaymentProvider
+      payments tablosu · (provider, provider_ref) UNIQUE
+      sağlayıcı anahtarları settings'te ŞİFRELİ (marka başına ayrı)
+
+1E.2  Rezervasyon durumu: held → paying (1D-K3 güncellemesi)
+      ödeme başlayınca süre 15 dk → 60 dk
+      stok:rezervasyon-temizle `paying` olana DOKUNMAZ
+
+1E.3  Ödeme başlatma ucu — POST /api/orders/{no}/pay
+      tutar SUNUCUDA grand_total'dan üretilir
+      idempotanslık anahtarı = sipariş numarası
+      dönüş: sağlayıcının yönlendirme adresi
+
+1E.4  Webhook ucu — imza doğrulama + idempotanslık
+      imzasız/yanlış imzalı istek REDDEDİLİR (kayıt bile açılmaz)
+      2xx hızlı dönülür, iş kuyruğa atılır (sağlayıcı 15 dk sonra tekrar dener)
+      odemeBasarili / odemeBasarisiz burada çağrılır — TEK yazan yer
+
+1E.5  Callback ucu — HİÇBİR ŞEY KAYDETMEZ
+      siparişin o anki durumunu okur, ekran çevirir
+      webhook henüz gelmediyse "ödemeniz işleniyor" gösterir
+
+1E.6  Blok kapanışı — panel ödeme görünümü · uçtan uca · iki kiracıda gerçek HTTP
+      "stok bekliyor" uyarısı panelde GÖRÜNÜR (1E-K5'in şartı)
+```
+
+**Tablolar:** `payments` (+ `stock_reservations.status` genişliyor)
+
+**Bitiş ölçütü:** sahte sağlayıcıyla ödeme uçtan uca çalışıyor · **aynı webhook üç kez
+gönderilince stok bir kez düşüyor** · imzasız webhook reddediliyor · başarısız ödemede
+rezervasyon serbest bırakılıyor · callback'e sahte `success` gönderilince sipariş
+ödenmiş sayılmıyor · ödeme sürerken rezervasyon temizliği o satıra dokunmuyor · para
+gelip stok kalmadığında sipariş kabul edilip **panelde uyarı olarak görünüyor** · iki
+kiracıda doğrulanıyor
 
 #### 1F — Olay kaydı
 
