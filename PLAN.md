@@ -462,11 +462,11 @@ kiracının verisi birbirine karışmıyor.
 
 > 🔜 Blok blok açılacak. **1A açık**, diğerleri sırası gelince yazılacak.
 
-- [ ] **1A — Kimlik, yetki ve mağaza ayarları** ← aşağıda
-- [ ] 1B — Katalog
-- [ ] 1C — Sepet
-- [ ] 1D — Stok + Sipariş + Sevkiyat
-- [ ] 1E — Ödeme
+- [x] **1A — Kimlik, yetki ve mağaza ayarları** ✅ ← aşağıda
+- [x] 1B — Katalog ✅
+- [x] 1C — Sepet ✅
+- [x] 1D — Stok + Sipariş + Sevkiyat ✅
+- [ ] 1E — Ödeme  ← **sırada**
 - [ ] 1F — Olay kaydı
 
 ---
@@ -970,6 +970,56 @@ Tasarımda **iki ayrı kilit** var ve farklı işler yapıyorlar:
 sevk edilir, `fulfillment_status` doğru hesaplanır · eşzamanlı iki siparişte aşırı satış
 olmadığı testle kanıtlanır · `committed` ile rezervasyon toplamının tutarlılığı denetimle
 doğrulanıyor
+
+---
+
+## ✅ FAZ 1D TAMAMLANDI
+
+```
+1D.1 stock + committed · satılabilirlik ikizleri (PHP + SQL)
+1D.2 StockService — satır kilidi, sabit kilit sırası, lock_timeout 3s
+1D.3 OrderTotals + CheckoutService — sipariş doğuyor, stok bağlanıyor
+1D.4 FulfillmentService — kısmi sevk, fulfillment_status TÜRETİLİYOR
+1D.5 zamanlanmış görevler — rezervasyon temizliği + sayaç denetimi
+1D.6 panel/vitrin uçları · uçtan uca test · iki kiracıda gerçek HTTP
+
+233 test · lint · analyse (seviye 8) — hepsi yeşil
+```
+
+**1D'nin ölçerek öğrettikleri:**
+
+| Ölçüm | Sonuç | Olmasaydı |
+|---|---|---|
+| `bcdiv` ile vergi | kesme yüzünden **bir kuruş** sapma | her siparişte kuruş kayması, muhasebe tutmaz |
+| `lockForUpdate()` silindi | **hiçbir test kırılmadı** | aşırı satış korumasız kalır, sessizce |
+| Kolon varsayılanı (`fulfillment_status`) | modele ulaşmıyor — **dördüncü kez** | yeni sipariş `null` durumla doğar |
+| Larastan + döngüyle üretilen kolon | okuyamıyor | `shipping_*` alanları elle yazıldı |
+
+**★ 1D.6'da iki kiracıda gerçek HTTP doğrulaması İKİ ÖLÜ UÇ buldu — 232 testin
+hiçbiri görmemişti:**
+
+```
+vitrin ürün detayı              →  varyant `uuid`'si YOK
+                                   ama /cart/items onu ZORUNLU istiyor
+
+vitrinde yasal metin ucu        →  HİÇ YOKTU
+                                   ama /checkout `legal_version_id` ZORUNLU istiyor
+```
+
+> **Neden testler yakalamadı:** testler uca gidiyordu ama uca **verdiği değeri
+> modelden okuyordu** (`$varyant->uuid`). Yani "istemci bu değeri nereden bulacak"
+> sorusu hiç sorulmamıştı. Gerçek müşteri için sipariş vermek **imkânsızdı.**
+>
+> **Kural — bundan sonra:** uçtan uca testte bir isteğin gövdesine giren her kimlik,
+> bir önceki **uçtan** gelmeli. Modelden okunan kimlik testi yeşil tutar, akışı
+> doğrulamaz.
+>
+> Düzeltme: `variants[].uuid` vitrin yükünde açıldı (`id` değil — sıralı sayı katalog
+> büyüklüğünü sızdırır) · `GET /api/legal` + `GET /api/legal/{tur}` eklendi (yalnızca
+> yayınlanmış sürüm; taslak çıkmıyor, hiç yayınlanmamışsa 404).
+
+**İki kiracıda doğrulandı:** iki markada da `TM-2026-000001` üretildi (sıralar ayrı
+şemalarda, çakışma yok) · her panel yalnızca kendi siparişini gördü.
 
 #### 1E — Ödeme
 

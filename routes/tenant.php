@@ -6,6 +6,7 @@ use App\Http\Panel\AuthController as PanelAuth;
 use App\Http\Panel\CategoryController;
 use App\Http\Panel\LegalController;
 use App\Http\Panel\OptionController;
+use App\Http\Panel\OrderController;
 use App\Http\Panel\ProductController;
 use App\Http\Panel\RoleController;
 use App\Http\Panel\SettingsController;
@@ -15,6 +16,8 @@ use App\Http\Storefront\AddressController;
 use App\Http\Storefront\AuthController as VitrinAuth;
 use App\Http\Storefront\CartController;
 use App\Http\Storefront\CatalogController;
+use App\Http\Storefront\CheckoutController as VitrinCheckout;
+use App\Http\Storefront\LegalController as VitrinLegal;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
@@ -86,6 +89,26 @@ Route::middleware([
             Route::post('/cart/items', [CartController::class, 'addItem']);
             Route::put('/cart/items/{variant}', [CartController::class, 'updateItem']);
             Route::delete('/cart/items/{variant}', [CartController::class, 'removeItem']);
+
+            /*
+            | SİPARİŞ OLUŞTURMA — misafir de verebiliyor (M-1).
+            |
+            | ⚠️ ÖDEME BURADA YOK: sipariş `pending` doğuyor, ödeme 1E'de
+            | gelecek. Ödemenin transaction dışında kalması bilinçli —
+            | dış servis yavaşlarsa satırlar dakikalarca kilitli kalır.
+            */
+            /*
+            | YASAL METİNLER — ödeme adımının ÖN KOŞULU.
+            |
+            | ⚠️ `/checkout` müşteriden `legal_version_id` istiyor; sürüm
+            | kimliğini veren tek yer burası. Uç 1D.6'da eklendi: yokken
+            | sipariş vermek dışarıdan imkânsızdı ve tek bir test bile
+            | kırılmıyordu (testler kimliği modelden okuyordu).
+            */
+            Route::get('/legal', [VitrinLegal::class, 'index']);
+            Route::get('/legal/{tur}', [VitrinLegal::class, 'show']);
+
+            Route::post('/checkout', [VitrinCheckout::class, 'store']);
         });
 
         // Hız sınırları AppServiceProvider'da tanımlı.
@@ -141,6 +164,30 @@ Route::middleware([
                 Route::get('/staff', [StaffController::class, 'index']);
                 Route::post('/staff', [StaffController::class, 'store']);
                 Route::delete('/staff/{user}', [StaffController::class, 'destroy']);
+            });
+
+            /*
+            | SİPARİŞLER — `order.view`.
+            |
+            | Bu izin de 1A.3'ten beri boştu; ilk kez burada kapı bekliyor.
+            */
+            Route::middleware('izin:order.view')->group(function () {
+                Route::get('/orders', [OrderController::class, 'index']);
+                Route::get('/orders/{order}', [OrderController::class, 'show']);
+            });
+
+            /*
+            | SEVKİYAT — `order.fulfill`. AYRI izin, bilerek.
+            |
+            | "Sipariş & Destek" rolünde `order.view` ve `order.fulfill` var
+            | ama `order.refund` YOK — depocu örneği (1A.3): siparişi görür,
+            | kargoya verir, para iadesi yapamaz.
+            */
+            Route::middleware('izin:order.fulfill')->group(function () {
+                Route::post('/orders/{order}/fulfillments', [OrderController::class, 'storeFulfillment']);
+                Route::post('/orders/{order}/fulfillments/{fulfillment}/ship', [OrderController::class, 'ship']);
+                Route::post('/orders/{order}/fulfillments/{fulfillment}/deliver', [OrderController::class, 'deliver']);
+                Route::delete('/orders/{order}/fulfillments/{fulfillment}', [OrderController::class, 'cancelFulfillment']);
             });
 
             /*

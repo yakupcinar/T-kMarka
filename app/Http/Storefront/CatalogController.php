@@ -143,6 +143,16 @@ class CatalogController extends Controller
             ]),
 
             'variants' => $urun->variants->map(fn (ProductVariant $v) => [
+                /*
+                | ⚠️ `uuid` ZORUNLU: sepete ekleme ucu `variant_uuid` istiyor.
+                | Yokken vitrinden sepete geçilemiyordu — testler uuid'yi
+                | modelden aldığı için hiçbir test bunu yakalamadı; iki
+                | kiracıda gerçek HTTP doğrulaması yakaladı (1D.6).
+                |
+                | `id` DEĞİL: sıralı sayı marka kataloğunun büyüklüğünü
+                | dışarıya sızdırır.
+                */
+                'uuid' => $v->uuid,
                 'sku' => $v->sku,
                 'options' => $v->options,
                 'price' => $v->price,

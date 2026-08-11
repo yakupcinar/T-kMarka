@@ -273,3 +273,25 @@ it('iki markanın vitrini karışmıyor', function () {
     expect($cevap->json('products'))->toHaveCount(1)
         ->and(Product::count())->toBe(1);
 });
+
+it('★ vitrin varyantı SEPETE EKLENEBİLİR kimlikle geliyor', function () {
+    /*
+    | ⚠️ 1D.6'da yakalandı: ürün detayı varyant `uuid`'sini döndürmüyordu,
+    | sepete ekleme ucu ise onu ZORUNLU istiyor. Yani vitrinden sepete
+    | geçmek imkânsızdı — ve hiçbir test bunu görmedi, çünkü testler
+    | uuid'yi modelden okuyup uca elle veriyordu.
+    |
+    | Bu test uçtan uca bağlar: uca ne gidiyorsa sepete o gidiyor.
+    */
+    vitrinliMagaza('vitrin-k.test');
+
+    $detay = $this->getJson('http://vitrin-k.test/api/products/basic-tisort')->assertOk();
+
+    $uuid = $detay->json('product.variants.0.uuid');
+    expect($uuid)->toBeString();
+
+    $this->postJson('http://vitrin-k.test/api/cart/items', [
+        'variant_uuid' => $uuid,
+        'quantity' => 1,
+    ])->assertStatus(201)->assertJsonPath('items.0.sku', 'TS-1');
+});

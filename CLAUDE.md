@@ -70,6 +70,12 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   ```
   Hata ayrıntısı **anotasyonlarda** (günlükler yönetici yetkisi ister);
   `.github/ci-kontrol.sh` çıktıyı oraya basıyor.
+- **Uçtan uca testte kimlik MODELDEN okunmaz.** İsteğin gövdesine giren her
+  kimlik (uuid, sürüm no, satır id) bir önceki **uçtan** gelmeli. `$varyant->uuid`
+  yazmak testi yeşil tutar ama "istemci bu değeri nereden bulacak" sorusunu
+  sormaz. 1D.6'da iki ölü uç bu yüzden 232 testin altından geçti: vitrin varyant
+  `uuid`'sini döndürmüyordu ve vitrinde yasal metin ucu hiç yoktu — yani gerçek
+  müşteri sipariş **veremiyordu**. İki kiracıda gerçek HTTP koşusu yakaladı.
 - **Yeni marka geliştirmede HTTPS'e çıkmaz.** `docker/caddy/Caddyfile`'da alan
   adları elle sayılı; `tenant:create` başarılı görünür ama site açılmaz.
   Alan adını ekleyip `docker compose restart caddy`. (Faz 3: on-demand TLS.)

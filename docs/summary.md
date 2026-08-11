@@ -489,8 +489,93 @@ SIRADAKİ: 1B katalog — 10 karar alındı (PLAN.md 1B), araştırmayla doğrul
 
 ════ TOPLAM: 176 test · lint · analyse · CI hepsi yeşil ════
 
-SIRADAKİ: 1D stok + sipariş + sevkiyat — EN ZOR BLOK
-          eşzamanlılık (iki müşteri son ürünü aynı anda alırsa)
-          satır kilidi · rezervasyon · satinAlinabilirMi() → stock-rezerve
-          "sipariş bir fotoğraftır" ilkesi ilk kez gerçek veriye uygulanacak
+1D   ✅  stok + sipariş + sevkiyat — EN ZOR BLOK
+
+1D.1 ✅  stock (fiziksel) + committed (bağlanmış) — İKİ KOLON
+         satılabilir = stock − committed; kural İKİ YERDE yazılı ve
+           İKİZ TESTİ ikisini birbirine bağlıyor:
+             PHP  satinAlinabilirMi()      tekil karar
+             SQL  scopeSatinAlinabilir()   liste sorgusu (DB'de çözülmek
+                                           zorunda, tek uygulama imkânsız)
+         committed $fillable DIŞINDA — sayacı yalnızca StockService yazar
+
+1D.2 ✅  StockService — eşzamanlılığın kalbi
+         SELECT … FOR UPDATE: kilit PHP belleğinde değil satırın kendisinde,
+           kaç konteyner olursa olsun hepsi aynı PostgreSQL satırında sıraya
+           giriyor → dağıtık kilide (Redis/2PC) GEREK YOK
+         SABİT KİLİT SIRASI (id'ye göre): iki sipariş aynı iki ürünü ters
+           sırada kilitlerse deadlock; sıra sabitlenince imkânsız
+         SET LOCAL lock_timeout = '3s' → 503 + Retry-After
+           sonsuz bekleme tek takılan işlemle tüm mağazayı kilitlerdi
+           NOWAIT ise meşgul anlarda müşteriyi boşuna reddederdi
+         ★ KIRMIZI KONTROL: lockForUpdate() silindi → HİÇBİR TEST KIRILMADI
+           çözüm: üretilen SQL'de "for update" arayan YAPISAL test
+
+1D.3 ✅  OrderTotals + CheckoutService — sipariş doğuyor
+         ★ BİR KURUŞ HATASI: bcdiv KESİYOR, yuvarlamıyor
+           formül tutar × oran / (100 + oran), yuvarlama elle (yarım yukarı)
+         vergi DÂHİL: tax_total toplama EKLENMİYOR, grand_total'ın İÇİNDE
+           eklenseydi müşteriden ikinci kez KDV alınırdı
+         sipariş bir FOTOĞRAF: adres ve fiyat KOPYALANIYOR, bağlanmıyor
+         sipariş no TM-2026-000123 — nextval('order_number_seq'),
+           marka içinde artan (şemalar ayrı olduğu için markalar çakışmaz)
+         ödeme TRANSACTION'IN DIŞINDA: dış servis yavaşlarsa satırlar
+           dakikalarca kilitli kalır, tüm mağaza donardı
+
+1D.4 ✅  FulfillmentService — kısmi sevkiyat
+         TEK doğrulama kuralı: bir satırın sevk toplamı sipariş adedini
+           GEÇEMEZ — dağıtılsaydı biri unutulur, aynı ürün iki kez giderdi
+         fulfillment_status TÜRETİLİYOR (unfulfilled/partial/fulfilled),
+           elle yazılsaydı üçüncü pakette gerçekle uyuşmayan durum kalırdı
+         iptal edilen paket kalemleri SİLİNMİYOR — denetim izi kalıyor,
+           adetler "sevk edilmiş" sayılmıyor, satır yeniden sevk edilebilir
+
+1D.5 ✅  zamanlanmış görevler
+         rezervasyon 15 dk · her 5 dk temizlik · her gece 03:30 sayaç
+           denetimi (committed == aktif rezervasyon toplamı mı?)
+         ★ DENETİM ONARMIYOR — bilerek. Onarsaydı sayacı hangi kod yolunun
+           bozduğu hiç görünmez, her gece sessizce örtülürdü
+         ikisi de tenants:run ile sarılı + komutlar bağlam yoksa REDDEDİYOR
+           sarılmasaydı merkez bağlamda "başarılı" döner, hiçbir şey yapmaz
+         withoutOverlapping() = birden çok düğüm için dağıtık kilit
+         ZAMANLAMANIN KENDİSİNİ koruyan test var (tenants:run öneki arıyor)
+
+1D.6 ✅  uçlar · uçtan uca test · iki kiracıda gerçek HTTP
+         vitrin POST /api/checkout · panel sipariş+sevkiyat uçları
+           (order.view / order.fulfill izinleri ilk kez kapı bekliyor)
+         7 yeni istisna→HTTP eşlemesi (409 zaman/durum · 422 veri ·
+           503 geçici kilit)
+         uçtan uca: misafir katalog → sepet → sipariş → ödeme →
+           panel kısmi sevk → partial → fulfilled → kargo → teslim
+
+         ★★ İKİ KİRACIDA GERÇEK HTTP, 232 TESTİN GÖRMEDİĞİ İKİ ÖLÜ UÇ:
+            vitrin ürün detayı varyant uuid'sini DÖNDÜRMÜYOR
+              ama /cart/items onu ZORUNLU istiyor
+            vitrinde yasal metin ucu HİÇ YOK
+              ama /checkout legal_version_id ZORUNLU istiyor
+            → gerçek müşteri için sipariş vermek İMKÂNSIZDI
+
+            NEDEN KAÇTI: testler uca gidiyordu ama uca verdiği kimliği
+              MODELDEN okuyordu ($varyant->uuid). "İstemci bu değeri
+              nereden bulacak?" sorusu hiç sorulmamıştı.
+
+            KURAL: uçtan uca testte isteğe giren her kimlik bir önceki
+              UÇTAN gelmeli. Modelden okunan kimlik testi yeşil tutar,
+              akışı doğrulamaz.
+
+            düzeltme: variants[].uuid vitrine açıldı (id DEĞİL — sıralı
+              sayı katalog büyüklüğünü sızdırır) · GET /api/legal[/{tur}]
+              eklendi (yalnız yayınlanmış sürüm, taslak çıkmaz, yoksa 404)
+
+         iki markada da TM-2026-000001 üretildi (sıralar ayrı şemalarda)
+         her panel yalnızca kendi siparişini gördü
+
+════ TOPLAM: 233 test · lint · analyse hepsi yeşil ════
+
+SIRADAKİ: 1E ödeme
+          PaymentProvider arayüzü + sahte sağlayıcı (gerçek para yok)
+          tutar SUNUCUDA grand_total'dan üretilir, istemciye güvenilmez
+          webhook imzası doğrulanmadan sipariş ödendi sayılmaz
+          idempotanslık anahtarı (1D kilitleme tartışmasından çıkan borç)
+          dikiş yerleri hazır: CheckoutService::odemeBasarili/odemeBasarisiz
 ```

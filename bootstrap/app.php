@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Cart\VariantNotPurchasableException;
 use App\Domain\Catalog\CatalogConflictException;
 use App\Domain\Catalog\CatalogRuleException;
 use App\Domain\Catalog\EmptySlugException;
@@ -7,8 +8,14 @@ use App\Domain\Identity\RoleInUseException;
 use App\Domain\Identity\SystemRoleException;
 use App\Domain\Legal\EmptyLegalDocumentException;
 use App\Domain\Legal\UnfilledPlaceholderException;
+use App\Domain\Order\CartNotOrderableException;
+use App\Domain\Order\OrderNotShippableException;
+use App\Domain\Order\OverShipmentException;
+use App\Domain\Order\StaleContractException;
 use App\Domain\Settings\SettingLockedException;
 use App\Domain\Settings\StoreNotReadyException;
+use App\Domain\Stock\InsufficientStockException;
+use App\Domain\Stock\StockLockTimeoutException;
 use App\Http\Middleware\RequireOwner;
 use App\Http\Middleware\RequirePermission;
 use App\Http\Middleware\RequirePublishedStore;
@@ -132,6 +139,64 @@ return Application::configure(basePath: dirname(__DIR__))
                 'message' => $e->getMessage(),
                 'staff_count' => $e->personelSayisi,
                 'resolution' => 'Önce personeli başka bir role taşıyın.',
+            ], 409);
+        });
+
+        /*
+        | SEPET · STOK · SİPARİŞ istisnaları.
+        |
+        | ⚠️ 409 ile 422 ayrımı yine aynı: 409 ZAMAN/DURUM sorunu (veri
+        | geçerli ama şu an olmuyor), 422 verinin kendisi geçersiz.
+        */
+        $exceptions->render(function (CartNotOrderableException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'blockers' => $e->engeller,
+                'resolution' => 'Sepetteki sorunlu satırları kaldırın.',
+            ], 409);
+        });
+
+        $exceptions->render(function (InsufficientStockException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'sku' => $e->sku,
+                'available' => $e->mevcut,
+            ], 409);
+        });
+
+        $exceptions->render(function (VariantNotPurchasableException $e) {
+            return response()->json(['message' => $e->getMessage(), 'sku' => $e->sku], 409);
+        });
+
+        /*
+        | ⚠️ 503 — geçici. Kilit meşguldü, veri sorunlu değil (1D-K6).
+        | Müşteri tekrar denemeli; aşırı satış riski yok çünkü kilit
+        | kurulamadan hiçbir şey yazılmadı.
+        */
+        $exceptions->render(function (StockLockTimeoutException $e) {
+            return response()->json(['message' => $e->getMessage()], 503)
+                ->header('Retry-After', '2');
+        });
+
+        $exceptions->render(function (StaleContractException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'resolution' => 'Sözleşmeyi yeniden okuyup onaylayın.',
+            ], 422);
+        });
+
+        $exceptions->render(function (OverShipmentException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'sku' => $e->sku,
+                'ordered' => $e->siparisAdedi,
+            ], 422);
+        });
+
+        $exceptions->render(function (OrderNotShippableException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'payment_status' => $e->odemeDurumu->value,
             ], 409);
         });
 
