@@ -913,6 +913,55 @@ kilitli:   A kilitler · B BEKLER · A commit · B okur 0 → reddedilir ✓
 > Ödemenin neden dışarıda olduğu zaten yukarıda: dış servis yavaşlarsa satırlar
 > dakikalarca kilitli kalır ve tüm mağaza donar.
 
+**1D-K6 · `lock_timeout = 3s`. Kilit beklemesi sonsuz DEĞİL.**
+
+> PostgreSQL varsayılanda kilit için **sonsuza kadar** bekler. Bir işlem takılırsa
+> arkasındaki bütün ödeme istekleri asılı kalır ve mağaza donmuş görünür.
+>
+> ```
+> sonsuz bekle   stok doğru ama takılan tek işlem sırayı kilitler
+> NOWAIT         hızlı, ama meşgul anlarda müşteri boşuna reddedilir
+> lock_timeout   kısa çekişmeyi bekler, uzun takılmayı keser      ← seçilen
+> ```
+>
+> Zaman aşımında sipariş **oluşmuyor**, müşteri tekrar deniyor. Aşırı satış riski yok:
+> kilit kurulamadan hiçbir şey yazılmıyor.
+
+---
+
+##### Kilitleme — hangi kilit nerede (soru üzerine netleştirildi)
+
+Tasarımda **iki ayrı kilit** var ve farklı işler yapıyorlar:
+
+```
+1  SATIR KİLİDİ (FOR UPDATE)        süre: mikrosaniye
+   korur: committed sayacının okunup yazılması arasındaki an
+   yaşar: PostgreSQL satırında
+
+2  REZERVASYON (15 dk)              süre: istekler ARASINDA
+   korur: müşteri ödeme sayfasındayken stoğun kapılmamasını
+   yaşar: stock_reservations satırında
+```
+
+> **Uygulama kopyası sayısı satır kilidini etkilemiyor.** Kilit PHP belleğinde değil,
+> paylaşılan kaynağın kendisinde — kaç konteyner/sunucu olursa olsun hepsi aynı
+> PostgreSQL satırına gidiyor ve orada sıraya giriyorlar. M-2'nin "tek veritabanı"
+> kararı burada işi kolaylaştırıyor: dağıtık transaction (2PC) sorunu hiç doğmuyor.
+>
+> **Dağıtık kilit BAŞKA yerlerde gerekecek** — ve gerekeceği yerler belli:
+>
+> | Durum | Çözüm | Nerede |
+> |---|---|---|
+> | Zamanlanmış görev birden çok düğümde koşuyor | `withoutOverlapping()` (cache/Redis kilidi) | **1D.5** |
+> | Dış ödeme servisine çift istek | kilit değil, **idempotanslık anahtarı** | **1E** |
+> | Stok önbelleğe alınırsa doğruluk kaynağı Redis olur | dağıtık kilit şart olur | **yapılmıyor** |
+> | Mimari ayrı servislere bölünürse | dağıtık kilit / saga | M-2 bunu dışarıda bırakıyor |
+>
+> **Ölçekte kırılacak iki şey, şimdiden not:** okuma kopyası eklenirse `FOR UPDATE`
+> ana sunucuya gitmek **zorunda** (yanlış yönlendirilirse kilit hiç kurulmaz, aşırı
+> satış sessizce geri gelir) · pgBouncer `transaction` modunda `search_path` başka
+> isteğe geçiyor (M-2.4/5) — ikisi birlikte düşünülmeli.
+
 ---
 
 **Tablolar:** `orders` · `order_items` · `fulfillments` · `fulfillment_items` ·
