@@ -206,22 +206,40 @@ it('★ satinAlinabilirMi() ile SQL ikizi AYNI cevabı veriyor', function () {
     $eksenler = app(OptionService::class);
     $durum = $eksenler->olustur('Durum');
 
-    foreach (['A', 'B', 'C', 'D'] as $d) {
+    foreach (['A', 'B', 'C', 'D', 'E', 'F'] as $d) {
         $eksenler->degerEkle($durum, $d);
     }
 
     $urun = $servis->olustur(['title' => 'Sınav Ürünü']);
     $servis->eksenleriAyarla($urun, [$durum]);
 
+    /*
+    | ⚠️ 1D.1'de `committed` boyutu EKLENDİ. Kural artık
+    | `stock − committed > 0`; iki yeni satır tam da bunu sınıyor:
+    |   e → stok var ama TAMAMI bağlanmış  → satılamaz
+    |   f → stok var, bir kısmı bağlanmış  → satılabilir
+    | Bu iki satır olmasaydı `committed`'i unutan bir değişiklik testten
+    | geçerdi.
+    */
     $durumlar = [
-        'a' => ['stock' => 5, 'is_active' => true],
-        'b' => ['stock' => 0, 'is_active' => true],
-        'c' => ['stock' => 5, 'is_active' => false],
-        'd' => ['stock' => 0, 'is_active' => false],
+        'a' => ['stock' => 5, 'committed' => 0, 'is_active' => true],
+        'b' => ['stock' => 0, 'committed' => 0, 'is_active' => true],
+        'c' => ['stock' => 5, 'committed' => 0, 'is_active' => false],
+        'd' => ['stock' => 0, 'committed' => 0, 'is_active' => false],
+        'e' => ['stock' => 5, 'committed' => 5, 'is_active' => true],
+        'f' => ['stock' => 5, 'committed' => 3, 'is_active' => true],
     ];
 
     foreach ($durumlar as $deger => $ayar) {
-        $varyantlar->ekle($urun, ['sku' => 'SN-'.$deger, 'price' => 10] + $ayar, ['durum' => $deger]);
+        $varyant = $varyantlar->ekle(
+            $urun,
+            ['sku' => 'SN-'.$deger, 'price' => 10, 'stock' => $ayar['stock'], 'is_active' => $ayar['is_active']],
+            ['durum' => $deger],
+        );
+
+        // `committed` $fillable dışında — sayacı yalnızca stok servisi yazar.
+        $varyant->committed = $ayar['committed'];
+        $varyant->save();
     }
 
     /*
@@ -231,7 +249,8 @@ it('★ satinAlinabilirMi() ile SQL ikizi AYNI cevabı veriyor', function () {
     | Tek uygulama mümkün değil (liste sorgusu veritabanında çözmek
     | zorunda). Biri değişip diğeri unutulursa BURASI kırılır.
     |
-    | 1D'de `stock - rezerve > 0` olduğunda ikisi birden değişecek.
+    | ✅ 1D.1'de ikisi birden `stock − committed > 0`'a çevrildi ve bu test
+    | `committed` boyutunu da kapsayacak şekilde genişletildi.
     */
     $phpCevabi = $urun->variants()->get()
         ->filter(fn ($v) => $v->satinAlinabilirMi())->pluck('sku')->sort()->values()->all();
@@ -239,7 +258,8 @@ it('★ satinAlinabilirMi() ile SQL ikizi AYNI cevabı veriyor', function () {
     $sqlCevabi = $urun->variants()->satinAlinabilir()->pluck('sku')->sort()->values()->all();
 
     expect($sqlCevabi)->toBe($phpCevabi)
-        ->and($sqlCevabi)->toBe(['SN-a']);
+        // a: stok var, bağlı yok · f: stok 5, bağlı 3 → 2 satılabilir
+        ->and($sqlCevabi)->toBe(['SN-a', 'SN-f']);
 });
 
 it('iki markanın vitrini karışmıyor', function () {

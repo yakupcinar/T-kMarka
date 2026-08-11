@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $price `decimal:2` METİN döndürüyor; para float'ta tutulmaz
  * @property string|null $compare_at_price
  * @property string|null $cost_price
+ * @property int $committed siparişe bağlanmış, henüz sevk edilmemiş adet
  */
 class ProductVariant extends Model
 {
@@ -46,6 +47,7 @@ class ProductVariant extends Model
      */
     protected $attributes = [
         'stock' => 0,
+        'committed' => 0,
         'is_active' => true,
     ];
 
@@ -73,6 +75,7 @@ class ProductVariant extends Model
             'cost_price' => 'decimal:2',
 
             'stock' => 'integer',
+            'committed' => 'integer',
             'is_active' => 'boolean',
         ];
     }
@@ -107,7 +110,23 @@ class ProductVariant extends Model
      */
     public function satinAlinabilirMi(): bool
     {
-        return $this->is_active && $this->stock > 0;
+        return $this->is_active && $this->satilabilirAdet() > 0;
+    }
+
+    /**
+     * ★ SATILABİLİR ADET — `available` (1D-K1).
+     *
+     * Shopify'ın "her konumda tutması gereken özdeşlik"inin bizdeki hâli:
+     *
+     *     stock (on_hand) − committed = available
+     *
+     * `committed`: siparişe bağlanmış ama henüz sevk edilmemiş adet.
+     * Rezervasyon tablosundan `SUM` almak yerine materyalleştirilmiş —
+     * yoksa her ürün listesinde bir alt sorgu olurdu.
+     */
+    public function satilabilirAdet(): int
+    {
+        return max(0, $this->stock - $this->committed);
     }
 
     /**
@@ -121,13 +140,15 @@ class ProductVariant extends Model
      * ProductTest'te bir test ikisinin AYNI cevabı verdiğini koruyor —
      * biri değişip diğeri unutulursa test kırılır.
      *
-     * 1D'de `stock - rezerve > 0` olduğunda İKİSİ birden güncellenecek.
+     * ✅ 1D.1'de SÖZ ÖDENDİ: kural `stock > 0`'dan `stock − committed > 0`'a
+     * çevrildi ve İKİSİ BİRDEN güncellendi. Testi 1B.5'te yazmıştık, tam da
+     * bunun için.
      *
      * @param  Builder<ProductVariant>  $sorgu
      * @return Builder<ProductVariant>
      */
     public function scopeSatinAlinabilir($sorgu)
     {
-        return $sorgu->where('is_active', true)->where('stock', '>', 0);
+        return $sorgu->where('is_active', true)->whereRaw('stock - committed > 0');
     }
 }
