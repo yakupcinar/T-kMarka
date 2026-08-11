@@ -37,6 +37,26 @@ class Order extends Model
     /** ⚠️ Sipariş yalnızca servis tarafından yazılıyor — kütle atama yok. */
     protected $fillable = [];
 
+    /**
+     * ⚠️ MODEL VARSAYILANLARI — kolon varsayılanı modele ULAŞMIYOR.
+     *
+     * `fulfillment_status` kolonunda `default('unfulfilled')` var ama o
+     * değer yalnızca diske yazarken uygulanıyor; yeni sipariş nesnesinde
+     * alan hiç bulunmuyor ve `null` okunuyor.
+     *
+     * ⚠️ DÖRDÜNCÜ KEZ: accepts_marketing (1A.2) · is_system (1A.6) ·
+     * is_active (1B.3) · fulfillment_status (burada). Kural CLAUDE.md'de
+     * yazılı olmasına rağmen YENİ MODELDE uygulamayı unuttum — kuralı
+     * bilmek, alışkanlık hâline gelmesinden farklı.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'payment_status' => 'pending',
+        'fulfillment_status' => 'unfulfilled',
+        'discount_total' => 0,
+    ];
+
     /** @return array<string, string> */
     protected function casts(): array
     {
@@ -74,6 +94,16 @@ class Order extends Model
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class)->orderBy('id');
+    }
+
+    /**
+     * Paketler — bir sipariş birden çok pakette çıkabilir (§7).
+     *
+     * @return HasMany<Fulfillment, $this>
+     */
+    public function fulfillments(): HasMany
+    {
+        return $this->hasMany(Fulfillment::class)->orderBy('id');
     }
 
     /**
