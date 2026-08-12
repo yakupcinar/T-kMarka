@@ -28,6 +28,7 @@ class PaymentProviderFactory
      */
     private const SAGLAYICILAR = [
         'fake' => FakePaymentProvider::class,
+        'iyzico' => IyzicoProvider::class,
     ];
 
     public const VARSAYILAN = 'fake';

@@ -112,6 +112,21 @@ class PaymentService
             eposta: $siparis->email,
             idempotanslikAnahtari: $anahtar,
             donusAdresi: $donusAdresi,
+
+            // ★ 1E-K8: sağlayıcı bunu bildirimde geri döndürecek.
+            denemeUuid: (string) $deneme->uuid,
+
+            /*
+            | Alıcı bilgisi SİPARİŞTEN kopyalanıyor, müşteri defterinden
+            | değil: sipariş bir fotoğraftır (1D). Barındırılan form
+            | bunları zorunlu istiyor (1E-K7) — kart verisi bize hiç
+            | değmediği için formu sağlayıcı çiziyor.
+            */
+            aliciAdi: $siparis->shipping_full_name,
+            aliciTelefon: $siparis->shipping_phone,
+            aliciSehir: $siparis->shipping_city,
+            aliciAdres: $siparis->shipping_line1,
+            satirlar: $this->satirlar($siparis),
         ));
 
         $deneme->provider_ref = $sonuc->saglayiciReferansi;
@@ -127,6 +142,41 @@ class PaymentService
         $this->siparisler->odemeBaslatildi($siparis);
 
         return $sonuc;
+    }
+
+    /**
+     * Sağlayıcıya gönderilecek sepet satırları.
+     *
+     * ⚠️ KARGO DA BİR SATIR. iyzico satır tutarlarının toplamının `price`
+     * ile birebir tutmasını istiyor; kargo eklenmezse toplam eksik kalır
+     * ve istek reddedilir.
+     *
+     * @return list<array{ad: string, tutar: string}>
+     */
+    private function satirlar(Order $siparis): array
+    {
+        $siparis->load('items');
+
+        $satirlar = [];
+
+        foreach ($siparis->items as $satir) {
+            $satirlar[] = [
+                'ad' => $satir->product_title,
+                'tutar' => (string) $satir->line_total,
+            ];
+        }
+
+        if (bccomp($this->sayisal($siparis->shipping_total), '0', 2) > 0) {
+            $satirlar[] = ['ad' => 'Kargo', 'tutar' => (string) $siparis->shipping_total];
+        }
+
+        return $satirlar;
+    }
+
+    /** @return numeric-string */
+    private function sayisal(mixed $deger): string
+    {
+        return is_numeric($deger) ? (string) $deger : '0';
     }
 
     private function saklanandan(Payment $deneme): string

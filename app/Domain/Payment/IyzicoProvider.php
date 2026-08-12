@@ -1,0 +1,382 @@
+<?php
+
+namespace App\Domain\Payment;
+
+use App\Domain\Settings\SettingsService;
+use App\Enums\SettingGroup;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
+
+/**
+ * iyzico — barındırılan ödeme formu (Checkout Form). (1E-K7…K9)
+ *
+ * ★ KART VERİSİ BİZE HİÇ DEĞMİYOR. Formu iyzico çiziyor, müşteri kart
+ * bilgisini onların sayfasına giriyor. Bedeli: ödeme ekranının görünümü
+ * bizde değil. Karşılığı: PCI kapsamı en dar hâlinde kalıyor.
+ *
+ * AKIŞ:
+ *
+ *   baslat()          → CF başlat, `token` + `paymentPageUrl` al
+ *   müşteri            → iyzico'nun sayfasında kartını girer, 3DS'ten geçer
+ *   webhook            → imzalı bildirim: token + status
+ *   tutariDogrula()   → CF sorgula, GERÇEK tutarı öğren
+ *
+ * ⚠️ `provider_ref` = iyzico'nun **token**'ı. Bildirimde geri gelen ve
+ * sorgulamada kullanılan kimlik o. `paymentConversationId` ise bizim
+ * ödeme denemesinin uuid'si (1E-K8) — çapraz kontrol için.
+ */
+class IyzicoProvider implements PaymentProvider
+{
+    public const API_ANAHTARI = 'iyzico_api_key';
+
+    public const GIZLI_ANAHTAR = 'iyzico_secret_key';
+
+    private const BASLAT_YOLU = '/payment/iyzipos/checkoutform/initialize/auth/ecom';
+
+    private const SORGU_YOLU = '/payment/iyzipos/checkoutform/auth/ecom/detail';
+
+    public function __construct(private readonly SettingsService $ayarlar) {}
+
+    public function ad(): string
+    {
+        return 'iyzico';
+    }
+
+    /** @return list<string> */
+    public function gerekliAnahtarlar(): array
+    {
+        return [self::API_ANAHTARI, self::GIZLI_ANAHTAR];
+    }
+
+    public function imzaBasligi(): string
+    {
+        return 'X-IYZ-SIGNATURE-V3';
+    }
+
+    public function baslat(PaymentRequest $istek): PaymentInitiation
+    {
+        $govde = [
+            'locale' => 'tr',
+
+            // ★ 1E-K8: bildirimde bu geri gelecek.
+            'conversationId' => $istek->denemeUuid,
+
+            /*
+            | ⚠️ `price` ile `paidPrice` AYNI: taksit farkı yok (Faz 1'de
+            | taksit kapalı). Farklı olsalardı iyzico aradaki farkı vade
+            | farkı sayardı ve müşteriden fazla tahsil edilirdi.
+            */
+            'price' => $istek->tutar,
+            'paidPrice' => $istek->tutar,
+            'currency' => 'TRY',
+            'basketId' => $istek->siparisNumarasi,
+            'paymentGroup' => 'PRODUCT',
+            'callbackUrl' => $istek->donusAdresi,
+
+            // ⚠️ Taksit YOK (Faz 1). Açılsaydı `paidPrice` değişirdi ve
+            // `orders.grand_total` ile ödenen tutar birbirini tutmazdı.
+            'enabledInstallments' => [1],
+
+            'buyer' => $this->alici($istek),
+            'shippingAddress' => $this->adres($istek),
+            'billingAddress' => $this->adres($istek),
+            'basketItems' => $this->sepet($istek),
+        ];
+
+        $cevap = $this->cagir(self::BASLAT_YOLU, $govde);
+
+        $jeton = $cevap['token'] ?? null;
+        $adres = $cevap['paymentPageUrl'] ?? null;
+
+        /*
+        | ⚠️ Eksik cevapta GÜRÜLTÜLÜ hata. Boş bir adresle devam edilseydi
+        | müşteri hiçbir yere yönlendirilemez, ödeme denemesi `pending`
+        | kalır ve kimse sebebini bilemezdi.
+        */
+        if (! is_string($jeton) || ! is_string($adres) || $jeton === '' || $adres === '') {
+            throw new PaymentProviderException($this->ad(), 'Başlatma cevabı eksik döndü.', $cevap);
+        }
+
+        return new PaymentInitiation(yonlendirmeAdresi: $adres, saglayiciReferansi: $jeton);
+    }
+
+    /**
+     * ★ 1E-K9 — TUTAR SAĞLAYICIDAN SORULUYOR.
+     *
+     * ⚠️ iyzico'nun HPP bildiriminde tutar YOK: yalnızca ödeme kimliği,
+     * token ve durum geliyor. Tutar doğrulaması 1E.4'te "imzaya rağmen
+     * ikinci savunma" diye konmuştu — burada onu kaybetmemek için
+     * ödemenin kendisi sorgulanıyor.
+     *
+     * @return numeric-string
+     */
+    public function tutariDogrula(PaymentOutcome $sonuc): string
+    {
+        $cevap = $this->cagir(self::SORGU_YOLU, [
+            'locale' => 'tr',
+            'token' => $sonuc->saglayiciReferansi,
+        ]);
+
+        $tutar = $cevap['paidPrice'] ?? null;
+
+        if (! is_numeric($tutar)) {
+            throw new PaymentProviderException($this->ad(), 'Sorgu cevabında tutar yok.', $cevap);
+        }
+
+        return (string) $tutar;
+    }
+
+    public function webhookuDogrula(array $yuk, ?string $imza): bool
+    {
+        if ($imza === null) {
+            return false;
+        }
+
+        /*
+        | ★ İMZA DÜZENİ iyzico'nun belgesinden: gizli anahtar + beş alan
+        | BELİRLİ SIRAYLA birleştirilip HMAC-SHA256, onaltılık gösterim.
+        |
+        | ⚠️ Sıra sabit ve alanlar tek tek sayılı. Yükün tamamı
+        | birleştirilseydi iyzico bir gün yeni bir alan eklediğinde imza
+        | tutmaz, hiçbir ödeme işlenmez olurdu.
+        */
+        $metin = $this->gizliAnahtar()
+            .$this->metin($yuk, 'iyziEventType')
+            .$this->metin($yuk, 'iyziPaymentId')
+            .$this->metin($yuk, 'token')
+            .$this->metin($yuk, 'paymentConversationId')
+            .$this->metin($yuk, 'status');
+
+        /*
+        | ⚠️ `hash_equals` — düz `===` DEĞİL. Düz karşılaştırma ilk farklı
+        | karakterde duruyor; saldırgan cevap süresini ölçerek imzayı
+        | karakter karakter bulabilir (zamanlama saldırısı).
+        */
+        return hash_equals(hash_hmac('sha256', $metin, $this->gizliAnahtar()), $imza);
+    }
+
+    public function webhookuCoz(array $yuk): PaymentOutcome
+    {
+        $durum = $this->metin($yuk, 'status');
+
+        /*
+        | ⚠️ SADECE `SUCCESS` başarı sayılıyor.
+        |
+        | iyzico ara durumlar da gönderiyor (`INIT_THREEDS`,
+        | `CALLBACK_THREEDS`). "FAILURE değilse başarılıdır" denseydi
+        | müşteri daha kart bilgisini girerken sipariş ödenmiş sayılırdı.
+        */
+        $basarili = $durum === 'SUCCESS';
+
+        return new PaymentOutcome(
+            /*
+            | ⚠️ Sipariş numarası bildirimde YOK — eşleşme `token` üzerinden
+            | yapılıyor (`payments.provider_ref`). Buradaki alan bizim
+            | deneme uuid'miz; çapraz kontrol için taşınıyor.
+            */
+            siparisNumarasi: $this->metin($yuk, 'paymentConversationId'),
+            saglayiciReferansi: $this->metin($yuk, 'token'),
+            basarili: $basarili,
+
+            // ⚠️ Bildirimde tutar YOK — `tutariDogrula()` soracak (1E-K9).
+            tutar: '0',
+
+            hamCevap: $this->maskele($yuk),
+            hataKodu: $basarili ? null : ($durum === '' ? 'unknown' : $durum),
+        );
+    }
+
+    /**
+     * iyzico'ya imzalı istek.
+     *
+     * ⚠️ Kimlik doğrulama düzeni (IYZWSv2):
+     *   imza  = HMAC-SHA256(rastgele + yol + gövde, gizli anahtar)
+     *   başlık = base64("apiKey:…&randomKey:…&signature:…")
+     *
+     * `x-iyzi-rnd` başlığı AYNI rastgele değeri taşımak zorunda; farklı
+     * olursa iyzico imzayı yeniden üretemez ve istek reddedilir.
+     *
+     * @param  array<string, mixed>  $govde
+     * @return array<string, mixed>
+     */
+    private function cagir(string $yol, array $govde): array
+    {
+        $rastgele = (string) now()->getTimestampMs().Str::random(10);
+        $json = (string) json_encode($govde, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        $imza = hash_hmac('sha256', $rastgele.$yol.$json, $this->gizliAnahtar());
+
+        $yetki = base64_encode(
+            'apiKey:'.$this->apiAnahtari().'&randomKey:'.$rastgele.'&signature:'.$imza
+        );
+
+        $cevap = Http::withHeaders([
+            'Authorization' => 'IYZWSv2 '.$yetki,
+            'x-iyzi-rnd' => $rastgele,
+            'Content-Type' => 'application/json',
+        ])
+            ->withBody($json, 'application/json')
+            ->timeout(20)
+            ->post($this->sunucu().$yol);
+
+        /** @var array<string, mixed> $govdeCevabi */
+        $govdeCevabi = $cevap->json() ?? [];
+
+        /*
+        | ⚠️ HTTP 200 ama `status: failure` olabiliyor — iyzico iş
+        | hatalarını da 200 ile döndürüyor. Yalnızca HTTP koduna
+        | bakılsaydı başarısız çağrı başarılı sanılırdı.
+        */
+        if ($cevap->failed() || ($govdeCevabi['status'] ?? null) !== 'success') {
+            throw new PaymentProviderException(
+                $this->ad(),
+                is_string($govdeCevabi['errorMessage'] ?? null)
+                    ? $govdeCevabi['errorMessage']
+                    : 'iyzico çağrısı başarısız.',
+                $this->maskele($govdeCevabi),
+            );
+        }
+
+        return $govdeCevabi;
+    }
+
+    /** @return array<string, mixed> */
+    private function alici(PaymentRequest $istek): array
+    {
+        return [
+            // ⚠️ Alıcı kimliği olarak SİPARİŞ e-postası: müşteri hesabı
+            // olmayabilir (misafir alışverişi, M-1).
+            'id' => $istek->eposta,
+            'name' => $this->adAyir($istek->aliciAdi)[0],
+            'surname' => $this->adAyir($istek->aliciAdi)[1],
+            'email' => $istek->eposta,
+            'gsmNumber' => $istek->aliciTelefon,
+            'identityNumber' => '11111111111',
+            'registrationAddress' => $istek->aliciAdres,
+            'city' => $istek->aliciSehir,
+            'country' => 'Turkey',
+            'ip' => '127.0.0.1',
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function adres(PaymentRequest $istek): array
+    {
+        return [
+            'contactName' => $istek->aliciAdi,
+            'city' => $istek->aliciSehir,
+            'country' => 'Turkey',
+            'address' => $istek->aliciAdres,
+        ];
+    }
+
+    /**
+     * ⚠️ Satır tutarlarının TOPLAMI `price` ile birebir tutmak zorunda;
+     * tutmazsa iyzico isteği reddediyor. Kargo bedeli de bir satır olarak
+     * gönderiliyor — aksi hâlde toplam eksik kalırdı.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function sepet(PaymentRequest $istek): array
+    {
+        $sepet = [];
+
+        foreach ($istek->satirlar as $sira => $satir) {
+            $sepet[] = [
+                'id' => (string) ($sira + 1),
+                'name' => $satir['ad'],
+                'category1' => 'Genel',
+                'itemType' => 'PHYSICAL',
+                'price' => $satir['tutar'],
+            ];
+        }
+
+        return $sepet;
+    }
+
+    /** @return array{0: string, 1: string} */
+    private function adAyir(string $tamAd): array
+    {
+        $parcalar = preg_split('/\s+/', trim($tamAd)) ?: [];
+
+        if (count($parcalar) < 2) {
+            return [$tamAd === '' ? '-' : $tamAd, '-'];
+        }
+
+        /** @var string $soyad */
+        $soyad = array_pop($parcalar);
+
+        return [implode(' ', $parcalar), $soyad];
+    }
+
+    /**
+     * Denetim izine giren yükü süzer.
+     *
+     * ⚠️ Kart verisi zaten bize gelmiyor (1E-K7) ama sağlayıcı cevabında
+     * maskeli kart numarası gibi alanlar bulunabiliyor. Ham cevabı olduğu
+     * gibi saklamak, bir gün sağlayıcı yeni bir alan eklediğinde onu da
+     * körü körüne kaydetmek demek.
+     *
+     * @param  array<string, mixed>  $yuk
+     * @return array<string, mixed>
+     */
+    private function maskele(array $yuk): array
+    {
+        $izinli = [
+            'status', 'paymentStatus', 'iyziEventType', 'iyziPaymentId', 'iyziReferenceCode',
+            'iyziEventTime', 'token', 'paymentConversationId', 'conversationId',
+            'paidPrice', 'price', 'currency', 'errorCode', 'errorMessage', 'errorGroup',
+        ];
+
+        return array_intersect_key($yuk, array_flip($izinli));
+    }
+
+    /** @param  array<string, mixed>  $yuk */
+    private function metin(array $yuk, string $anahtar): string
+    {
+        $deger = $yuk[$anahtar] ?? '';
+
+        return is_scalar($deger) ? (string) $deger : '';
+    }
+
+    /**
+     * Sağlayıcı adresi — sandbox mı canlı mı.
+     *
+     * ⚠️ `settings`'te DEĞİL `config`'te: hangi hesap sorusu markaya göre
+     * değişiyor, sandbox mı canlı mı sorusu ORTAMA göre.
+     */
+    private function sunucu(): string
+    {
+        $adres = config('services.iyzico.base_uri');
+
+        return is_string($adres) ? rtrim($adres, '/') : '';
+    }
+
+    private function apiAnahtari(): string
+    {
+        return $this->anahtar(self::API_ANAHTARI);
+    }
+
+    private function gizliAnahtar(): string
+    {
+        return $this->anahtar(self::GIZLI_ANAHTAR);
+    }
+
+    /**
+     * ⚠️ Boş anahtar KABUL EDİLMİYOR — 1E.1'in dersi: `hash_hmac(..., '')`
+     * hata vermez, geçerli görünen bir imza üretir ve doğrulama hiçbir şey
+     * korumaz.
+     *
+     * @throws MissingPaymentCredentialsException
+     */
+    private function anahtar(string $ad): string
+    {
+        $deger = $this->ayarlar->al(SettingGroup::Payment, $ad);
+
+        if (! is_string($deger) || $deger === '') {
+            throw new MissingPaymentCredentialsException($this->ad(), $ad);
+        }
+
+        return $deger;
+    }
+}

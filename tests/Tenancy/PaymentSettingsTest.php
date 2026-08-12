@@ -44,7 +44,7 @@ it('panel gerekli anahtarları ve DURUMLARINI gösteriyor', function () {
     | Panelde okunmasına gerek yok; yazılması yeterli (§4).
     */
     expect($cevap->json('payment.provider'))->toBe('fake')
-        ->and($cevap->json('payment.available'))->toBe(['fake'])
+        ->and($cevap->json('payment.available'))->toBe(['fake', 'iyzico'])
         ->and($cevap->json('payment.keys.fake_secret'))->toBeTrue()
         ->and($cevap->json('payment.ready'))->toBeTrue()
         ->and(json_encode($cevap->json()))->not->toContain(

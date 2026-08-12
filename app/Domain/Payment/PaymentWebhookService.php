@@ -21,7 +21,10 @@ use Illuminate\Support\Facades\DB;
  */
 class PaymentWebhookService
 {
-    public function __construct(private readonly CheckoutService $siparisler) {}
+    public function __construct(
+        private readonly CheckoutService $siparisler,
+        private readonly PaymentProviderFactory $saglayicilar,
+    ) {}
 
     /**
      * Doğrulanmış bildirimi işler.
@@ -64,18 +67,24 @@ class PaymentWebhookService
         }
 
         /*
-        | ⚠️ TUTAR KARŞILAŞTIRMASI — imzaya rağmen.
+        | ⚠️ TUTAR KARŞILAŞTIRMASI — imzaya rağmen (1E-K9).
+        |
+        | Tutar SAĞLAYICIYA SORULARAK alınıyor: iyzico'nun bildiriminde
+        | tutar yok. Ağ çağrısı düşerse istisna yükseliyor, 2xx dönmüyoruz
+        | ve sağlayıcı tekrar deniyor — doğru davranış.
         |
         | İmza yükü koruyor ama sağlayıcı tarafındaki bir karışıklık ya da
         | yanlış eşleşen referans, 549,70'lik siparişe 1,00'lik ödemeyi
         | bağlayabilir. Karşılaştırma metin değil SAYISAL: '549.7' ile
         | '549.70' aynı tutardır, düz `!==` bunları farklı görürdü.
         */
-        if (bccomp($this->sayisal($deneme->amount), $this->sayisal($sonuc->tutar), 2) !== 0) {
+        $gercekTutar = $this->saglayicilar->coz()->tutariDogrula($sonuc);
+
+        if (bccomp($this->sayisal($deneme->amount), $this->sayisal($gercekTutar), 2) !== 0) {
             throw new PaymentAmountMismatchException(
                 $sonuc->saglayiciReferansi,
                 (string) $deneme->amount,
-                $sonuc->tutar,
+                $gercekTutar,
             );
         }
 
