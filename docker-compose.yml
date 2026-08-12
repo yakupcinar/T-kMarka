@@ -10,6 +10,11 @@ services:
       # FPM adresi hiçbir dosyada sabit yazılı değil. (M-4)
       FPM_HOST: ${FPM_HOST:-app}
       FPM_PORT: ${FPM_PORT:-9000}
+
+      # ⚠️ Varsayılan BOŞ DEĞİL. Boş bırakılsaydı Caddyfile'daki site
+      # bloğu adressiz kalır ve Caddy hiç açılmazdı — tünel kullanmayan
+      # geliştirici için de her şey dururdu.
+      NGROK_DOMAIN: ${NGROK_DOMAIN:-tunel-kapali.invalid}
     ports:
       - "80:80"
       - "443:443"
@@ -103,6 +108,35 @@ services:
     image: axllent/mailpit:latest
     ports:
       - "8025:8025"
+
+  # ── ngrok tüneli — YALNIZCA ödeme sağlayıcısı testi için (1E-K10) ──
+  #
+  # ⚠️ `profiles` sayesinde NORMAL `docker compose up` ile AÇILMAZ.
+  # Açılsaydı geliştirme makinesi her gün internete açık kalırdı; tünel
+  # kimlik doğrulaması olmayan bir kapı ve arkasında panel de var.
+  #
+  # Açmak için:  docker compose --profile tunel up -d ngrok
+  # Kapatmak:    docker compose stop ngrok
+  #
+  # ⚠️ `caddy:80` — HTTP. HTTPS'e gidilseydi Caddy'nin `tls internal`
+  # sertifikasını ngrok tanımaz ve tünel her istekte düşerdi. Trafik zaten
+  # ngrok ile bizim aramızda şifreli; Docker ağının içi yerel.
+  #
+  # ⚠️ `--host-header` tünel alan adını KORUYOR. Yeniden yazılsaydı istek
+  # `caddy` host'uyla gelir, kiracı çözümlenemez ve webhook 404 alırdı —
+  # yani tahsilat hiç işlenmezdi (1E.4).
+  ngrok:
+    image: ngrok/ngrok:latest
+    profiles: ["tunel"]
+    command: http --url=${NGROK_DOMAIN} --host-header=${NGROK_DOMAIN} caddy:80
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    ports:
+      # Tünelin kendi arayüzü: hangi istek geldi, ne cevap döndü.
+      # Webhook ayıklarken tek görüş kaynağımız bu.
+      - "4040:4040"
+    depends_on:
+      - caddy
 
 volumes:
   pg_data:

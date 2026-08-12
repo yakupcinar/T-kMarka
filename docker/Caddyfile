@@ -45,3 +45,24 @@ marka-a.localhost, marka-b.localhost, localhost {
 
 	log
 }
+
+# ── ngrok tüneli (1E-K10) — YALNIZCA HTTP ──────────────────────────────
+#
+# ⚠️ `http://` öneki BİLEREK: Caddy'nin otomatik HTTPS'i bu blok için
+# kapanıyor. Kapanmasaydı Caddy gerçek bir alan adı görüp Let's Encrypt'ten
+# sertifika istemeye kalkardı — makine dışarıdan erişilebilir olmadığı için
+# doğrulama düşer ve kota yanardı (M-4.1/1).
+#
+# TLS'i ngrok'un kendisi sonlandırıyor: müşteri/sağlayıcı ile ngrok arası
+# HTTPS, ngrok ile bizim aramız Docker ağının içi.
+#
+# ⚠️ Değişken TANIMSIZSA bu blok `tunel-kapali.invalid` adresine bağlanıyor
+# ve hiçbir isteği yakalamıyor. Varsayılan boş bırakılsaydı Caddy blok
+# adresi olmayan bir site tanımıyla açılmayı reddederdi.
+http://{$NGROK_DOMAIN:tunel-kapali.invalid} {
+	root * /var/www/html/public
+	encode zstd gzip
+	php_fastcgi {$FPM_HOST:app}:{$FPM_PORT:9000}
+	file_server
+	log
+}

@@ -1469,6 +1469,49 @@ iyzico sunucusu  ──✓──>  <geçici-adres>      → tünel → yerel mak
 1E.7.3  ngrok tüneli + gerçek sandbox'a karşı uçtan uca koşu
 ```
 
+##### Tünel kurulumu — adım adım
+
+> Tünel **compose servisi** olarak duruyor; yerel makineye hiçbir şey
+> kurulmuyor. ⚠️ `profiles: ["tunel"]` sayesinde **normal `up` ile
+> açılmıyor** — açılsaydı geliştirme makinesi her gün internete açık
+> kalırdı ve tünelin arkasında panel de var.
+
+```
+1  ngrok.com'da ücretsiz hesap → authtoken + ÜCRETSİZ SABİT ADRES al
+   ⚠️ Sabit adres şart: rastgele adres her açılışta değişir ve her
+      seferinde hem kiracıya hem iyzico paneline yeniden yazmak gerekir.
+
+2  .env'e yaz (ikisi de depoya GİRMEZ):
+      NGROK_AUTHTOKEN=...
+      NGROK_DOMAIN=abc-def.ngrok-free.app
+
+3  Alan adını markaya bağla — webhook kiracıyı ALAN ADINDAN çözüyor:
+      php artisan tenant:domain marka-a.localhost abc-def.ngrok-free.app
+   ⚠️ Bağlanmazsa istek 404 alır ve TAHSİLAT HİÇ İŞLENMEZ.
+
+4  Caddy'yi yeniden başlat (yeni site bloğunu okusun):
+      docker compose up -d caddy
+
+5  Tüneli aç:
+      docker compose --profile tunel up -d ngrok
+      arayüz: localhost:4040  ← gelen webhook'ları burada görüyoruz
+
+6  iyzico panelinde webhook adresi:
+      https://abc-def.ngrok-free.app/webhooks/payment
+```
+
+> ⚠️ **Caddy bloğu `http://` önekli** — otomatik HTTPS bilerek kapalı.
+> Kapatılmasaydı Caddy gerçek bir alan adı görüp Let's Encrypt'ten
+> sertifika isterdi; makine dışarıdan erişilebilir olmadığı için doğrulama
+> düşer ve kotamız yanardı (M-4.1/1). TLS'i ngrok sonlandırıyor.
+>
+> ⚠️ Tünel `caddy:80`'e bağlanıyor, 443'e değil: Caddy'nin `tls internal`
+> sertifikasını ngrok tanımaz ve tünel her istekte düşerdi.
+>
+> **İş bitince:** `docker compose stop ngrok` ve alan adını kaldır
+> (`tenant:domain … --kaldir`). Gerçek alan adına geçildiğinde bu servis
+> tamamen silinecek — kalıcı bir bağımlılık değil.
+
 **Bitiş ölçütü:** gerçek iyzico sandbox'ında kart girilerek ödeme tamamlanıyor ·
 webhook imzası doğrulanıyor · tutar ikinci çağrıyla teyit ediliyor · stok
 düşüyor · panelde sipariş ödendi görünüyor · **eksik anahtarla ödeme
