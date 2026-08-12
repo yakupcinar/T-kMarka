@@ -467,8 +467,8 @@ kiracının verisi birbirine karışmıyor.
 - [x] 1C — Sepet ✅
 - [x] 1D — Stok + Sipariş + Sevkiyat ✅
 - [x] 1E — Ödeme ✅
-- [ ] 1E.7 — iyzico  ← **sırada** *(Faz 5'ten öne çekildi)*
-- [ ] 1F — Olay kaydı
+- [x] 1E.7 — iyzico ✅ *(Faz 5'ten öne çekildi, gerçek sandbox'ta doğrulandı)*
+- [ ] 1F — Olay kaydı  ← **sırada**
 
 ---
 
@@ -1386,7 +1386,7 @@ rezervasyon serbest bırakılıyor · callback'e sahte `success` gönderilince s
 gelip stok kalmadığında sipariş kabul edilip **panelde uyarı olarak görünüyor** · iki
 kiracıda doğrulanıyor
 
-#### 1E.7 — iyzico (gerçek sağlayıcı)  ← **AÇIK**
+#### 1E.7 — iyzico (gerçek sağlayıcı)
 
 > ⟳ **PLAN DEĞİŞİKLİĞİ.** Gerçek sağlayıcı Faz 5'e yazılmıştı; öne çekildi.
 > Gerekçe: sandbox hesabı açıldı, arayüz zaten iyzico'nun akışına göre
@@ -1548,6 +1548,38 @@ iyzico sunucusu  ──✓──>  <geçici-adres>      → tünel → yerel mak
 > **İş bitince:** `docker compose stop ngrok` ve alan adını kaldır
 > (`tenant:domain … --kaldir`). Gerçek alan adına geçildiğinde bu servis
 > tamamen silinecek — kalıcı bir bağımlılık değil.
+
+---
+
+##### ✅ 1E.7 TAMAMLANDI — gerçek sandbox'ta uçtan uca doğrulandı
+
+```
+katalog → sepet → sözleşme → sipariş → ödeme başlat
+        → iyzico'nun ödeme formu (kart BİZE DEĞMEDİ)
+        → 3D Secure
+        → callback  200  "processing"        ← webhook henüz gelmedi
+        → webhook   200  "paid"              ← imzasız geldi, İYZİCO'YA SORULDU
+        → stok 10 → 9, rezervasyon committed
+        → panelde sipariş `paid`
+```
+
+**Gerçek koşunun bulduğu, taklidin gizlediği DÖRT şey:**
+
+| Bulgu | Taklit neden gizledi | Sonucu ne olurdu |
+|---|---|---|
+| callback `token`'ı **POST gövdesinde** yolluyor | sahte sağlayıcı adresi kendisi üretiyordu (`?ref=`) | müşteri ödemeden sonra **404** görüyordu |
+| imza başlığı **boş** geliyor | sahte sağlayıcı imzalıyor | hiçbir ödeme işlenemiyordu (401 → tekrar → 401) |
+| başlık adı `X-Iyz-Signature` (belgede yalnızca V3 yazıyor) | — | imza hiç okunamazdı |
+| başarısız ödemede bile `paidPrice` doğru dönüyor | sahte sağlayıcıda böyle bir ayrım yoktu | tutara bakıp "ödendi" denirdi |
+
+> ★ Dördü de **1D.6'nın dersinin tekrarı**: test uca gidiyor ama uca
+> verdiği değeri **kendisi uyduruyorsa**, sınadığı şey kendi varsayımıdır.
+> Sahte sağlayıcı gerçek akışı taklit edecek kadar iyiydi (1E-K6) ama
+> **protokolün ayrıntısını** uyduramazdı.
+
+**Ayrıca ölçüldü:** vekil arkasında şema (`X-Forwarded-Proto`) — Caddy
+`trusted_proxies` olmadan başlığı kendi şemasıyla eziyordu; iyzico callback
+adresinin SSL olmasını zorunlu tuttuğu için bu sessizce ödemeyi engellerdi.
 
 **Bitiş ölçütü:** gerçek iyzico sandbox'ında kart girilerek ödeme tamamlanıyor ·
 webhook imzası doğrulanıyor · tutar ikinci çağrıyla teyit ediliyor · stok
