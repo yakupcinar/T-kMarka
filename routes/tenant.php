@@ -19,6 +19,7 @@ use App\Http\Storefront\CatalogController;
 use App\Http\Storefront\CheckoutController as VitrinCheckout;
 use App\Http\Storefront\LegalController as VitrinLegal;
 use App\Http\Storefront\PaymentController as VitrinOdeme;
+use App\Http\Storefront\PaymentWebhookController;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
@@ -52,6 +53,22 @@ Route::middleware([
         'tenant' => tenant('id'),
         'message' => 'Marka ayakta. Vitrin Faz 4te.',
     ]));
+
+    /*
+    | ÖDEME BİLDİRİMİ (1E.4) — sağlayıcının sunucusu çağırıyor.
+    |
+    | ⚠️ `api` ÖNEKİ YOK, `magaza-acik` KAPISI YOK, kimlik doğrulaması YOK.
+    | Üçü de bilinçli:
+    |
+    |   önek yok      sağlayıcı panelinde yazılı adres; kısa ve sabit kalmalı
+    |   kapı yok      marka mağazasını kapatınca çoktan başlamış ödemelerin
+    |                 bildirimi 503 alırdı — para çekilmiş, sipariş pending
+    |   kimlik yok    sağlayıcı bizim token'ımızı bilmiyor; tek koruma İMZA
+    |
+    | ⚠️ Kiracı ALAN ADINDAN çözülüyor. Yanlış şemaya yazılan tahsilat
+    | hata vermez — A markasının parası B'nin defterinde görünür (0.5).
+    */
+    Route::post('/webhooks/payment', [PaymentWebhookController::class, 'store']);
 
     /*
     | VİTRİN — markanın müşterisi

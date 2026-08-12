@@ -13,6 +13,8 @@ use App\Domain\Order\OrderNotShippableException;
 use App\Domain\Order\OverShipmentException;
 use App\Domain\Order\StaleContractException;
 use App\Domain\Payment\OrderNotPayableException;
+use App\Domain\Payment\PaymentAmountMismatchException;
+use App\Domain\Payment\UnknownPaymentReferenceException;
 use App\Domain\Settings\SettingLockedException;
 use App\Domain\Settings\StoreNotReadyException;
 use App\Domain\Stock\InsufficientStockException;
@@ -205,6 +207,28 @@ return Application::configure(basePath: dirname(__DIR__))
                 'message' => $e->getMessage(),
                 'payment_status' => $e->odemeDurumu->value,
             ], 409);
+        });
+
+        /*
+        | Bilinmeyen ödeme referansı → 404.
+        |
+        | ⚠️ 200 DEĞİL: sağlayıcı 200'ü "işlendi" sayıp bir daha aramaz.
+        | 404 alınca 15 dakika sonra tekrar deniyor — bizdeki sorun
+        | geçiciyse ikinci deneme kurtarıyor.
+        */
+        $exceptions->render(function (UnknownPaymentReferenceException $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
+        });
+
+        /*
+        | Tutar uyuşmazlığı → 422. Sipariş ÖDENMİŞ SAYILMIYOR.
+        |
+        | ⚠️ Tutarlar cevaba KONMUYOR: uç kimlik doğrulamasız ve imzayı
+        | geçemeyen biri de 422 alabilir; beklenen tutarı söylemek ona
+        | bilgi vermek olurdu.
+        */
+        $exceptions->render(function (PaymentAmountMismatchException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         });
 
         $exceptions->render(function (OrderNotShippableException $e) {

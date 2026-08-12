@@ -6,6 +6,7 @@ use App\Domain\Catalog\VariantService;
 use App\Domain\Identity\DefaultRoles;
 use App\Domain\Legal\LegalDocumentService;
 use App\Domain\Order\CheckoutService;
+use App\Domain\Payment\FakePaymentProvider;
 use App\Domain\Settings\DefaultSettings;
 use App\Domain\Settings\SettingsService;
 use App\Enums\LegalDocumentType;
@@ -19,6 +20,8 @@ use App\Platform\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
+use Illuminate\Testing\TestResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
 
 /*
@@ -233,6 +236,36 @@ function magazayiHazirla(): void
         $belgeler->taslagaYaz($tur, "{$tur->value} metni");
         $belgeler->yayinla($tur);
     }
+}
+
+/**
+ * Sağlayıcının imzalı ödeme bildirimini webhook ucuna gönderir.
+ *
+ * ⚠️ Pest.php'de duruyor çünkü `test()` çalışma anında test örneğini
+ * döndürüyor ve statik analiz bu bağlamayı göremiyor; istisna YALNIZCA
+ * bu dosya için tanımlı (phpstan.neon). Test dosyasında kalsaydı ya
+ * analiz kırılırdı ya da istisnanın kapsamı genişletilirdi — ikincisi
+ * gerçek yazım hatalarını da görünmez yapardı.
+ *
+ * ⚠️ İmza ÇAĞIRAN BAĞLAMDA üretiliyor: anahtar marka başına ayrı.
+ *
+ * @return TestResponse<Response>
+ */
+function bildirimGonder(
+    string $alanAdi,
+    string $siparisNo,
+    string $referans,
+    string $tutar,
+    bool $basarili = true,
+): TestResponse {
+    ['yuk' => $yuk, 'imza' => $imza] = app(FakePaymentProvider::class)
+        ->bildirim($siparisNo, $referans, $tutar, $basarili);
+
+    /** @var TestResponse<Response> $cevap */
+    $cevap = test()->withHeader('X-Fake-Signature', $imza)
+        ->postJson("http://{$alanAdi}/webhooks/payment", $yuk);
+
+    return $cevap;
 }
 
 /**

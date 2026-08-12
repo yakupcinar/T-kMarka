@@ -52,6 +52,11 @@ class FakePaymentProvider implements PaymentProvider
         );
     }
 
+    public function imzaBasligi(): string
+    {
+        return 'X-Fake-Signature';
+    }
+
     public function webhookuDogrula(array $yuk, ?string $imza): bool
     {
         if ($imza === null) {

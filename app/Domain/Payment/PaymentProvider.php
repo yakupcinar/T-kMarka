@@ -48,6 +48,16 @@ interface PaymentProvider
     public function baslat(PaymentRequest $istek): PaymentInitiation;
 
     /**
+     * İmzanın taşındığı HTTP başlığının adı.
+     *
+     * ⚠️ Arayüzde duruyor çünkü her sağlayıcı başka bir başlık kullanıyor
+     * (iyzico: `X-IYZ-SIGNATURE-V3`). Controller'a sabit yazılsaydı ikinci
+     * sağlayıcı takıldığı gün imza HİÇ OKUNAMAZ, doğrulama her istekte
+     * başarısız olur ve tek bir ödeme bile işlenmezdi.
+     */
+    public function imzaBasligi(): string;
+
+    /**
      * Webhook imzasını doğrular.
      *
      * ⚠️ Bu uç kimlik doğrulamasız olmak ZORUNDA — sağlayıcı bizim

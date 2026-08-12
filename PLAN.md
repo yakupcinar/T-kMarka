@@ -1311,9 +1311,15 @@ sağlayıcı  →  POST /webhooks/payment  →  hangi şema?
       dönüş: sağlayıcının yönlendirme adresi
 
 1E.4  Webhook ucu — imza doğrulama + idempotanslık
-      imzasız/yanlış imzalı istek REDDEDİLİR (kayıt bile açılmaz)
-      2xx hızlı dönülür, iş kuyruğa atılır (sağlayıcı 15 dk sonra tekrar dener)
+      imzasız/yanlış imzalı istek REDDEDİLİR (kayıt bile açılmaz) → 401
       odemeBasarili / odemeBasarisiz burada çağrılır — TEK yazan yer
+      ⟳ "iş KUYRUĞA atılır" YAPILMADI. Gerekçe: yapılan iş birkaç satır
+        güncellemesi, aynı veritabanında ve hızlı. Kuyruk üç şey
+        eklerdi — kiracı bağlamını taşıma zorunluluğu (M-2.4), hatanın
+        görünmez hâle gelmesi ve sağlayıcıya "işlendi" demişken işin
+        sonradan düşmesi. Senkron işleyip 2xx dönmek daha dürüst:
+        iş bitmeden 2xx demiyoruz, düşerse sağlayıcı zaten tekrar deniyor.
+        Kuyruk, işin yavaşladığı gün eklenir (e-posta, fatura, olay kaydı).
 
 1E.5  Callback ucu — HİÇBİR ŞEY KAYDETMEZ
       siparişin o anki durumunu okur, ekran çevirir
@@ -1794,7 +1800,12 @@ Kontrol düzlemi · abonelik ve planlar · marka açma akışının tamamı · *
 
 **1A'dan devredilen maddeler:**
 
-- **Varsayılan geri-doldurma komutu.** `tenant:create` yeni markaya varsayılan ayarları
+- **Varsayılan geri-doldurma komutu.** ⚠️ **1E.4'te ikinci kez ısırdı:**
+  0.5'te açılan dev markalarının ödeme imza anahtarı yoktu (`DefaultSettings`
+  1E.1'de genişledi) ve iki kiracıda gerçek HTTP koşusu `fake_secret anahtarı
+  ayarlarda yok` hatasıyla durdu. Elle dolduruldu. **Gürültülü istisna işe
+  yaradı** — 1E.1'de boş anahtarla imzalamayı yasaklamasaydık, imza sessizce
+  boş anahtarla üretilir ve doğrulama hiçbir şey korumazdı. `tenant:create` yeni markaya varsayılan ayarları
   ve yasal taslakları kuruyor (1A.4), ama **önceden açılmış** markalara kimse gitmiyor.
   1A.6'da ölçüldü: 0.5'te açılan B markası yasal taslaksızdı. Canlıda eski markalar
   eksik doğar ve kimse fark etmez. Gereken: `tenants:backfill` gibi, eksik varsayılanı
