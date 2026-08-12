@@ -355,9 +355,67 @@ it('★ BAŞARISIZ ödemede de paidPrice DÖNÜYOR — tutara bakıp ödendi den
 
     $sonuc = app(IyzicoProvider::class)->sorgula('IYZ-TOKEN-2');
 
+    /*
+    | ⚠️ `hataKodu` artık sağlayıcının HATA GRUBUNU taşıyor, kuru bir
+    | "FAILURE" değil: marka "neden alınamadı" sorusunu buradan
+    | cevaplıyor. Gerçek koşuda `NOT_SUFFICIENT_FUNDS` geldi.
+    */
     expect($sonuc->basarili)->toBeFalse()
         ->and($sonuc->tutar)->toBe('299.80')
-        ->and($sonuc->hataKodu)->toBe('FAILURE');
+        ->and($sonuc->hataKodu)->toBe('unknown');
+});
+
+it('★ BAŞARISIZ ödeme: "çağrı hatası" ile "ödeme hatası" AYRI', function () {
+    ['siparis' => $siparis, 'varyant' => $varyant] = odemeAsamasiSiparisi('iyz-r.test');
+    iyzicoluMarka('iyz-r.test');
+    app(StorePublication::class)->yayinla();
+
+    Http::fake([
+        '*/checkoutform/initialize/*' => Http::response([
+            'status' => 'success', 'token' => 'IYZ-TOKEN-4', 'paymentPageUrl' => 'https://x/',
+        ]),
+
+        /*
+        | ⚠️ GERÇEK SANDBOX CEVABI (yetersiz bakiye). Dikkat: servis
+        | düzeyinde de `status: failure`, `paidPrice` YOK — ama
+        | `paymentStatus` VAR. Yani çağrı başarılı, ödeme başarısız.
+        |
+        | Ayrım yapılmadığında bu bildirim 502 alıyordu: sipariş `pending`
+        | kalıyor, bağlı stok 60 dakika kimseye satılamıyor ve müşteri
+        | neden reddedildiğini öğrenemiyordu. Gerçek koşuda ölçüldü.
+        */
+        '*/checkoutform/auth/ecom/detail' => Http::response([
+            'status' => 'failure',
+            'errorCode' => '10051',
+            'errorMessage' => 'Kart limiti yetersiz, yetersiz bakiye',
+            'errorGroup' => 'NOT_SUFFICIENT_FUNDS',
+            'paymentStatus' => 'FAILURE',
+            'mdStatus' => 1,
+            'token' => 'IYZ-TOKEN-4',
+        ]),
+    ]);
+
+    app(PaymentService::class)->baslat($siparis, 'http://iyz-r.test/odeme/donus');
+
+    $deneme = Payment::firstOrFail();
+    ['yuk' => $yuk] = iyzicoBildirimi('IYZ-TOKEN-4', (string) $deneme->uuid, 'FAILURE');
+
+    $this->withHeader('X-Iyz-Signature', '')
+        ->postJson('http://iyz-r.test/webhooks/payment', $yuk)
+        ->assertOk()
+        ->assertJsonPath('result', 'failed');
+
+    /*
+    | ⚠️ ASIL SINAV: stok DÜŞMÜYOR (hiç düşmemişti) ama BAĞLI ADET
+    | SERBEST KALIYOR — o adetler yeniden satılabilmeli.
+    */
+    expect($siparis->refresh()->payment_status->value)->toBe('failed')
+        ->and($varyant->refresh()->stock)->toBe(5)
+        ->and($varyant->committed)->toBe(0)
+        ->and(StockReservation::firstOrFail()->status)->toBe(ReservationStatus::Released);
+
+    // Marka "neden alınamadı" sorusunu buradan cevaplıyor.
+    expect(Payment::firstOrFail()->raw_response['webhook'] ?? null)->not->toBeNull();
 });
 
 it('★ UÇTAN UCA: iyzico bildirimi geldi, stok düştü', function () {

@@ -137,23 +137,51 @@ class IyzicoProvider implements QueryablePaymentProvider
      */
     public function sorgula(string $referans): PaymentOutcome
     {
-        $cevap = $this->cagir(self::SORGU_YOLU, ['locale' => 'tr', 'token' => $referans]);
-
-        $tutar = $cevap['paidPrice'] ?? null;
-
-        if (! is_numeric($tutar)) {
-            throw new PaymentProviderException($this->ad(), 'Sorgu cevabında tutar yok.', $cevap);
-        }
+        /*
+        | ★ "ÇAĞRI BAŞARISIZ" ile "ÖDEME BAŞARISIZ" AYRI ŞEYLER.
+        |
+        | ⚠️ Gerçek sandbox'ta ölçüldü: yetersiz bakiyeli bir ödemede
+        | iyzico servis düzeyinde de `status: failure` döndürüyor —
+        | `errorCode: 10051`, `paidPrice` YOK, ama `paymentStatus: FAILURE`
+        | VAR. Yani cevap geçerli, ödeme başarısız.
+        |
+        | İkisi ayrılmasaydı (ve ayrılmıyordu) başarısız ödemenin webhook'u
+        | 502 alırdı: sipariş `pending` kalır, bağlı stok 60 dakika boyunca
+        | kimseye satılamaz ve müşteri neden reddedildiğini öğrenemezdi.
+        | Ölçülen buydu.
+        |
+        | Ayırt edici işaret: cevapta `paymentStatus` VARSA bu bir ÖDEME
+        | cevabıdır — çağrı başarılı olmuş demektir.
+        */
+        $cevap = $this->cagir(self::SORGU_YOLU, ['locale' => 'tr', 'token' => $referans], odemeCevabi: true);
 
         $durum = $this->metin($cevap, 'paymentStatus');
+
+        /*
+        | ⚠️ Başarısız ödemede `paidPrice` YOK — olmaması normal, para
+        | çekilmedi. Zorunlu tutulsaydı yine 502'ye düşerdik.
+        */
+        $tutar = $cevap['paidPrice'] ?? null;
+        $tutar = is_numeric($tutar) ? (string) $tutar : '0';
+
+        if ($durum === 'SUCCESS' && $tutar === '0') {
+            throw new PaymentProviderException($this->ad(), 'Başarılı ödemede tutar yok.', $cevap);
+        }
 
         return new PaymentOutcome(
             siparisNumarasi: $this->metin($cevap, 'conversationId'),
             saglayiciReferansi: $referans,
             basarili: $durum === 'SUCCESS',
-            tutar: (string) $tutar,
+            tutar: $tutar,
             hamCevap: $this->maskele($cevap),
-            hataKodu: $durum === 'SUCCESS' ? null : ($durum === '' ? 'unknown' : $durum),
+
+            /*
+            | Marka "neden alınamadı" sorusunun cevabını burada buluyor:
+            | `NOT_SUFFICIENT_FUNDS` gibi bir grup ya da hata kodu.
+            */
+            hataKodu: $durum === 'SUCCESS'
+                ? null
+                : ($this->metin($cevap, 'errorGroup') ?: ($this->metin($cevap, 'errorCode') ?: 'unknown')),
         );
     }
 
@@ -230,7 +258,7 @@ class IyzicoProvider implements QueryablePaymentProvider
      * @param  array<string, mixed>  $govde
      * @return array<string, mixed>
      */
-    private function cagir(string $yol, array $govde): array
+    private function cagir(string $yol, array $govde, bool $odemeCevabi = false): array
     {
         $rastgele = (string) now()->getTimestampMs().Str::random(10);
         $json = (string) json_encode($govde, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -258,6 +286,15 @@ class IyzicoProvider implements QueryablePaymentProvider
         | hatalarını da 200 ile döndürüyor. Yalnızca HTTP koduna
         | bakılsaydı başarısız çağrı başarılı sanılırdı.
         */
+        /*
+        | ⚠️ `paymentStatus` VARSA bu bir ÖDEME cevabıdır: çağrı başarılı
+        | olmuş, ödeme başarısız olmuş. İstisna fırlatmıyoruz — başarısız
+        | ödeme de işlenmesi gereken bir sonuç.
+        */
+        if ($odemeCevabi && ! $cevap->failed() && array_key_exists('paymentStatus', $govdeCevabi)) {
+            return $govdeCevabi;
+        }
+
         if ($cevap->failed() || ($govdeCevabi['status'] ?? null) !== 'success') {
             throw new PaymentProviderException(
                 $this->ad(),

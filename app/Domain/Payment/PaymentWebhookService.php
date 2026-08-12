@@ -92,7 +92,14 @@ class PaymentWebhookService
         | Karşılaştırma metin değil SAYISAL: '549.7' ile '549.70' aynı
         | tutardır, düz `!==` bunları farklı görürdü.
         */
-        if (bccomp($this->sayisal($deneme->amount), $this->sayisal($sonuc->tutar), 2) !== 0) {
+        /*
+        | ⚠️ Tutar YALNIZCA başarılı ödemede karşılaştırılıyor.
+        |
+        | Başarısız ödemede tutar yok — para çekilmedi. Karşılaştırma yine
+        | yapılsaydı her başarısız ödeme "tutar uyuşmuyor" diye 422 alır,
+        | sipariş `failed` işaretlenemez ve bağlı stok serbest kalmazdı.
+        */
+        if ($sonuc->basarili && bccomp($this->sayisal($deneme->amount), $this->sayisal($sonuc->tutar), 2) !== 0) {
             throw new PaymentAmountMismatchException(
                 $sonuc->saglayiciReferansi,
                 (string) $deneme->amount,

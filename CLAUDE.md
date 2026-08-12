@@ -86,6 +86,14 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   **yüklenmemişti**. Doğrusu `docker compose restart caddy`.
   ⚠️ Ölçüm bayat yapılandırmaya karşı yapılırsa çıkan sonuç da bayattır;
   "denedim olmadı" demeden önce değişikliğin **yüklendiğini** doğrula.
+- **"Çağrı başarısız" ile "işlem başarısız" AYRI ŞEYLERDİR.** Dış servisler
+  ikisini de aynı alanla bildirebiliyor. iyzico yetersiz bakiyede servis
+  düzeyinde de `status: failure` döndürüyor; ama `paymentStatus` alanı
+  cevapta VAR — yani çağrı başarılı, ödeme başarısız. Ayrım yapılmayınca
+  başarısız ödemenin bildirimi 502 aldı: sipariş `pending` kaldı, bağlı
+  stok 60 dakika kimseye satılamadı ve müşteri neden reddedildiğini
+  öğrenemedi. Kural: cevapta **işlemin kendi durumu** varsa o bir
+  *sonuçtur*, hata değil.
 - **`SoftDeletes` + `firstOrFail()` = gecikmeli patlama.** Varsayılan sorgu
   silinmişleri görmüyor; kayıt "yok" sayılıp istisna fırlıyor. 1E.6'da
   ısırdı: marka, ödemesi yolda olan siparişin varyantını katalogdan
