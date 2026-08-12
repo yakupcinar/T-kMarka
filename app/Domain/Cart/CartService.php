@@ -2,7 +2,9 @@
 
 namespace App\Domain\Cart;
 
+use App\Domain\Analytics\EventRecorder;
 use App\Enums\CartStatus;
+use App\Enums\EventType;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Customer;
@@ -21,6 +23,8 @@ class CartService
 {
     /** Bir satırda en fazla adet — panelde yanlış tuşa basmayı sınırlar. */
     public const MAKS_ADET = 99;
+
+    public function __construct(private readonly EventRecorder $olaylar) {}
 
     /**
      * Misafir sepeti açar.
@@ -114,6 +118,17 @@ class CartService
 
             $this->dokunuldu($sepet);
 
+            /*
+            | ⚠️ Olay TRANSACTION İÇİNDEN çağrılıyor ama kuyruğa COMMIT'ten
+            | SONRA giriyor (1F-K5, `afterCommit`). Geri sarılırsa satır
+            | hiç var olmaz ve olay da hiç atılmaz.
+            */
+            $this->olaylar->kaydet(EventType::CartItemAdded, [
+                'variant_id' => $varyant->id,
+                'sku' => $varyant->sku,
+                'quantity' => $adet,
+            ], $sepet->customer);
+
             return $satir;
         });
     }
@@ -142,8 +157,16 @@ class CartService
     public function satirSil(CartItem $satir): void
     {
         $sepet = $satir->cart;
+        $varyant = $satir->variant;
+
         $satir->delete();
         $this->dokunuldu($sepet);
+
+        $this->olaylar->kaydet(EventType::CartItemRemoved, [
+            // ⚠️ Varyantı silinmiş satır da çıkarılabiliyor — id null olabilir.
+            'variant_id' => $varyant?->id,
+            'sku' => $varyant?->sku,
+        ], $sepet?->customer);
     }
 
     /**

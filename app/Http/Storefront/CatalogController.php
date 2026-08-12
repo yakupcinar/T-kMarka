@@ -2,10 +2,13 @@
 
 namespace App\Http\Storefront;
 
+use App\Domain\Analytics\EventRecorder;
 use App\Domain\Catalog\CategoryService;
 use App\Domain\Catalog\ProductQuery;
+use App\Enums\EventType;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\Customer;
 use App\Models\Option;
 use App\Models\OptionValue;
 use App\Models\Product;
@@ -32,6 +35,7 @@ class CatalogController extends Controller
     public function __construct(
         private readonly ProductQuery $sorgu,
         private readonly CategoryService $kategoriler,
+        private readonly EventRecorder $olaylar,
     ) {}
 
     /** Ürün listesi — kategoriye göre daraltılabilir. */
@@ -70,13 +74,28 @@ class CatalogController extends Controller
      * ⚠️ Aynı `forStorefront` sorgusundan geçiyor: taslak, arşiv ve
      * satılamayan ürün burada da 404. "Listede yoksa hiç yok" (1B-K8).
      */
-    public function show(string $slug): JsonResponse
+    public function show(Request $istek, string $slug): JsonResponse
     {
         $urun = $this->sorgu->vitrindeBul($slug);
 
         if ($urun === null) {
             return response()->json(['message' => 'Ürün bulunamadı.'], 404);
         }
+
+        /*
+        | ★ 1F-K1'in TEK İSTİSNASI — olay controller'da doğuyor.
+        |
+        | Kural "iş kuralı domain'e girer" diyor; ama burada iş kuralı
+        | YOK, saf bir görüntüleme var. Domain'e taşımak "ürüne bakıldı"
+        | diye bir iş kuralı uydurmak olurdu.
+        |
+        | ⚠️ Bulunamayan üründe olay YAZILMIYOR: 404 alan bir istek
+        | görüntüleme sayılmaz, yoksa bozuk bağlantılar raporu şişirirdi.
+        */
+        $this->olaylar->kaydet(EventType::ProductViewed, [
+            'product_id' => $urun->id,
+            'slug' => $urun->slug,
+        ], $istek->user() instanceof Customer ? $istek->user() : null);
 
         return response()->json(['product' => $this->detayGoster($urun)]);
     }

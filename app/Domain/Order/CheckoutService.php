@@ -2,11 +2,13 @@
 
 namespace App\Domain\Order;
 
+use App\Domain\Analytics\EventRecorder;
 use App\Domain\Cart\CartService;
 use App\Domain\Legal\LegalDocumentService;
 use App\Domain\Settings\SettingsService;
 use App\Domain\Stock\StockService;
 use App\Enums\CartStatus;
+use App\Enums\EventType;
 use App\Enums\LegalDocumentType;
 use App\Enums\PaymentStatus;
 use App\Enums\ReservationStatus;
@@ -50,6 +52,7 @@ class CheckoutService
         private readonly OrderTotals $hesap,
         private readonly SettingsService $ayarlar,
         private readonly LegalDocumentService $belgeler,
+        private readonly EventRecorder $olaylar,
     ) {}
 
     /**
@@ -100,6 +103,27 @@ class CheckoutService
             // Sepet tüketildi. Silmiyoruz — denetim izi.
             $sepet->status = CartStatus::Converted;
             $sepet->save();
+
+            /*
+            | ★ 1F-K5'in ASIL SEBEBİ BURASI.
+            |
+            | ⚠️ Bu satır bir TRANSACTION'IN İÇİNDE. Olay doğrudan kuyruğa
+            | atılsaydı ve aşağıdaki COMMIT'e gelinemeseydi, sipariş HİÇ
+            | VAR OLMAZ ama olay Redis'e girmiş olurdu — worker onu alır
+            | ve olmayan bir siparişin `order_placed` olayını yazardı.
+            |
+            | `EventRecorder` işi `afterCommit()` ile atıyor: geri
+            | sarılırsa iş hiç kuyruğa girmiyor.
+            |
+            | ⚠️ Payload'da KİŞİSEL VERİ YOK (1F-K4): e-posta, ad, adres
+            | girmiyor — yalnızca kimlik, tutar ve satır sayısı.
+            */
+            $this->olaylar->kaydet(EventType::OrderPlaced, [
+                'order_id' => $siparis->id,
+                'order_number' => $siparis->order_number,
+                'grand_total' => $siparis->grand_total,
+                'item_count' => $siparis->items->count(),
+            ], $sepet->customer);
 
             return $siparis;
         });

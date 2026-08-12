@@ -460,7 +460,7 @@ sepete atar → ödeme yapar → sipariş oluşur → stok düşer → sipariş 
 edilir → olaylar kaydedilir. Ve aynı akış **ikinci bir kiracıda** da çalışıyor, iki
 kiracının verisi birbirine karışmıyor.
 
-> 🔜 Blok blok açılacak. **1A-1E kapandı, sırada 1F**.
+> ✅ **FAZ 1 TAMAMLANDI** — 1A'dan 1F'e. Sırada Faz 2 (olgunlaştırma).
 
 - [x] **1A — Kimlik, yetki ve mağaza ayarları** ✅ ← aşağıda
 - [x] 1B — Katalog ✅
@@ -468,7 +468,7 @@ kiracının verisi birbirine karışmıyor.
 - [x] 1D — Stok + Sipariş + Sevkiyat ✅
 - [x] 1E — Ödeme ✅
 - [x] 1E.7 — iyzico ✅ *(Faz 5'ten öne çekildi, gerçek sandbox'ta doğrulandı)*
-- [ ] 1F — Olay kaydı  ← **sırada**
+- [x] 1F — Olay kaydı ✅
 
 ---
 
@@ -1586,7 +1586,7 @@ webhook imzası doğrulanıyor · tutar ikinci çağrıyla teyit ediliyor · sto
 düşüyor · panelde sipariş ödendi görünüyor · **eksik anahtarla ödeme
 başlatılamıyor ve marka eksiği panelde görüyor**
 
-#### 1F — Olay kaydı
+#### 1F — Olay kaydı ✅
 
 ```
 olay olur                          kuyruk               worker
@@ -1600,9 +1600,78 @@ order_placed        ──┘
                               taşımazsa A'nın olayı B'nin şemasına yazılır
 ```
 
+---
+
+##### 1F kararları
+
+> **Araştırma:** Medusa olay veriyolunu **modüler** tutuyor (geliştirmede yerel,
+> üretimde Redis); Saleor asenkron işleri Celery+Redis'te koşuyor; Magento misafir
+> için ayrı ziyaretçi kaydı tutup giriş anında müşteriye bağlıyor; Sylius olayları
+> `pre_`/`post_` diye ayırıp **veri yazıldıktan sonra** tetikliyor.
+> Ortak desen: **üreten yer ile işleyen yer ayrı**, olay iş bittikten sonra doğar.
+
+**1F-K1 · Olay DOMAIN'de doğar — controller'da değil.**
+
+> Projenin mevcut kuralı: *bir kontrol HTTP dışından atlanabiliyorsa `app/Domain/`'e
+> girer.* Olaylar için de aynısı — sipariş bir tohumlayıcıdan da oluşabiliyor.
+>
+> ⚠️ **Tek istisna `product_viewed`:** iş mantığı yok, saf bir görüntüleme.
+> Domain'e taşımak "ürüne bakıldı" diye bir iş kuralı uydurmak olurdu.
+
+**1F-K2 · Misafir kimliği ŞİMDİLİK BOŞ — `anon_id` kolonu açılır, doldurulmaz.**
+
+```
+A  sepet token'ı        var ama sepet dönüşünce/yenilenince kimlik KOPAR
+B  ayrı anon çerezi     vitrin teknolojisi HENÜZ SEÇİLMEDİ (M-3, Faz 4)
+C  şimdilik NULL        ← SEÇİLEN
+```
+
+> Gerekçe 1C-K1 ile aynı: çerez, API'yi henüz var olmayan bir istemciye bağlar.
+> Yarım bir çözüm koymak, sonradan iki kimlik biçimini birleştirmeye çalışmaktan
+> kötüdür. Kolon açık duruyor; Faz 4'te vitrin gelince kimin dolduracağı belli olur.
+
+**1F-K3 · Olay yazımı düşerse SESSİZCE düşer — siparişi BOZMAZ.**
+
+> ⚠️ Olay kaydı, işin kendisinden daha önemli olamaz. Kaydedilmemesi kötü;
+> sipariş verilememesi felaket.
+>
+> **Tekilleştirme YOK — bilinçli.** Ödemede `UNIQUE` ile tekrarı imkânsız kılmıştık
+> çünkü orada tekrar = ikinci kez stok düşmek. Burada tekrar = bir fazla satır;
+> analizi hafifçe şişirir, parayı bozmaz. Mükemmelliğin bedeli burada değmiyor.
+
+**1F-K4 · `payload` içinde KİŞİSEL VERİ YOK.**
+
+> Yalnızca kimlikler ve sayılar. Ad, e-posta, adres girmez.
+>
+> ⚠️ Sebebi ileriye dönük: Faz 2'de KVKK silme talebi geliyor ve o iş kişisel
+> alanları anonimleştirmek zorunda. `events` tablosunu da taraması gerekirse iş
+> iki katına çıkar. Baştan koymamak, sonradan temizlemekten ucuz.
+
+**1F-K5 · ★ Olay TRANSACTION BİTTİKTEN SONRA kuyruğa girer.**
+
+> Araştırmadan çıktı ve **kodumuzda birebir var**:
+>
+> ```
+> CheckoutService::baslat()
+>   BEGIN TRANSACTION
+>     stok rezerve edilir
+>     sipariş oluşur
+>     olay kuyruğa atılır      ← ⚠️ BURADA
+>   COMMIT   ← ya buraya gelemezse?
+> ```
+>
+> Transaction geri sarılırsa sipariş **hiç var olmaz** — ama olay çoktan Redis'e
+> girmiştir. Worker onu alır ve olmayan bir siparişin `order_placed` olayını yazar.
+> Kaynaklardaki ifade: *işlem geri sarılınca veritabanı değişiklikleri atılır ama
+> gönderilmiş olaylar işlenmeye devam eder.*
+>
+> Laravel'in `afterCommit` mekanizması kullanılacak — ve **ölçülecek**. Bu hatanın
+> belirtisi yok, yalnızca tutarsız veri.
+
 **Tablolar:** `events`
 **Bitiş ölçütü:** beş olay tipi kaydediliyor · olayın **doğru kiracının** şemasına
-yazıldığı testle kanıtlanıyor · olay yazımı istek süresini uzatmıyor
+yazıldığı testle kanıtlanıyor · olay yazımı istek süresini uzatmıyor ·
+**geri sarılan transaction'ın olayı YAZILMIYOR** · payload'da kişisel veri yok
 
 > Tüketicisi TıkRota'daki gibi bir keşif akışı **değil** — tek markada keşfedilecek satıcı
 > yok. Besleyeceği şeyler: ürün önerisi (Faz 3), terk edilmiş sepet (Faz 2) ve markanın
