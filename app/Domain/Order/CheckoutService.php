@@ -106,6 +106,26 @@ class CheckoutService
     }
 
     /**
+     * ★ Ödeme BAŞLADI: rezervasyonların ömrü 15 dk → 60 dk. (1E.2)
+     *
+     * Sağlayıcıya yönlendirmeden HEMEN ÖNCE çağrılıyor — o andan sonra
+     * müşteri bizde değil, süreyi uzatma şansımız kalmıyor.
+     *
+     * ⚠️ Sipariş durumu DEĞİŞMİYOR. "Ödemeye başladı" bir ödeme durumu
+     * değil; para hâlâ çekilmedi ve hiç çekilmeyebilir. `payment_status`
+     * burada değiştirilseydi, ödeme sayfasını açıp vazgeçen her müşteri
+     * için sipariş yanlış durumda kalırdı.
+     */
+    public function odemeBaslatildi(Order $siparis): Order
+    {
+        foreach ($this->rezervasyonlari($siparis) as $rezervasyon) {
+            $this->stok->odemeyeAl($rezervasyon);
+        }
+
+        return $siparis;
+    }
+
+    /**
      * Ödeme başarılı: rezervasyonlar kesinleşir, STOK GERÇEKTEN DÜŞER.
      *
      * ⚠️ 1E'de gerçek sağlayıcı bunu çağıracak. Şimdilik dikiş yeri.
@@ -310,8 +330,16 @@ class CheckoutService
      */
     private function rezervasyonlari(Order $siparis)
     {
+        /*
+        | ⚠️ AKTİF durumların TAMAMI — yalnızca `Held` DEĞİL.
+        |
+        | 1E.2'de `Paying` eklendi. Burada `Held` kalsaydı ödeme başarılı
+        | webhook'u geldiğinde bu sorgu BOŞ dönerdi: hiçbir rezervasyon
+        | kesinleşmez, stok hiç düşmez, sipariş yine de `paid` olurdu.
+        | Sessiz ve kalıcı envanter hatası.
+        */
         return StockReservation::where('order_id', $siparis->id)
-            ->where('status', ReservationStatus::Held)
+            ->whereIn('status', ReservationStatus::aktifDegerler())
             ->get();
     }
 }

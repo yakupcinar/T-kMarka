@@ -23,8 +23,18 @@ use Illuminate\Support\Facades\DB;
  */
 class StockService
 {
-    /** Rezervasyon ömrü (1D-K3). */
+    /** Sepet aşamasındaki rezervasyon ömrü (1D-K3). */
     public const REZERVASYON_DAKIKA = 15;
+
+    /**
+     * Ödeme başladıktan sonraki ömür (1D-K3 güncellemesi · 1E.2).
+     *
+     * ⚠️ 60 dakika keyfi değil: iyzico bildirimi 10-15 saniye sonra atıyor,
+     * 2xx alamazsa 15 dakikada bir 3 kez daha deniyor — son deneme 45.
+     * dakikada. 15 dakikalık pencere ikinci denemeye bile yetmiyordu.
+     * WooCommerce'in varsayılanı da 60.
+     */
+    public const ODEME_DAKIKA = 60;
 
     /** Kilit bekleme sınırı (1D-K6). */
     public const KILIT_ZAMAN_ASIMI = '3s';
@@ -78,7 +88,15 @@ class StockService
      */
     public function kesinlestir(StockReservation $rezervasyon): void
     {
-        if ($rezervasyon->status !== ReservationStatus::Held) {
+        /*
+        | ⚠️ `Held` VE `Paying` — ikisi de kabul.
+        |
+        | Yalnızca `Held` denseydi 1E.2'den sonra webhook geldiğinde
+        | rezervasyon `Paying` olurdu, bu metot sessizce geri döner ve
+        | STOK HİÇ DÜŞMEZDİ. Ödeme başarılı, sipariş ödendi, envanter
+        | yanlış — hata da yok.
+        */
+        if (! $rezervasyon->status->aktifMi()) {
             return;   // zaten kesinleşmiş ya da bırakılmış
         }
 
@@ -104,7 +122,7 @@ class StockService
      */
     public function serbestBirak(StockReservation $rezervasyon): void
     {
-        if ($rezervasyon->status !== ReservationStatus::Held) {
+        if (! $rezervasyon->status->aktifMi()) {
             return;
         }
 
@@ -123,6 +141,29 @@ class StockService
     }
 
     /**
+     * ★ Rezervasyonu ÖDEME AŞAMASINA alır: `Held` → `Paying`, süre 60 dk.
+     *
+     * Ödeme sağlayıcısına yönlendirmeden HEMEN ÖNCE çağrılıyor.
+     *
+     * ⚠️ Süre yönlendirmeden SONRA uzatılamaz — müşteri o an bizden
+     * çıkmış oluyor ve geri döneceğinin garantisi yok. Uzatma yönlendirme
+     * anında yapılmazsa hiç yapılamaz.
+     *
+     * ⚠️ Stok BURADA DÜŞMÜYOR. Yalnızca bağlı kalma süresi uzuyor;
+     * `committed` zaten dâhildi, değişen tek şey `expires_at`.
+     */
+    public function odemeyeAl(StockReservation $rezervasyon): void
+    {
+        if ($rezervasyon->status !== ReservationStatus::Held) {
+            return;   // ödemeye zaten alınmış ya da kapanmış
+        }
+
+        $rezervasyon->status = ReservationStatus::Paying;
+        $rezervasyon->expires_at = now()->addMinutes(self::ODEME_DAKIKA);
+        $rezervasyon->save();
+    }
+
+    /**
      * Süresi dolan rezervasyonları düşürür. (1D.5'teki zamanlanmış görev
      * bunu çağıracak.)
      *
@@ -134,7 +175,15 @@ class StockService
      */
     public function suresiDolanlariDusur(): int
     {
-        $dolanlar = StockReservation::where('status', ReservationStatus::Held)
+        /*
+        | ⚠️ Durum değil SÜRE bakılıyor.
+        |
+        | `Paying` de buraya dâhil ama 15. dakikada değil 60. dakikada
+        | düşüyor — çünkü `expires_at` ödeme başlarken uzatıldı. Liste
+        | `Held` ile sınırlansaydı ödemesi yarıda kalan rezervasyonlar
+        | SONSUZA KADAR yaşar, o stok bir daha hiç satılamazdı.
+        */
+        $dolanlar = StockReservation::whereIn('status', ReservationStatus::aktifDegerler())
             ->where('expires_at', '<', now())
             ->get();
 
@@ -164,7 +213,10 @@ class StockService
         $satirlar = DB::table('product_variants as v')
             ->leftJoin('stock_reservations as r', function ($birlestir) {
                 $birlestir->on('r.variant_id', '=', 'v.id')
-                    ->where('r.status', '=', ReservationStatus::Held->value);
+                    // ⚠️ `Paying` de `committed`'a dâhil — dışarıda kalsaydı
+                    // ödeme süren her sipariş "tutarsızlık" olarak raporlanır,
+                    // gece denetimi her sabah yalancı alarm verirdi.
+                    ->whereIn('r.status', ReservationStatus::aktifDegerler());
             })
             ->groupBy('v.id', 'v.sku', 'v.committed')
             ->havingRaw('v.committed <> COALESCE(SUM(r.quantity), 0)')

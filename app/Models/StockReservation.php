@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ReservationStatus;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,8 +15,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *   satır kilidi (FOR UPDATE)  mikrosaniye — sayacın okunup yazılması arası
  *   rezervasyon (15 dk)        istekler arası — müşteri ödeme sayfasındayken
  *
+ * ⚠️ `@property` notu şart: statik analiz `casts()`'ten tarih dönüşümünü
+ * çıkaramıyor, kolonu metin görüp `expires_at`'i string sanıyor.
+ *
  * @property ReservationStatus $status
  * @property int $quantity
+ * @property CarbonInterface|null $expires_at
  */
 class StockReservation extends Model
 {
