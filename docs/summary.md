@@ -660,9 +660,111 @@ SIRADAKİ: 1B katalog — 10 karar alındı (PLAN.md 1B), araştırmayla doğrul
 
 ════ TOPLAM: 290 test · lint · analyse hepsi yeşil ════
 
-SIRADAKİ: 1F olay kaydı — beş olay tipi, kuyruk üzerinden
-          ⚠️ iş KİRACI KİMLİĞİNİ TAŞIMALI (M-2.4): taşımazsa A'nın olayı
-             B'nin şemasına yazılır ve hata vermez
-          sonra: iyzico sağlayıcısı (sandbox anahtarları hazır, şifreli
-          ayarlarda; henüz hiçbir kod okumuyor)
+1E.7 ✅  iyzico — GERÇEK sağlayıcı (Faz 5'ten öne çekildi)
+
+     K7  kart verisi BİZE DEĞMİYOR — barındırılan ödeme formu
+         formu iyzico çiziyor; bedeli görünüm denetimi, karşılığı
+         PCI kapsamının en dar hâli
+     K8  eşleşme anahtarı payments.uuid — sipariş numarası DEĞİL
+         numara tahmin edilebilir + bir siparişin çok denemesi olabilir
+     K9  tutar AYRI ÇAĞRIYLA soruluyor: iyzico bildiriminde tutar YOK
+     K10 sandbox localhost'a webhook atamaz → ngrok tüneli
+         ⚠️ tünel adresi KİRACI ALAN ADI olarak kayıtlı olmak zorunda
+     K11 sağlayıcı anahtarları PANELDEN giriliyor; her sağlayıcı
+         ihtiyacı olan anahtarları KENDİSİ bildiriyor, tanımsız anahtar
+         422 — yoksa `iyzico_api` yazan marka hata almaz, ödeme
+         "ayarlandı" görünür ve ilk gerçek müşteride patlar
+     K12 ★ İMZASIZ BİLDİRİM: gövdesine güvenme, SAĞLAYICIYA SOR
+         ölçüldü: iyzico X-Iyz-Signature başlığını BOŞ gönderiyor
+           (imza özelliği hesapta ayrıca aktive ediliyor)
+         güven modeli değişti:
+           ÖNCE   mesaja güven   "imza tutuyorsa içindekine inanırım"
+           ŞİMDİ  KAYNAĞA güven  "referansı al, ne olduğunu SOR"
+         bildirim artık KAPI ZİLİ — gövdesindeki status'e BAKILMIYOR
+         sahte bildirim işe yaramıyor: saldırganın yapabileceği tek şey
+           bize ZATEN BİZDE OLAN bir referansı hatırlatmak
+         ⚠️ genel gevşetme DEĞİL: QueryablePaymentProvider arayüzü,
+           sağlayıcı başına beyan. Sahte sağlayıcı imzalıyor ve imzasız
+           bildirimi REDDEDİYOR
+         ⚠️ A+B birlikte: imza gelirse yine doğrulanıyor, bozuk imza 401
+
+     ★★ GERÇEK SANDBOX, TAKLİDİN GİZLEDİĞİ BEŞ ŞEYİ BULDU:
+
+        callback token'ı POST GÖVDESİNDE yolluyor (?ref= değil)
+          → müşteri ödemeden sonra 404 görüyordu
+          → sahte sağlayıcı adresi KENDİSİ üretiyordu, yani test kendi
+            koyduğu değeri geri okuyordu
+        imza başlığı BOŞ ve ESKİ ADLI (X-Iyz-Signature, belge V3 diyor)
+          → hiçbir ödeme işlenemezdi (401 → tekrar → 401)
+        SoftDeletes + firstOrFail: varyant katalogdan kaldırılınca
+          kilit sorgusu patlıyordu → webhook 404 → sağlayıcı 3 kez
+          dener → TAHSİLAT HİÇ KAYDEDİLMEZ. Para çekilmiş, iz yok.
+          kapanış yolları artık silinmişi de kilitliyor; AÇMA yolu sıkı
+        "çağrı hatası" ≠ "ödeme hatası": iyzico yetersiz bakiyede servis
+          düzeyinde de status:failure döndürüyor, paidPrice YOK ama
+          paymentStatus VAR → başarısız ödeme işlenemiyordu, bağlı stok
+          60 dakika kimseye satılamıyordu
+        vekil arkasında şema: Caddy trusted_proxies olmadan
+          X-Forwarded-Proto'yu kendi şemasıyla eziyordu; iyzico callback
+          adresinin SSL olmasını zorunlu tuttuğu için sessizce engellerdi
+
+        ★ ORTAK DERS: TAKLİT, PROTOKOLÜN AYRINTISINI UYDURAMAZ.
+          Sahte sağlayıcı gerçek AKIŞI taklit edecek kadar iyiydi (K6)
+          ama biçimi uyduramazdı.
+
+     ölçüldü: başarısız ödemede bile paidPrice DOĞRU dönüyor —
+       tutara bakıp "ödendi" demek yanlış olurdu; ölçüt paymentStatus
+
+1F   ✅  olay kaydı — beş tip, kuyruk üzerinden
+         K1 olay DOMAIN'de doğar; tek istisna product_viewed (iş kuralı
+            yok, saf görüntüleme → controller'da kalıyor)
+         K2 misafir kimliği ŞİMDİLİK BOŞ: anon_id kolonu açık, dolmuyor
+            çerez API'yi henüz seçilmemiş vitrine bağlardı (M-3)
+         K3 olay kaydı İŞİ BOZMAZ; tekilleştirme YOK — tekrar bir fazla
+            satır demek, parayı bozmuyor (ödemedeki UNIQUE'in aksine)
+         K4 payload'da KİŞİSEL VERİ YOK — Faz 2'deki KVKK anonimleştirmesi
+            bu tabloyu taramak zorunda kalmasın diye
+         K5 ★ olay TRANSACTION BİTTİKTEN SONRA kuyruğa giriyor
+            (afterCommit). CheckoutService siparişi transaction içinde
+            oluşturuyor; olay oracıkta atılsaydı ve geri sarılsaydı
+            sipariş HİÇ VAR OLMAZ ama olay Redis'e girerdi
+
+         ★ KIRMIZI KONTROL TESTİ İKİ KEZ ÇÜRÜTTÜ:
+           1. Queue::fake() — sahte kuyruk afterCommit'i ATLIYOR
+           2. veritabanına bak — sync sürücüsünde iş transaction İÇİNDE
+              koşup satırla birlikte geri sarılıyor, yani afterCommit
+              kaldırılınca da test YEŞİL kalıyordu
+           3. GERÇEK kuyruğa bak: iş Redis'e girdi mi ✓
+           canlıda iş oradan alınıp AYRI süreçte koşuyor — ölçülmesi
+           gereken buydu
+
+════════════ ✅ FAZ 1 TAMAMLANDI ════════════
+326 test · lint · analyse · CI hepsi yeşil
+
+Bir müşteri gerçekten sipariş verebiliyor — gerçek bir ödeme
+sağlayıcısıyla, iki kiracıda, verileri karışmadan.
+
+FAZ 1'İN TAŞIYICI DERSİ, altı blokta da aynı çıktı:
+
+  SESSİZ HATA, GÜRÜLTÜLÜ HATADAN TEHLİKELİDİR
+    kolon varsayılanı modele ulaşmıyor (4 kez)
+    citext/ltree marka şemasında sessizce düşüyor
+    Storage::url() iki markada aynı adresi veriyor
+    tenants:run'sız görev merkez bağlamda "başarılı" dönüyor
+
+  TEST GEÇİYOR ≠ TEST DOĞRU ŞEYİ ÖLÇÜYOR
+    1D.6  uca giden kimlik MODELDEN okunuyordu → iki ölü uç
+    1E.7  sahte cevapta token yoktu → status kontrolü sınanmıyordu
+    1F    Queue::fake ve sync sürücüsü afterCommit'i atlıyordu
+    → kırılmanın GERÇEKTEN uygulandığını doğrula
+
+  UNUTMAYI İMKÂNSIZ KIL
+    UNIQUE kısıtı > "acaba işledim mi" kontrolü
+    veritabanı tetiği > "yasal metni UPDATE etmeyi unutma"
+    sabit kilit sırası > "deadlock'a dikkat et"
+
+SIRADAKİ: Faz 2 — kampanya · kupon · iade · arama · yorum · koleksiyon
+          + M-1'den devir: cayma hakkı (14 gün) · KVKK veri silme
+            (⚠️ DELETE değil ANONİMLEŞTİRME — sipariş yasal saklama
+             süresince silinemez) · müşterinin verisini indirmesi
 ```

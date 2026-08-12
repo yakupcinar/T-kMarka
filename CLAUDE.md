@@ -17,7 +17,18 @@ orada zaten yazılı.
 
 ## Komutlar — hepsi konteyner içinde
 
-Yerel makinede PHP/Composer **yok**.
+Yerel makinede PHP/Composer **yok**. Günlük işler `Makefile`'da toplu:
+
+```bash
+make              # ne var ne yok
+make ayaga        # her şeyi başlat (tünel hariç)
+make kaldir       # her şeyi başlat + ngrok tüneli
+make indir        # her şeyi durdur (tünel dâhil)
+make kontrol      # lint + analiz + test — commit öncesi ZORUNLU
+make yeniden      # kod değişince: worker + scheduler + caddy
+```
+
+Altındaki uzun hâlleri:
 
 ```bash
 docker compose exec -T app composer lint      # Pint (biçim)
