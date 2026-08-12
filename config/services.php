@@ -18,6 +18,23 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
+    /*
+    | iyzico — YALNIZCA ORTAM AYARI.
+    |
+    | ⚠️ Burada YALNIZCA adres var. Marka anahtarları (API + gizli anahtar)
+    | BURAYA GİRMEZ: her markanın kendi ödeme hesabı var (M-1), `.env`'e
+    | yazılsaydı bütün markalar aynı hesaba tahsilat yapardı ve bu hata
+    | vermezdi — para yanlış yere giderdi.
+    |
+    | Anahtarların yeri: `settings` tablosu, `payment` grubu, ŞİFRELİ (§4).
+    |
+    | Sandbox mı canlı mı sorusu ise markaya göre değil ORTAMA göre
+    | değişiyor; o yüzden adres burada.
+    */
+    'iyzico' => [
+        'base_uri' => env('IYZICO_BASE_URI', 'https://sandbox-api.iyzipay.com'),
+    ],
+
     'resend' => [
         'key' => env('RESEND_API_KEY'),
     ],
