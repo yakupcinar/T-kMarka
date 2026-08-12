@@ -52,6 +52,12 @@ class FakePaymentProvider implements PaymentProvider
         );
     }
 
+    /** @return list<string> */
+    public function gerekliAnahtarlar(): array
+    {
+        return [self::GIZLI_ANAHTAR];
+    }
+
     public function imzaBasligi(): string
     {
         return 'X-Fake-Signature';

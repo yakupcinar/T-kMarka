@@ -467,7 +467,8 @@ kiracının verisi birbirine karışmıyor.
 - [x] 1C — Sepet ✅
 - [x] 1D — Stok + Sipariş + Sevkiyat ✅
 - [x] 1E — Ödeme ✅
-- [ ] 1F — Olay kaydı  ← **sırada**
+- [ ] 1E.7 — iyzico  ← **sırada** *(Faz 5'ten öne çekildi)*
+- [ ] 1F — Olay kaydı
 
 ---
 
@@ -1384,6 +1385,94 @@ rezervasyon serbest bırakılıyor · callback'e sahte `success` gönderilince s
 ödenmiş sayılmıyor · ödeme sürerken rezervasyon temizliği o satıra dokunmuyor · para
 gelip stok kalmadığında sipariş kabul edilip **panelde uyarı olarak görünüyor** · iki
 kiracıda doğrulanıyor
+
+#### 1E.7 — iyzico (gerçek sağlayıcı)  ← **AÇIK**
+
+> ⟳ **PLAN DEĞİŞİKLİĞİ.** Gerçek sağlayıcı Faz 5'e yazılmıştı; öne çekildi.
+> Gerekçe: sandbox hesabı açıldı, arayüz zaten iyzico'nun akışına göre
+> biçimlendirilmişti (1E.1) ve sahte sağlayıcı onun imza düzenini taklit
+> ediyor. Beklemek, tasarımın doğruluğunu **sınamadan** bir blok daha
+> ilerlemek olurdu.
+
+**1E-K7 · Kart verisi BİZE DEĞMEZ — barındırılan ödeme formu.**
+
+```
+A  Doğrudan API   kart numarası bizim sunucumuzdan geçer → PCI-DSS yükü
+B  Ödeme formu    kart bilgisi iyzico'nun sayfasında girilir   ← SEÇİLEN
+```
+
+> Zaten karar verilmişti (`domain-model.md` §10: "kart verisi hiçbir zaman
+> sisteme girmez"); burada teyit ediliyor. Bedeli: ödeme ekranının görünümü
+> üzerinde tam denetimimiz yok. Karşılığı: kart verisi hiç görmediğimiz için
+> PCI kapsamı en dar hâlinde kalıyor.
+
+**1E-K8 · Eşleşme anahtarı: ÖDEME DENEMESİNİN uuid'si — sipariş numarası DEĞİL.**
+
+> iyzico başlatırken verdiğimiz `conversationId`'yi bildirimde geri
+> döndürüyor. Oraya sipariş numarası konabilirdi ama iki sorun var:
+>
+> ```
+> TM-2026-000123    tahmin edilebilir (1D-K4)
+>                   bir siparişin BİRDEN ÇOK denemesi olabilir
+>                     kart reddedildi → müşteri başka kartla denedi
+>                   → iki deneme aynı kimliği taşırdı
+> ```
+>
+> `payments.uuid` ikisini de çözüyor: tahmin edilemez ve deneme başına tekil.
+> `payments.provider_ref` ise iyzico'nun kendi ödeme kimliği olarak kalıyor —
+> UNIQUE kısıtı onun üzerinde (1E-K3).
+
+**1E-K9 · Tutar İKİNCİ ÇAĞRIYLA doğrulanıyor.**
+
+> Sahte sağlayıcının bildiriminde tutar vardı ve karşılaştırıyorduk (1E.4).
+> iyzico'nun bildiriminde **tutar yok** — yalnızca ödeme kimliği ve durum.
+>
+> Seçenekler: tutar doğrulamasından vazgeç, ya da bildirimi alınca iyzico'ya
+> "bu ödeme neydi" diye sor. **İkincisi seçildi.**
+>
+> ⚠️ Bu, 1E-K1 ile çelişmiyor. Orada "callback'e sorma" denmişti; buradaki
+> çağrı callback'ten değil, **imzası doğrulanmış webhook'tan** sonra ve
+> **doğrulama** amaçlı. Tek doğruluk kaynağı yine sağlayıcının sunucusu.
+>
+> Bedeli: webhook işleme artık bir dış çağrı içeriyor, yani yavaşlayabiliyor.
+> Çağrı düşerse 2xx dönmüyoruz ve sağlayıcı tekrar deniyor — doğru davranış.
+
+**1E-K10 · Sandbox bize webhook ATAMAZ — geçici genel adres gerekiyor.**
+
+```
+iyzico sunucusu  ──✗──>  marka-a.localhost   (internetten erişilemez)
+iyzico sunucusu  ──✓──>  <geçici-adres>      → tünel → yerel makine
+```
+
+> Karar: **ngrok** ile geçici adres. Gerçek alan adına geçildiğinde silinecek;
+> kalıcı bir bağımlılık değil.
+>
+> ⚠️ Tünel adresi **kiracı alan adı olarak** kayıtlı olmak zorunda: webhook
+> ucu kiracıyı alan adından çözüyor (1E.4). Kayıtlı değilse istek 404 alır ve
+> tahsilat hiç işlenmez.
+
+**1E-K11 · Sağlayıcı anahtarları PANELDEN girilir.**
+
+> 1E.1'de anahtarlar `settings`'e şifreli konuyor ama **panelden girme yolu
+> yok**; sandbox anahtarlarını elle veritabanına yazdık. Canlıda her marka
+> kendi hesabını kendisi tanımlayacak.
+>
+> ⚠️ Ayar ucu şu an serbest biçimli: `iyzico_api_key` yerine `iyzico_api`
+> yazan marka **hata almaz**, anahtar hiçbir zaman okunmayan bir yere yazılır
+> ve ödeme "yapılandırılmış" görünürken çalışmaz. Bu yüzden her sağlayıcı
+> **ihtiyaç duyduğu anahtarları bildirecek** ve panel eksikleri gösterecek —
+> `StoreReadiness` deseninin aynısı.
+
+```
+1E.7.1  panel ödeme ayarları — sağlayıcı seçimi + anahtar doğrulama (K11)
+1E.7.2  IyzicoProvider — başlatma · imza · bildirim çözme · tutar sorgusu
+1E.7.3  ngrok tüneli + gerçek sandbox'a karşı uçtan uca koşu
+```
+
+**Bitiş ölçütü:** gerçek iyzico sandbox'ında kart girilerek ödeme tamamlanıyor ·
+webhook imzası doğrulanıyor · tutar ikinci çağrıyla teyit ediliyor · stok
+düşüyor · panelde sipariş ödendi görünüyor · **eksik anahtarla ödeme
+başlatılamıyor ve marka eksiği panelde görüyor**
 
 #### 1F — Olay kaydı
 

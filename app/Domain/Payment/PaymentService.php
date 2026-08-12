@@ -26,6 +26,7 @@ class PaymentService
     public function __construct(
         private readonly PaymentProviderFactory $saglayicilar,
         private readonly CheckoutService $siparisler,
+        private readonly PaymentReadiness $hazirlik,
     ) {}
 
     /**
@@ -37,6 +38,7 @@ class PaymentService
      * ekranı görürdü (açık yönlendirme).
      *
      * @throws OrderNotPayableException
+     * @throws PaymentNotConfiguredException
      */
     public function baslat(Order $siparis, string $donusAdresi): PaymentInitiation
     {
@@ -52,6 +54,20 @@ class PaymentService
         }
 
         $saglayici = $this->saglayicilar->coz();
+
+        /*
+        | ★ EKSİK YAPILANDIRMAYLA ÖDEME BAŞLATILMIYOR (1E-K11).
+        |
+        | ⚠️ Kontrol EN BAŞTA: deneme satırı açıldıktan sonra patlasaydı
+        | müşteri hata görür ama arkada yarım bir ödeme kaydı kalırdı ve
+        | o anahtar `UNIQUE (order_id, idempotency_key)` yüzünden ikinci
+        | denemeyi de engellerdi.
+        */
+        $eksikler = $this->hazirlik->eksikler();
+
+        if ($eksikler !== []) {
+            throw new PaymentNotConfiguredException($saglayici->ad(), $eksikler);
+        }
 
         /*
         | ★ İDEMPOTANSLIK ANAHTARI = SİPARİŞ NUMARASI (1E-K4).

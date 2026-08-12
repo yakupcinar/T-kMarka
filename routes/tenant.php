@@ -7,6 +7,7 @@ use App\Http\Panel\CategoryController;
 use App\Http\Panel\LegalController;
 use App\Http\Panel\OptionController;
 use App\Http\Panel\OrderController;
+use App\Http\Panel\PaymentSettingsController;
 use App\Http\Panel\ProductController;
 use App\Http\Panel\RoleController;
 use App\Http\Panel\SettingsController;
@@ -333,6 +334,18 @@ Route::middleware([
             });
 
             Route::middleware('izin:settings.write')->group(function () {
+                /*
+                | ÖDEME SAĞLAYICI AYARLARI (1E-K11) — genel ayar ucundan AYRI.
+                |
+                | ⚠️ Genel uç serbest biçimli: marka istediği anahtarı
+                | yazabiliyor. Burada anahtarlar SAĞLAYICININ BİLDİRDİĞİ
+                | listeyle sınırlı, çünkü `iyzico_api` gibi bir yazım hatası
+                | sessizce kabul edilirse ödeme "ayarlandı" görünür ve ilk
+                | gerçek müşteride patlar.
+                */
+                Route::get('/payment', [PaymentSettingsController::class, 'index']);
+                Route::put('/payment', [PaymentSettingsController::class, 'update']);
+
                 Route::get('/settings', [SettingsController::class, 'index']);
                 Route::put('/settings', [SettingsController::class, 'update']);
 

@@ -32,6 +32,20 @@ class PaymentProviderFactory
 
     public const VARSAYILAN = 'fake';
 
+    /**
+     * Seçilebilir sağlayıcı adları — panel bu listeyi gösteriyor.
+     *
+     * ⚠️ Liste BURADAN türetiliyor, panelde ayrıca yazılmıyor. İki yerde
+     * yazılsaydı yeni sağlayıcı eklendiği gün panele eklemek unutulur,
+     * marka onu hiç seçemezdi.
+     *
+     * @return list<string>
+     */
+    public static function tanimliAdlar(): array
+    {
+        return array_keys(self::SAGLAYICILAR);
+    }
+
     public function __construct(
         private readonly SettingsService $ayarlar,
         private readonly Container $konteyner,

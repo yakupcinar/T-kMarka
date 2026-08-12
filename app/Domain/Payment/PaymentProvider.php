@@ -32,6 +32,21 @@ interface PaymentProvider
     public function ad(): string;
 
     /**
+     * Bu sağlayıcının çalışmak için ihtiyaç duyduğu ayar anahtarları.
+     *
+     * ★ Sağlayıcı kendi ihtiyacını BİLDİRİYOR — panel onu okuyup eksikleri
+     * gösteriyor (1E-K11). `StoreReadiness` deseninin aynısı.
+     *
+     * ⚠️ Bu liste olmasaydı ayar ucu serbest biçimli kalırdı:
+     * `iyzico_api_key` yerine `iyzico_api` yazan marka HATA ALMAZ, anahtar
+     * hiçbir zaman okunmayan bir yere yazılır ve ödeme "yapılandırılmış"
+     * görünürken çalışmazdı. Hata da ancak ilk gerçek müşteride görülürdü.
+     *
+     * @return list<string>
+     */
+    public function gerekliAnahtarlar(): array;
+
+    /**
      * Ödemeyi başlatır ve müşterinin yönlendirileceği adresi döndürür.
      *
      * ⚠️ TUTAR PARAMETRE DEĞİL — `PaymentService` onu `orders.grand_total`

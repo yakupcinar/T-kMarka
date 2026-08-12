@@ -14,6 +14,7 @@ use App\Domain\Order\OverShipmentException;
 use App\Domain\Order\StaleContractException;
 use App\Domain\Payment\OrderNotPayableException;
 use App\Domain\Payment\PaymentAmountMismatchException;
+use App\Domain\Payment\PaymentNotConfiguredException;
 use App\Domain\Payment\UnknownPaymentReferenceException;
 use App\Domain\Settings\SettingLockedException;
 use App\Domain\Settings\StoreNotReadyException;
@@ -216,6 +217,18 @@ return Application::configure(basePath: dirname(__DIR__))
         | 404 alınca 15 dakika sonra tekrar deniyor — bizdeki sorun
         | geçiciyse ikinci deneme kurtarıyor.
         */
+        /*
+        | Sağlayıcı anahtarları eksik → 503 + Retry-After.
+        |
+        | ⚠️ Eksik anahtar adları cevaba KONMUYOR: müşteriye markanın
+        | altyapısı hakkında bilgi vermenin anlamı yok. Marka eksikleri
+        | kendi panelinde görüyor (/panel/payment).
+        */
+        $exceptions->render(function (PaymentNotConfiguredException $e) {
+            return response()->json(['message' => $e->getMessage()], 503)
+                ->header('Retry-After', '300');
+        });
+
         $exceptions->render(function (UnknownPaymentReferenceException $e) {
             return response()->json(['message' => $e->getMessage()], 404);
         });
