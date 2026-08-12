@@ -26,7 +26,16 @@ class OrderController extends Controller
 
     public function index(): JsonResponse
     {
-        $siparisler = Order::with('items')->orderByDesc('placed_at')->paginate(50);
+        /*
+        | ⚠️ SORUNLU SİPARİŞLER ÖNCE. Stok açığı olan sipariş listenin
+        | başında duruyor — marka onu aramak zorunda kalmasın diye.
+        | Tarihe göre sıralansaydı, yoğun bir günde uyarı üçüncü sayfaya
+        | düşer ve pratikte görünmez olurdu.
+        */
+        $siparisler = Order::with('items')
+            ->orderByDesc('stock_shortfall')
+            ->orderByDesc('placed_at')
+            ->paginate(50);
 
         return response()->json([
             'orders' => collect($siparisler->items())->map(fn (Order $s) => $this->ozet($s)),
@@ -121,6 +130,17 @@ class OrderController extends Controller
             'fulfillment_status' => $siparis->fulfillment_status->value,
             'grand_total' => $siparis->grand_total,
             'placed_at' => $siparis->placed_at,
+
+            /*
+            | ★ 1E-K5 — "para geldi, mal yok" uyarısı LİSTEDE.
+            |
+            | ⚠️ Yalnızca ayrıntıda gösterilseydi marka satırı açmadan
+            | göremezdi ve işaret sessiz kalırdı. Shopify'ın uyarısı tam
+            | buydu: sorun eksi stoğa izin vermek değil, HABER VERMEDEN
+            | izin vermek. Karar markanın (tedarik et ya da iade et) ama
+            | kararı verebilmesi için önce GÖRMESİ gerekiyor.
+            */
+            'stock_shortfall' => $siparis->stock_shortfall,
         ];
     }
 

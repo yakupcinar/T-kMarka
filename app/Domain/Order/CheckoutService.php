@@ -132,14 +132,72 @@ class CheckoutService
      */
     public function odemeBasarili(Order $siparis): Order
     {
-        foreach ($this->rezervasyonlari($siparis) as $rezervasyon) {
+        $rezervasyonlar = $this->rezervasyonlari($siparis);
+
+        /*
+        | ★ 1E-K5: "PARA GELDİ, MAL YOK" TESPİTİ.
+        |
+        | ⚠️ Ölçüm KESİNLEŞTİRMEDEN ÖNCE yapılmak zorunda: `kesinlestir()`
+        | rezervasyonu `committed` yapıyor, o andan sonra "aktif" sayılmıyor
+        | ve elimizde ölçecek bir şey kalmıyor.
+        */
+        $acikVar = $this->stokAcigiVarMi($siparis, $rezervasyonlar);
+
+        foreach ($rezervasyonlar as $rezervasyon) {
             $this->stok->kesinlestir($rezervasyon);
         }
 
         $siparis->payment_status = PaymentStatus::Paid;
+
+        /*
+        | ⚠️ Sipariş yine de KABUL EDİLİYOR (1E-K5). Reddedip iade etmek
+        | müşteriyi 3-5 gün parasız bırakırdı; tedarik edebilen marka da
+        | satışı kaybederdi. Karar ticari, o yüzden markaya bırakılıyor —
+        | ama SESSİZ KALMIYOR, panelde uyarı olarak görünüyor.
+        */
+        $siparis->stock_shortfall = $acikVar;
         $siparis->save();
 
         return $siparis;
+    }
+
+    /**
+     * Rezerve edilen adet, sipariş edilen adedi karşılıyor mu?
+     *
+     * ⚠️ Açık genelde 60 dakikayı aşan bildirimden doğuyor: rezervasyon
+     * süresi dolup düşmüş, stok başkasına gitmiş, sonra ödeme onaylanmış.
+     * 1E.2 bunu NADİRLEŞTİRDİ ama imkânsız kılmadı.
+     *
+     * @param  \Illuminate\Support\Collection<int, StockReservation>  $rezervasyonlar
+     */
+    private function stokAcigiVarMi(Order $siparis, $rezervasyonlar): bool
+    {
+        $siparis->load('items');
+
+        // varyant → rezerve edilmiş toplam adet
+        $rezerve = [];
+
+        foreach ($rezervasyonlar as $rezervasyon) {
+            $varyantId = (int) $rezervasyon->variant_id;
+            $rezerve[$varyantId] = ($rezerve[$varyantId] ?? 0) + $rezervasyon->quantity;
+        }
+
+        foreach ($siparis->items as $satir) {
+            /*
+            | ⚠️ Varyantı silinmiş satır (variant_id null) ölçüme girmiyor:
+            | sipariş satırı bir FOTOĞRAF, varyant silinse de yaşıyor
+            | (1D). Onu "açık" saymak her eski siparişi işaretlerdi.
+            */
+            if ($satir->variant_id === null) {
+                continue;
+            }
+
+            if (($rezerve[(int) $satir->variant_id] ?? 0) < $satir->quantity) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * analiz kolonu gördüğü için float sanıyor.
  *
  * @property PaymentStatus $payment_status
+ * @property bool $stock_shortfall
  * @property FulfillmentStatus $fulfillment_status
  * @property string $items_total
  * @property string $discount_total
@@ -53,6 +54,9 @@ class Order extends Model
      */
     protected $attributes = [
         'payment_status' => 'pending',
+
+        // ⚠️ Kolon varsayılanı modele ULAŞMIYOR — beşinci kez yazılıyor.
+        'stock_shortfall' => false,
         'fulfillment_status' => 'unfulfilled',
         'discount_total' => 0,
     ];
@@ -62,6 +66,7 @@ class Order extends Model
     {
         return [
             'payment_status' => PaymentStatus::class,
+            'stock_shortfall' => 'boolean',
             'fulfillment_status' => FulfillmentStatus::class,
             'terms_accepted_at' => 'datetime',
             'placed_at' => 'datetime',

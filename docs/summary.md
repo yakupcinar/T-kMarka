@@ -572,10 +572,97 @@ SIRADAKİ: 1B katalog — 10 karar alındı (PLAN.md 1B), araştırmayla doğrul
 
 ════ TOPLAM: 233 test · lint · analyse hepsi yeşil ════
 
-SIRADAKİ: 1E ödeme
-          PaymentProvider arayüzü + sahte sağlayıcı (gerçek para yok)
-          tutar SUNUCUDA grand_total'dan üretilir, istemciye güvenilmez
-          webhook imzası doğrulanmadan sipariş ödendi sayılmaz
-          idempotanslık anahtarı (1D kilitleme tartışmasından çıkan borç)
-          dikiş yerleri hazır: CheckoutService::odemeBasarili/odemeBasarisiz
+1E   ✅  ödeme
+
+     ★ 1E'NİN ASIL ŞEKLİ: ödeme BİZİM sürecimizde değil.
+       3D Secure zorunlu, müşteri ortada bizden ÇIKIYOR.
+       Geri dönüşte İKİ haber geliyor:
+         ① tarayıcı döndü    → sahte üretilebilir, KANIT DEĞİL
+         ② webhook geldi     → imzalı, sunucudan, GERÇEK BU
+       iyzico kendi belgesinde: "callback güvenilir gösterge değildir,
+         kullanıcı o ekrana hiç ulaşmayabilir"
+
+1E.1 ✅  PaymentProvider arayüzü · FakePaymentProvider · payments tablosu
+         arayüzde tek adımlı tahsilEt() BİLEREK YOK — "çağır, cevabı al"
+           yanılsaması üretirdi; cevap o çağrıdan dönmüyor
+         payments'ta İKİ UNIQUE, iki AYRI problem:
+           (provider, provider_ref)     gelen taraf: aynı webhook üç kez
+           (order_id, idempotency_key)  giden taraf: çift tıklama
+         sahte sağlayıcı GERÇEK akışı taklit ediyor: yönlendirme,
+           HMAC-SHA256 imza, aynı bildirimi defalarca üretebilme
+         ★ BULGU: hash_hmac boş anahtarla da GEÇERLİ imza üretiyor —
+           doğrulama "çalışır" görünür ama hiçbir şey korumaz.
+           Artık gürültülü patlıyor.
+         ★ BULGU: test markaları DefaultSettings'i hiç çalıştırmıyordu,
+           yani testler canlıda olmayan bir marka biçimini sınıyordu.
+           Düzeltilince kargo ücreti göründü, iki test gerçeğe uydu.
+
+1E.2 ✅  rezervasyona ödeme aşaması (1D-K3 güncellendi)
+         held 15 dk (süreç bizde) → paying 60 dk (süreç dışarıda)
+         gerekçe: iyzico bildirimi 15 dk arayla 3 kez tekrar ediyor,
+           ikinci deneme rezervasyonun öldüğü dakikaya denk geliyordu
+         süreyi TOPLUCA 60 yapmak yanlıştı: terk edilmiş sepet stoğu
+           bir saat rehin tutardı
+         ★ "aktif durum" listesi enum'a kondu — beş yerde kullanılıyor;
+           biri unutulsa o yol sessizce hiçbir rezervasyon bulamaz,
+           ödeme başarılı olur ve STOK HİÇ DÜŞMEZDİ
+
+1E.3 ✅  ödeme başlatma ucu — POST /api/orders/{uuid}/pay
+         plandan sapma: {no} değil {uuid}. Numara tahmin edilebilir
+           (1D-K4) ve o karar "görüntülemek kimlik doğrulaması ister"
+           varsayımına dayanıyordu; misafir siparişinde öyle bir şey yok
+         ÜÇÜ DE SUNUCUDA: tutar (grand_total) · anahtar (sipariş no) ·
+           dönüş adresi (markanın alan adı)
+         dönüş adresi istekten alınsaydı → AÇIK YÖNLENDİRME: saldırgan
+           kendi sitesini yazar, müşteri sahte "başarılı" ekranı görürdü
+
+1E.4 ✅  webhook — siparişi ve stoğu değiştiren TEK yer
+         uçta api öneki YOK, magaza-acik kapısı YOK, kimlik YOK
+           kapı olsaydı: marka mağazayı kapatınca başlamış ödemelerin
+           bildirimi 503 alır, para çekilmiş sipariş pending kalırdı
+         ÜÇ KAPI:
+           imza     401, kayıt bile açılmaz
+           eşleşme  404, sağlayıcı TEKRAR DENESİN diye (200 dese aramaz)
+           tekrar   200 already_processed — hata DEĞİL
+         tutar imzaya RAĞMEN ayrıca karşılaştırılıyor, bccomp ile:
+           '549.7' ile '549.70' aynı tutar, düz !== farklı görürdü
+         plandan sapma: "kuyruğa at" yapılmadı — iş birkaç satır
+           güncellemesi; kuyruk kiracı bağlamı taşıma zorunluluğu,
+           görünmez hata ve "işlendi dedik ama iş düştü" riski eklerdi
+
+1E.5 ✅  dönüş ekranı — HİÇBİR ŞEY YAZMIYOR
+         SİPARİŞTEN okuyor, istekten değil: ?status=success yazan
+           müşteri kendine "ödendi" ekranı gösteremiyor
+         sağlayıcıya da SORMUYOR — ikinci bir doğruluk kaynağı olurdu
+         pending = "bildirim HENÜZ GELMEDİ", başarısız DEĞİL
+           (iyzico ilk bildirimi 10-15 sn sonra atıyor; müşteri ekrana
+            3 saniyede varabilir)
+         GET ve POST birlikte — iyzico dönüşü POST ile yapıyor
+
+1E.6 ✅  stok açığı işareti · uçtan uca ödemeli akış · iki kiracı
+         ★ 1E-K5 KAPATILDI: rezervasyonu ölmüş siparişe ödeme gelirse
+           sipariş KABUL ediliyor ama orders.stock_shortfall işaretleniyor
+           ve panel listesinde EN ÜSTTE görünüyor
+           sıralama tarihe göre olsaydı yoğun günde uyarı üçüncü sayfaya
+             düşer, pratikte görünmez olurdu
+           Shopify'ın uyarısı zaten: sorun eksi stoğa izin vermek değil,
+             HABER VERMEDEN izin vermek
+
+         ★★ TEST GERÇEK BİR HATA BULDU: varyant SoftDeletes kullanıyor;
+            marka ödemesi yolda olan bir siparişin varyantını katalogdan
+            kaldırınca kilit sorgusu firstOrFail() ile patlıyordu.
+            webhook 404 → sağlayıcı 3 kez dener → üçü de düşer →
+            TAHSİLAT HİÇ KAYDEDİLMEZ. Para çekilmiş, sistemde iz yok.
+            Kapanış yolları artık silinmiş varyantı da kilitliyor;
+            rezervasyon AÇMA yolu sıkı kalıyor.
+            Katalogdan kaldırmak bir VİTRİN kararı; yolda olan siparişin
+            muhasebesini bozmamalı.
+
+════ TOPLAM: 290 test · lint · analyse hepsi yeşil ════
+
+SIRADAKİ: 1F olay kaydı — beş olay tipi, kuyruk üzerinden
+          ⚠️ iş KİRACI KİMLİĞİNİ TAŞIMALI (M-2.4): taşımazsa A'nın olayı
+             B'nin şemasına yazılır ve hata vermez
+          sonra: iyzico sağlayıcısı (sandbox anahtarları hazır, şifreli
+          ayarlarda; henüz hiçbir kod okumuyor)
 ```

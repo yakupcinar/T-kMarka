@@ -103,7 +103,7 @@ class StockService
         DB::transaction(function () use ($rezervasyon) {
             $this->kilitZamanAsimiKur();
 
-            $varyant = $this->kilitle((int) $rezervasyon->variant_id);
+            $varyant = $this->kilitle((int) $rezervasyon->variant_id, silinmisDahil: true);
 
             // stock ↓ ve committed ↓ — ikisi BİRLİKTE, aynı transaction'da.
             $varyant->stock -= $rezervasyon->quantity;
@@ -129,7 +129,7 @@ class StockService
         DB::transaction(function () use ($rezervasyon) {
             $this->kilitZamanAsimiKur();
 
-            $varyant = $this->kilitle((int) $rezervasyon->variant_id);
+            $varyant = $this->kilitle((int) $rezervasyon->variant_id, silinmisDahil: true);
 
             // ⚠️ `stock` DEĞİŞMİYOR — hiç düşmemişti. Yalnızca bağ çözülüyor.
             $varyant->committed = max(0, $varyant->committed - $rezervasyon->quantity);
@@ -276,10 +276,33 @@ class StockService
      * 1 adet ürün 2 kez satılır — ve hata vermez. Kilitle ikincisi birinci
      * COMMIT edene kadar bekliyor, sonra GÜNCEL değeri okuyor.
      */
-    private function kilitle(int $varyantId): ProductVariant
+    private function kilitle(int $varyantId, bool $silinmisDahil = false): ProductVariant
     {
+        $sorgu = ProductVariant::where('id', $varyantId);
+
+        /*
+        | ★ SİLİNMİŞ VARYANT DA KİLİTLENEBİLMELİ — ama yalnızca KAPANIŞ
+        | yollarında (kesinleştirme / serbest bırakma).
+        |
+        | ⚠️ 1E.6'da test yakaladı: varyant `SoftDeletes` kullanıyor ve
+        | varsayılan sorgu silinmişleri görmüyor. Marka, ödemesi yolda olan
+        | bir siparişin varyantını katalogdan kaldırdığında `firstOrFail()`
+        | patlıyordu — webhook 404 dönüyor, sağlayıcı üç kez deniyor, üçü de
+        | düşüyor ve TAHSİLAT HİÇ KAYDEDİLMİYORDU. Para çekilmiş, sistemde iz
+        | yok.
+        |
+        | Katalogdan kaldırmak bir VİTRİN kararı; yolda olan siparişin
+        | muhasebesini bozmamalı.
+        |
+        | ⚠️ Rezervasyon AÇMA yolunda bayrak `false` kalıyor: silinmiş
+        | varyant satın alınamaz.
+        */
+        if ($silinmisDahil) {
+            $sorgu->withTrashed();
+        }
+
         /** @var ProductVariant $varyant */
-        $varyant = ProductVariant::where('id', $varyantId)->lockForUpdate()->firstOrFail();
+        $varyant = $sorgu->lockForUpdate()->firstOrFail();
 
         return $varyant;
     }

@@ -460,14 +460,14 @@ sepete atar → ödeme yapar → sipariş oluşur → stok düşer → sipariş 
 edilir → olaylar kaydedilir. Ve aynı akış **ikinci bir kiracıda** da çalışıyor, iki
 kiracının verisi birbirine karışmıyor.
 
-> 🔜 Blok blok açılacak. **1A-1D kapandı, 1E açık**; kalanı sırası gelince yazılacak.
+> 🔜 Blok blok açılacak. **1A-1E kapandı, sırada 1F**.
 
 - [x] **1A — Kimlik, yetki ve mağaza ayarları** ✅ ← aşağıda
 - [x] 1B — Katalog ✅
 - [x] 1C — Sepet ✅
 - [x] 1D — Stok + Sipariş + Sevkiyat ✅
-- [ ] 1E — Ödeme  ← **sırada**
-- [ ] 1F — Olay kaydı
+- [x] 1E — Ödeme ✅
+- [ ] 1F — Olay kaydı  ← **sırada**
 
 ---
 
@@ -1057,7 +1057,7 @@ vitrinde yasal metin ucu        →  HİÇ YOKTU
 **İki kiracıda doğrulandı:** iki markada da `TM-2026-000001` üretildi (sıralar ayrı
 şemalarda, çakışma yok) · her panel yalnızca kendi siparişini gördü.
 
-#### 1E — Ödeme  ← **AÇIK BLOK**
+#### 1E — Ödeme
 
 > ⚠️ **1A.4'ten gelen zorunluluk: sipariş, onaylanan sözleşme SÜRÜMÜNE bağlanacak.**
 >
@@ -1328,6 +1328,53 @@ sağlayıcı  →  POST /webhooks/payment  →  hangi şema?
 1E.6  Blok kapanışı — panel ödeme görünümü · uçtan uca · iki kiracıda gerçek HTTP
       "stok bekliyor" uyarısı panelde GÖRÜNÜR (1E-K5'in şartı)
 ```
+
+---
+
+## ✅ FAZ 1E TAMAMLANDI
+
+```
+1E.1 PaymentProvider arayüzü · FakePaymentProvider · payments tablosu
+1E.2 rezervasyona ödeme aşaması: held 15 dk → paying 60 dk
+1E.3 ödeme başlatma ucu — tutar/anahtar/dönüş adresi hepsi SUNUCUDA
+1E.4 webhook — imza · eşleşme · tekrar; siparişi değiştiren TEK yer
+1E.5 dönüş ekranı — HİÇBİR ŞEY YAZMIYOR
+1E.6 stok açığı işareti · uçtan uca ödemeli akış · iki kiracı
+
+290 test · lint · analyse — hepsi yeşil
+```
+
+**1E'nin ölçerek öğrettikleri:**
+
+| Ölçüm | Sonuç | Olmasaydı |
+|---|---|---|
+| `hash_hmac(..., '')` | boş anahtarla **geçerli imza** üretiyor | doğrulama "çalışır" görünür, hiçbir şey korumazdı |
+| Test markası ≠ gerçek marka | `DefaultSettings` testte hiç koşmuyordu | testler canlıda olmayan bir marka biçimini sınıyordu |
+| `SoftDeletes` + `firstOrFail()` | varyant silinince ödeme **işlenemiyor** | webhook 404, sağlayıcı 3 kez dener, tahsilat kayıp |
+| `'549.7'` vs `'549.70'` | düz `!==` bunları farklı görüyor | geçerli ödemeler tutar uyuşmazlığı sanılırdı |
+
+**★ 1E.6'da test GERÇEK BİR HATA buldu:** marka, ödemesi yolda olan bir
+siparişin varyantını katalogdan kaldırınca `StockService::kilitle()`
+`firstOrFail()` ile patlıyordu — webhook 404 dönüyor, sağlayıcı üç kez
+deniyor, üçü de düşüyor ve **tahsilat hiç kaydedilmiyordu.** Para çekilmiş,
+sistemde iz yok. Kapanış yolları (`kesinlestir` / `serbestBirak`) artık
+silinmiş varyantı da kilitliyor; rezervasyon **açma** yolu ise sıkı kalıyor.
+
+> Katalogdan kaldırmak bir **vitrin** kararı; yolda olan siparişin
+> muhasebesini bozmamalı.
+
+**1E-K5 kapatıldı:** rezervasyonu ölmüş bir siparişe ödeme gelirse sipariş
+**kabul ediliyor** ama `orders.stock_shortfall` işaretleniyor ve panel
+listesinde **en üstte** görünüyor. Sıralama kararının sebebi: tarihe göre
+sıralansaydı yoğun bir günde uyarı üçüncü sayfaya düşer, pratikte görünmez
+olurdu — Shopify'ın uyarısı zaten "eksi stoğa izin vermek değil, **haber
+vermeden** izin vermek" idi.
+
+**İki kiracıda doğrulandı:** her iki markada da sipariş → ödeme başlat →
+sahte `success` ile dönüş (`processing`) → webhook (`paid`) → tekrar
+(`already_processed`) → dönüş (`success`). marka-a'da rezervasyon bilerek
+öldürüldü; paneli **⚠️ STOK AÇIĞI** işaretiyle en üstte gösterdi,
+marka-b temiz kaldı.
 
 **Tablolar:** `payments` (+ `stock_reservations.status` genişliyor)
 

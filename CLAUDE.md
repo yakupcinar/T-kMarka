@@ -78,6 +78,13 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   ```
   Hata ayrıntısı **anotasyonlarda** (günlükler yönetici yetkisi ister);
   `.github/ci-kontrol.sh` çıktıyı oraya basıyor.
+- **`SoftDeletes` + `firstOrFail()` = gecikmeli patlama.** Varsayılan sorgu
+  silinmişleri görmüyor; kayıt "yok" sayılıp istisna fırlıyor. 1E.6'da
+  ısırdı: marka, ödemesi yolda olan siparişin varyantını katalogdan
+  kaldırınca `StockService::kilitle()` patladı — webhook 404 döndü,
+  sağlayıcı üç kez denedi, üçü de düştü ve **tahsilat hiç kaydedilmedi.**
+  Kural: bir kaydı **kapatan** yol (kesinleştirme, iptal, iade) silinmişi
+  de görmeli (`withTrashed()`); **açan** yol görmemeli.
 - **Uçtan uca testte kimlik MODELDEN okunmaz.** İsteğin gövdesine giren her
   kimlik (uuid, sürüm no, satır id) bir önceki **uçtan** gelmeli. `$varyant->uuid`
   yazmak testi yeşil tutar ama "istemci bu değeri nereden bulacak" sorusunu
