@@ -7,8 +7,10 @@ use App\Domain\Identity\DefaultRoles;
 use App\Domain\Legal\LegalDocumentService;
 use App\Domain\Order\CheckoutService;
 use App\Domain\Payment\FakePaymentProvider;
+use App\Domain\Payment\PaymentService;
 use App\Domain\Settings\DefaultSettings;
 use App\Domain\Settings\SettingsService;
+use App\Domain\Settings\StorePublication;
 use App\Enums\LegalDocumentType;
 use App\Enums\ProductStatus;
 use App\Enums\SettingGroup;
@@ -236,6 +238,29 @@ function magazayiHazirla(): void
         $belgeler->taslagaYaz($tur, "{$tur->value} metni");
         $belgeler->yayinla($tur);
     }
+}
+
+/**
+ * Ödemesi BAŞLATILMIŞ sipariş üretir ve sağlayıcı referansını döndürür.
+ *
+ * ⚠️ Pest.php'de: birden çok dosya kullanıyor. Test dosyasında kalsaydı
+ * diğer dosyalar tek başına koşturulunca "tanımsız fonksiyon" verirdi.
+ *
+ * @return array{siparis: Order, varyant: ProductVariant, referans: string, tutar: string}
+ */
+function bildirimeHazirSiparis(string $alanAdi): array
+{
+    ['siparis' => $siparis, 'varyant' => $varyant] = odemeAsamasiSiparisi($alanAdi);
+    app(StorePublication::class)->yayinla();
+
+    $sonuc = app(PaymentService::class)->baslat($siparis, "http://{$alanAdi}/odeme/donus");
+
+    return [
+        'siparis' => $siparis,
+        'varyant' => $varyant,
+        'referans' => $sonuc->saglayiciReferansi,
+        'tutar' => (string) $siparis->grand_total,
+    ];
 }
 
 /**

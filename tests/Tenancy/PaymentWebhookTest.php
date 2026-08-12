@@ -1,14 +1,11 @@
 <?php
 
 use App\Domain\Payment\FakePaymentProvider;
-use App\Domain\Payment\PaymentService;
 use App\Domain\Settings\StorePublication;
 use App\Enums\PaymentAttemptStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\ReservationStatus;
-use App\Models\Order;
 use App\Models\Payment;
-use App\Models\ProductVariant;
 use App\Models\StockReservation;
 
 /*
@@ -21,26 +18,6 @@ use App\Models\StockReservation;
 |   eşleşme  yoksa bilinmeyen referans sessizce yutulur
 |   tekrar   yoksa aynı bildirim stoğu üç kez düşürür
 */
-
-/**
- * Ödemesi BAŞLATILMIŞ sipariş üretir ve sağlayıcı referansını döndürür.
- *
- * @return array{siparis: Order, varyant: ProductVariant, referans: string, tutar: string}
- */
-function bildirimeHazirSiparis(string $alanAdi): array
-{
-    ['siparis' => $siparis, 'varyant' => $varyant] = odemeAsamasiSiparisi($alanAdi);
-    app(StorePublication::class)->yayinla();
-
-    $sonuc = app(PaymentService::class)->baslat($siparis, "http://{$alanAdi}/odeme/donus");
-
-    return [
-        'siparis' => $siparis,
-        'varyant' => $varyant,
-        'referans' => $sonuc->saglayiciReferansi,
-        'tutar' => (string) $siparis->grand_total,
-    ];
-}
 
 it('★ BAŞARILI bildirim: sipariş ödendi, STOK GERÇEKTEN düştü', function () {
     ['siparis' => $s, 'varyant' => $v, 'referans' => $ref, 'tutar' => $tutar] =

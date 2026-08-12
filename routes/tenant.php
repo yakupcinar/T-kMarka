@@ -18,7 +18,8 @@ use App\Http\Storefront\CartController;
 use App\Http\Storefront\CatalogController;
 use App\Http\Storefront\CheckoutController as VitrinCheckout;
 use App\Http\Storefront\LegalController as VitrinLegal;
-use App\Http\Storefront\PaymentController as VitrinOdeme;
+use App\Http\Storefront\PaymentController;
+use App\Http\Storefront\PaymentReturnController;
 use App\Http\Storefront\PaymentWebhookController;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
@@ -69,6 +70,22 @@ Route::middleware([
     | hata vermez — A markasının parası B'nin defterinde görünür (0.5).
     */
     Route::post('/webhooks/payment', [PaymentWebhookController::class, 'store']);
+
+    /*
+    | ÖDEME DÖNÜŞÜ (1E.5) — müşterinin bankadan geri geldiği ekran.
+    |
+    | ⚠️ HİÇBİR ŞEY YAZMIYOR (1E-K1). Tarayıcı dönüşü ödeme kanıtı değil;
+    | müşteri o ekrana hiç ulaşmayabilir, ya da adres çubuğuna kendisi
+    | `?status=success` yazabilir. Gerçek webhook'tan geliyor.
+    |
+    | ⚠️ GET ve POST birlikte: sağlayıcılar dönüşü ikisinden biriyle
+    | yapıyor (iyzico POST eder). Tek yöntem tanımlansaydı gerçek
+    | sağlayıcı takıldığı gün müşteri 405 ekranı görürdü.
+    |
+    | ⚠️ `magaza-acik` DIŞINDA: mağaza kapansa bile bankadan dönen
+    | müşteri ne olduğunu görebilmeli.
+    */
+    Route::match(['get', 'post'], PaymentController::DONUS_YOLU, [PaymentReturnController::class, 'show']);
 
     /*
     | VİTRİN — markanın müşterisi
@@ -142,7 +159,7 @@ Route::middleware([
             | 1D.6'nın kuralı: isteğe giren her kimlik bir önceki uçtan
             | gelmeli.
             */
-            Route::post('/orders/{siparis}/pay', [VitrinOdeme::class, 'store']);
+            Route::post('/orders/{siparis}/pay', [PaymentController::class, 'store']);
         });
 
         // Hız sınırları AppServiceProvider'da tanımlı.
