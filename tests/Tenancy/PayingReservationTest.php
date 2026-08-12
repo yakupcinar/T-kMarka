@@ -1,17 +1,9 @@
 <?php
 
-use App\Domain\Cart\CartService;
-use App\Domain\Catalog\ProductService;
-use App\Domain\Catalog\VariantService;
-use App\Domain\Legal\LegalDocumentService;
 use App\Domain\Order\CheckoutService;
 use App\Domain\Stock\StockService;
-use App\Enums\LegalDocumentType;
 use App\Enums\PaymentStatus;
-use App\Enums\ProductStatus;
 use App\Enums\ReservationStatus;
-use App\Models\Order;
-use App\Models\ProductVariant;
 use App\Models\StockReservation;
 
 /*
@@ -24,29 +16,6 @@ use App\Models\StockReservation;
 | başkası son ürünü alıyor, sonra "ödeme başarılı" bildirimi geliyor.
 | Para çekilmiş, mal yok — ve hiçbir yerde hata görünmüyor.
 */
-
-/**
- * Ödenmemiş sipariş + varyantı döndürür.
- *
- * @return array{siparis: Order, varyant: ProductVariant}
- */
-function odemeAsamasiSiparisi(string $alanAdi, int $stok = 5): array
-{
-    markaKur($alanAdi);
-    magazayiHazirla();
-
-    $urun = app(ProductService::class)->olustur(['title' => 'Tişört']);
-    $varyant = app(VariantService::class)->ekle($urun, ['sku' => 'TS-1', 'price' => 100, 'stock' => $stok]);
-    app(ProductService::class)->durumDegistir($urun->refresh(), ProductStatus::Active);
-
-    $sepet = app(CartService::class)->misafirSepetiOlustur();
-    app(CartService::class)->ekle($sepet, $varyant, 2);
-
-    $sozlesme = app(LegalDocumentService::class)->guncelSurum(LegalDocumentType::DistanceSales);
-    $siparis = app(CheckoutService::class)->baslat($sepet, odemeVerisi((int) $sozlesme?->id));
-
-    return ['siparis' => $siparis, 'varyant' => $varyant];
-}
 
 it('ödeme başlayınca rezervasyon paying oluyor ve süre 60 dakikaya çıkıyor', function () {
     ['siparis' => $siparis] = odemeAsamasiSiparisi('paying-a.test');

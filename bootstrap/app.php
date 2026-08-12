@@ -12,6 +12,7 @@ use App\Domain\Order\CartNotOrderableException;
 use App\Domain\Order\OrderNotShippableException;
 use App\Domain\Order\OverShipmentException;
 use App\Domain\Order\StaleContractException;
+use App\Domain\Payment\OrderNotPayableException;
 use App\Domain\Settings\SettingLockedException;
 use App\Domain\Settings\StoreNotReadyException;
 use App\Domain\Stock\InsufficientStockException;
@@ -191,6 +192,19 @@ return Application::configure(basePath: dirname(__DIR__))
                 'sku' => $e->sku,
                 'ordered' => $e->siparisAdedi,
             ], 422);
+        });
+
+        /*
+        | Ödemeye uygun olmayan sipariş → 409.
+        |
+        | "Teşekkürler" sayfasını yenileyen müşteri ikinci kez ödeme
+        | başlatamasın diye; veri geçerli, yanlış olan ZAMAN.
+        */
+        $exceptions->render(function (OrderNotPayableException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'payment_status' => $e->odemeDurumu->value,
+            ], 409);
         });
 
         $exceptions->render(function (OrderNotShippableException $e) {

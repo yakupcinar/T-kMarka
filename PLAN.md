@@ -1300,9 +1300,14 @@ sağlayıcı  →  POST /webhooks/payment  →  hangi şema?
       ödeme başlayınca süre 15 dk → 60 dk
       stok:rezervasyon-temizle `paying` olana DOKUNMAZ
 
-1E.3  Ödeme başlatma ucu — POST /api/orders/{no}/pay
+1E.3  Ödeme başlatma ucu — POST /api/orders/{uuid}/pay
+      ⟳ PLAN {no} diyordu, UUID'ye çevrildi: sipariş numarası tahmin
+        edilebilir (1D-K4) ve o karar "görüntülemek kimlik doğrulaması
+        ister" varsayımına dayanıyordu — misafir siparişinde yok.
+        Numarayla ardışık deneyen biri başkasının ödemesini başlatırdı.
       tutar SUNUCUDA grand_total'dan üretilir
       idempotanslık anahtarı = sipariş numarası
+      dönüş adresi de SUNUCUDA üretilir (açık yönlendirme)
       dönüş: sağlayıcının yönlendirme adresi
 
 1E.4  Webhook ucu — imza doğrulama + idempotanslık

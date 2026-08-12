@@ -1,12 +1,19 @@
 <?php
 
+use App\Domain\Cart\CartService;
+use App\Domain\Catalog\ProductService;
+use App\Domain\Catalog\VariantService;
 use App\Domain\Identity\DefaultRoles;
 use App\Domain\Legal\LegalDocumentService;
+use App\Domain\Order\CheckoutService;
 use App\Domain\Settings\DefaultSettings;
 use App\Domain\Settings\SettingsService;
 use App\Enums\LegalDocumentType;
+use App\Enums\ProductStatus;
 use App\Enums\SettingGroup;
 use App\Models\Customer;
+use App\Models\Order;
+use App\Models\ProductVariant;
 use App\Models\User;
 use App\Platform\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -226,6 +233,34 @@ function magazayiHazirla(): void
         $belgeler->taslagaYaz($tur, "{$tur->value} metni");
         $belgeler->yayinla($tur);
     }
+}
+
+/**
+ * Ödenmemiş (pending) tek satırlık sipariş + varyantı üretir.
+ *
+ * ⚠️ Pest.php'de duruyor çünkü birden çok dosya kullanıyor. Test
+ * dosyasında tanımlı kalsaydı diğer dosyalar TEK BAŞINA koşturulunca
+ * "tanımsız fonksiyon" verirdi — tüm süitte görünmeyen, dosya yükleme
+ * sırasına bağlı sessiz bağımlılık.
+ *
+ * @return array{siparis: Order, varyant: ProductVariant}
+ */
+function odemeAsamasiSiparisi(string $alanAdi, int $stok = 5): array
+{
+    markaKur($alanAdi);
+    magazayiHazirla();
+
+    $urun = app(ProductService::class)->olustur(['title' => 'Tişört']);
+    $varyant = app(VariantService::class)->ekle($urun, ['sku' => 'TS-1', 'price' => 100, 'stock' => $stok]);
+    app(ProductService::class)->durumDegistir($urun->refresh(), ProductStatus::Active);
+
+    $sepet = app(CartService::class)->misafirSepetiOlustur();
+    app(CartService::class)->ekle($sepet, $varyant, 2);
+
+    $sozlesme = app(LegalDocumentService::class)->guncelSurum(LegalDocumentType::DistanceSales);
+    $siparis = app(CheckoutService::class)->baslat($sepet, odemeVerisi((int) $sozlesme?->id));
+
+    return ['siparis' => $siparis, 'varyant' => $varyant];
 }
 
 /**

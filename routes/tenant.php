@@ -18,6 +18,7 @@ use App\Http\Storefront\CartController;
 use App\Http\Storefront\CatalogController;
 use App\Http\Storefront\CheckoutController as VitrinCheckout;
 use App\Http\Storefront\LegalController as VitrinLegal;
+use App\Http\Storefront\PaymentController as VitrinOdeme;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
@@ -109,6 +110,22 @@ Route::middleware([
             Route::get('/legal/{tur}', [VitrinLegal::class, 'show']);
 
             Route::post('/checkout', [VitrinCheckout::class, 'store']);
+
+            /*
+            | ÖDEME BAŞLATMA (1E.3).
+            |
+            | ⚠️ Adres SİPARİŞ NUMARASI değil UUID taşıyor. Numara
+            | tahmin edilebilir (TM-2026-000123, 1D-K4) ve bu bilinçli
+            | bir karardı — ama o karar "görüntülemek kimlik doğrulaması
+            | ister" varsayımına dayanıyordu. Misafir siparişinde kimlik
+            | doğrulaması yok; numara kullanılsaydı ardışık numara
+            | deneyen biri başkasının siparişinin ödemesini başlatabilirdi.
+            |
+            | ⚠️ UUID müşteriye ZATEN /api/checkout cevabında veriliyor —
+            | 1D.6'nın kuralı: isteğe giren her kimlik bir önceki uçtan
+            | gelmeli.
+            */
+            Route::post('/orders/{siparis}/pay', [VitrinOdeme::class, 'store']);
         });
 
         // Hız sınırları AppServiceProvider'da tanımlı.
