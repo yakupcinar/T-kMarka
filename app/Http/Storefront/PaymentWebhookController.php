@@ -2,6 +2,7 @@
 
 namespace App\Http\Storefront;
 
+use App\Domain\Payment\PaymentProvider;
 use App\Domain\Payment\PaymentProviderFactory;
 use App\Domain\Payment\PaymentWebhookService;
 use App\Http\Controllers\Controller;
@@ -51,7 +52,7 @@ class PaymentWebhookController extends Controller
         | yorumlamaz. Sahte istek atan biri tekrar denemeye teşvik
         | edilmemeli.
         */
-        if (! $saglayici->webhookuDogrula($yuk, $istek->header($saglayici->imzaBasligi()))) {
+        if (! $saglayici->webhookuDogrula($yuk, $this->imza($istek, $saglayici))) {
             return response()->json(['message' => 'İmza doğrulanamadı.'], 401);
         }
 
@@ -63,5 +64,26 @@ class PaymentWebhookController extends Controller
         | 15 dakika sonra yine dener, biz yine aynı cevabı verirdik.
         */
         return response()->json(['result' => $sonuc->value]);
+    }
+
+    /**
+     * İmzayı sağlayıcının bildirdiği başlıklardan ilk DOLU olanından okur.
+     *
+     * ⚠️ Boş başlık imza SAYILMIYOR. iyzico sandbox'ta `X-Iyz-Signature`
+     * başlığını BOŞ değerle gönderdiği ölçüldü (1E.7.3); boş değer
+     * "imzalanmamış" demektir ve kabul edilirse imza kontrolü hiçbir şey
+     * korumaz.
+     */
+    private function imza(Request $istek, PaymentProvider $saglayici): ?string
+    {
+        foreach ($saglayici->imzaBasliklari() as $baslik) {
+            $deger = $istek->header($baslik);
+
+            if (is_string($deger) && trim($deger) !== '') {
+                return $deger;
+            }
+        }
+
+        return null;
     }
 }

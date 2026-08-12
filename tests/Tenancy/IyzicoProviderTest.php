@@ -174,6 +174,59 @@ it('★ UÇTAN: sağlayıcı reddedince 502 — ham istisna SIZMIYOR', function 
         ->and(json_encode($cevap->json()))->not->toContain('IyzicoProvider');
 });
 
+it("★ DÖNÜŞ: iyzico token'ı GÖVDEDE yolluyor", function () {
+    ['siparis' => $siparis] = odemeAsamasiSiparisi('iyz-k.test');
+    iyzicoluMarka('iyz-k.test');
+    app(StorePublication::class)->yayinla();
+
+    Http::fake(['*' => Http::response([
+        'status' => 'success', 'token' => 'IYZ-TOKEN-7', 'paymentPageUrl' => 'https://x/',
+    ])]);
+
+    app(PaymentService::class)->baslat($siparis, 'http://iyz-k.test/odeme/donus');
+
+    /*
+    | ⚠️ Gerçek sandbox'ın gönderdiği biçim: gövdede `token`, sorguda
+    | hiçbir şey. Uç `?ref=` bekliyordu ve 404 dönüyordu.
+    */
+    $this->post('http://iyz-k.test/odeme/donus', ['token' => 'IYZ-TOKEN-7'], ['Accept' => 'application/json'])
+        ->assertOk()
+        ->assertJsonPath('state', 'processing');
+});
+
+it('★ BOŞ imza başlığı KABUL EDİLMİYOR', function () {
+    ['siparis' => $siparis] = odemeAsamasiSiparisi('iyz-l.test');
+    iyzicoluMarka('iyz-l.test');
+    app(StorePublication::class)->yayinla();
+
+    ['yuk' => $yuk] = iyzicoBildirimi('IYZ-TOKEN-6', 'u');
+
+    /*
+    | ⚠️ ÖLÇÜLDÜ: iyzico sandbox `X-Iyz-Signature` başlığını BOŞ değerle
+    | gönderdi. Boş değer "imzalanmamış" demektir; kabul edilseydi imza
+    | kontrolü hiçbir şey korumazdı.
+    */
+    $this->withHeader('X-Iyz-Signature', '')
+        ->postJson('http://iyz-l.test/webhooks/payment', $yuk)
+        ->assertStatus(401);
+});
+
+it('★ ESKİ imza başlığı da okunuyor', function () {
+    markaKur('iyz-m.test');
+    magazayiHazirla();
+    iyzicoluMarka('iyz-m.test');
+
+    ['yuk' => $yuk, 'imza' => $imza] = iyzicoBildirimi('T', 'u');
+
+    /*
+    | ⚠️ Belgede yalnızca V3 yazıyor ama sandbox eski adı gönderiyor.
+    | Tek ada bağlansaydık gelen bildirimi hiç doğrulayamazdık.
+    */
+    $this->withHeader('X-Iyz-Signature', $imza)
+        ->postJson('http://iyz-m.test/webhooks/payment', $yuk)
+        ->assertStatus(404);   // imza GEÇTİ; referans bu markada yok
+});
+
 it('★ İMZA: geçerli kabul, bozulmuş RED', function () {
     markaKur('iyz-d.test');
     magazayiHazirla();

@@ -73,6 +73,23 @@ it('başarısız ödemede "başarısız" gösteriyor', function () {
     expect(StockReservation::firstOrFail()->status->value)->toBe('released');
 });
 
+it('★ SAĞLAYICI referansı GÖVDEDE yollarsa da bulunuyor', function () {
+    ['referans' => $ref] = bildirimeHazirSiparis('donus-j.test');
+
+    /*
+    | ⚠️ 1E.7.3'te GERÇEK sandbox'ta yakalandı: iyzico callback'e `token`
+    | alanını POST GÖVDESİNDE yolluyor, adres satırında `?ref=` yok.
+    | Uç yalnızca sorgu dizesini okuduğu için iyzico'nun ÜÇ denemesi de
+    | 404 aldı — müşteri ödemeyi bitirdikten sonra "sayfa bulunamadı" gördü.
+    |
+    | Sahte sağlayıcı bunu gizlemişti: yönlendirme adresini kendisi
+    | üretiyordu, yani test kendi koyduğu değeri geri okuyordu.
+    */
+    $this->postJson('http://donus-j.test/odeme/donus', ['ref' => $ref])
+        ->assertOk()
+        ->assertJsonPath('state', 'processing');
+});
+
 it('POST ile dönüş de çalışıyor', function () {
     ['referans' => $ref] = bildirimeHazirSiparis('donus-e.test');
 

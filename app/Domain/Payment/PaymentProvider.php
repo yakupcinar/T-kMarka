@@ -63,14 +63,39 @@ interface PaymentProvider
     public function baslat(PaymentRequest $istek): PaymentInitiation;
 
     /**
-     * İmzanın taşındığı HTTP başlığının adı.
+     * Dönüş isteğinden sağlayıcı referansını çıkarır. (1E.5)
+     *
+     * ★ Arayüzde olmasının sebebi ÖLÇÜLDÜ: her sağlayıcı referansı başka
+     * yerde taşıyor. Sahte sağlayıcı yönlendirme adresine `?ref=` koyuyor,
+     * iyzico ise callback'e `token` alanını **POST gövdesinde** yolluyor.
+     *
+     * ⚠️ 1E.7.3'te gerçek sandbox'ta yakalandı: dönüş ucu yalnızca
+     * `?ref=` okuyordu ve iyzico'nun üç callback denemesi de 404 aldı.
+     * Müşteri ödemeyi bitirdikten sonra "sayfa bulunamadı" gördü.
+     * Sahte sağlayıcı bunu gizlemişti — çünkü adresi kendisi üretiyordu.
+     *
+     * @param  array<string, mixed>  $veri  sorgu + gövde birleşimi
+     */
+    public function donusReferansi(array $veri): ?string;
+
+    /**
+     * İmzanın taşındığı HTTP başlık adları — ÖNCELİK SIRASIYLA.
      *
      * ⚠️ Arayüzde duruyor çünkü her sağlayıcı başka bir başlık kullanıyor
      * (iyzico: `X-IYZ-SIGNATURE-V3`). Controller'a sabit yazılsaydı ikinci
      * sağlayıcı takıldığı gün imza HİÇ OKUNAMAZ, doğrulama her istekte
      * başarısız olur ve tek bir ödeme bile işlenmezdi.
+     *
+     * ⚠️ LİSTE, tek ad değil: iyzico sandbox'ta eski adı (`X-Iyz-Signature`)
+     * da gönderiyor. Tek ada bağlansaydık gelen bildirimi hiç doğrulayamaz,
+     * hepsini reddederdik.
+     *
+     * ⚠️ BOŞ başlık imza SAYILMAZ — controller boş olanları atlıyor ve
+     * hiçbiri yoksa `null` geçiyor, doğrulama da `false` dönüyor.
+     *
+     * @return list<string>
      */
-    public function imzaBasligi(): string;
+    public function imzaBasliklari(): array;
 
     /**
      * Webhook imzasını doğrular.

@@ -58,9 +58,22 @@ class FakePaymentProvider implements PaymentProvider
         return [self::GIZLI_ANAHTAR];
     }
 
-    public function imzaBasligi(): string
+    /** @return list<string> */
+    public function imzaBasliklari(): array
     {
-        return 'X-Fake-Signature';
+        return ['X-Fake-Signature'];
+    }
+
+    /**
+     * Sahte sağlayıcı referansı yönlendirme adresinde taşıyor.
+     *
+     * @param  array<string, mixed>  $veri
+     */
+    public function donusReferansi(array $veri): ?string
+    {
+        $ref = $veri['ref'] ?? null;
+
+        return is_string($ref) && $ref !== '' ? $ref : null;
     }
 
     public function webhookuDogrula(array $yuk, ?string $imza): bool

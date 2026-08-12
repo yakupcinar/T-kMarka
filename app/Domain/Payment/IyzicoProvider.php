@@ -48,9 +48,33 @@ class IyzicoProvider implements PaymentProvider
         return [self::API_ANAHTARI, self::GIZLI_ANAHTAR];
     }
 
-    public function imzaBasligi(): string
+    /**
+     * ⚠️ İKİ AD. Belgede yalnızca V3 yazıyor ama sandbox ÖLÇÜMÜ eski adı
+     * gönderdiğini gösterdi (`X-Iyz-Signature`). Tek ada bağlansaydık
+     * gelen bildirimi hiç doğrulayamaz, hepsini reddederdik.
+     *
+     * @return list<string>
+     */
+    public function imzaBasliklari(): array
     {
-        return 'X-IYZ-SIGNATURE-V3';
+        return ['X-IYZ-SIGNATURE-V3', 'X-Iyz-Signature'];
+    }
+
+    /**
+     * ★ iyzico callback'e `token`'ı POST GÖVDESİNDE yolluyor.
+     *
+     * ⚠️ Ölçüldü (1E.7.3): `POST /odeme/donus` gövdesi
+     * `token=4e27e867-…`. Dönüş ucu yalnızca `?ref=` okuduğu için üç
+     * deneme de 404 aldı ve müşteri ödemeyi bitirdikten sonra "sayfa
+     * bulunamadı" gördü.
+     *
+     * @param  array<string, mixed>  $veri
+     */
+    public function donusReferansi(array $veri): ?string
+    {
+        $jeton = $veri['token'] ?? null;
+
+        return is_string($jeton) && $jeton !== '' ? $jeton : null;
     }
 
     public function baslat(PaymentRequest $istek): PaymentInitiation

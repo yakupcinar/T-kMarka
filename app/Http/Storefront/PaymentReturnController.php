@@ -41,13 +41,25 @@ class PaymentReturnController extends Controller
      */
     public function show(Request $istek): JsonResponse
     {
-        $referans = $istek->query('ref');
+        $saglayici = $this->saglayicilar->coz();
 
-        $deneme = is_string($referans)
-            ? Payment::where('provider', $this->saglayicilar->coz()->ad())
+        /*
+        | ★ REFERANSI SAĞLAYICI ÇIKARIYOR — uç bilmiyor. (1E.7.3)
+        |
+        | ⚠️ Burada `?ref=` sabit yazılıydı ve iyzico'nun üç callback
+        | denemesi de 404 aldı: iyzico `token`'ı POST GÖVDESİNDE yolluyor.
+        | Müşteri ödemeyi bitirdikten sonra "sayfa bulunamadı" gördü.
+        |
+        | Sahte sağlayıcı bunu gizlemişti — yönlendirme adresini kendisi
+        | üretiyordu, yani test kendi koyduğu değeri geri okuyordu.
+        */
+        $referans = $saglayici->donusReferansi($istek->all());
+
+        $deneme = $referans === null
+            ? null
+            : Payment::where('provider', $saglayici->ad())
                 ->where('provider_ref', $referans)
-                ->first()
-            : null;
+                ->first();
 
         abort_if($deneme === null, 404);
 
