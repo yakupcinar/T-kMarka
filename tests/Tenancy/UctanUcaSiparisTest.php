@@ -114,8 +114,12 @@ it('★ UÇTAN UCA: misafir sipariş verir, personel kısmi sevk eder', function
     */
     expect($siparisNo)->toStartWith('TM-')
         ->and($siparisCevabi->json('order.items_total'))->toBe('480.00')
-        ->and($siparisCevabi->json('order.tax_total'))->toBe('80.00')
-        ->and($siparisCevabi->json('order.grand_total'))->toBe('480.00');
+
+        // 480 ürün + 49,90 kargo (ücretsiz kargo eşiği 500, altında kaldı).
+        ->and($siparisCevabi->json('order.grand_total'))->toBe('529.90')
+
+        // 529,90'ın İÇİNDEKİ KDV: 529,90 × 20 / 120 = 88,3166… → 88,32
+        ->and($siparisCevabi->json('order.tax_total'))->toBe('88.32');
 
     // Stok BAĞLANDI ama henüz düşmedi.
     expect($vTisort->refresh()->stock)->toBe(10)

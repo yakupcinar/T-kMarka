@@ -48,27 +48,6 @@ function odemeyeHazirMagaza(string $alanAdi, int $stok = 10): array
     return ['varyant' => $varyant, 'sozlesmeId' => (int) $sozlesme?->id];
 }
 
-/**
- * @return array{email: string, legal_version_id: int, shipping: array<string, string|null>}
- */
-function odemeVerisi(int $sozlesmeId): array
-{
-    return [
-        'email' => 'ayse@ornek.test',
-        'legal_version_id' => $sozlesmeId,
-        'shipping' => [
-            'full_name' => 'Ayşe Yılmaz',
-            'phone' => '+905321112233',
-            'city' => 'İstanbul',
-            'district' => 'Kadıköy',
-            'neighborhood' => 'Caferağa',
-            'line1' => 'Moda Cad. No:12',
-            'line2' => null,
-            'postal_code' => '34710',
-        ],
-    ];
-}
-
 it('sipariş oluşuyor: numara · pending · stok BAĞLANIYOR', function () {
     ['varyant' => $varyant, 'sozlesmeId' => $sozlesmeId] = odemeyeHazirMagaza('ode-a.test');
     $sepet = app(CartService::class)->misafirSepetiOlustur();
@@ -111,7 +90,10 @@ it('★ SİPARİŞ BİR FOTOĞRAF: sonradan fiyat değişse de satır DEĞİŞM�
         ->and($satir->product_title)->toBe('Basic Tişört')
         ->and($satir->sku)->toBe('TS-1')
         ->and($satir->tax_rate)->toBe('20.00')
-        ->and($siparis->refresh()->grand_total)->toBe('120.00');
+
+        // 120,00 ürün + 49,90 kargo. (Kargo ücreti 1E.1'de göründü: test
+        // markası artık gerçek marka gibi varsayılan ayarlarla doğuyor.)
+        ->and($siparis->refresh()->grand_total)->toBe('169.90');
 });
 
 it('★ VARYANT SİLİNSE BİLE satır yaşıyor', function () {

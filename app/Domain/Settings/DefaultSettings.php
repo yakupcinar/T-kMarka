@@ -4,8 +4,10 @@ namespace App\Domain\Settings;
 
 use App\Domain\Legal\LegalDocumentService;
 use App\Domain\Legal\LegalTemplates;
+use App\Domain\Payment\FakePaymentProvider;
 use App\Enums\LegalDocumentType;
 use App\Enums\SettingGroup;
+use Illuminate\Support\Str;
 
 /**
  * Yeni marka açılırken kurulan varsayılan ayarlar ve yasal taslaklar.
@@ -44,6 +46,18 @@ class DefaultSettings
                 'free_threshold' => 500,
             ],
 
+            SettingGroup::Payment->value => [
+                /*
+                | Faz 1'in sağlayıcısı. Gerçek sağlayıcı takılınca marka
+                | bunu panelden değiştirecek (1E.1).
+                |
+                | ⚠️ Sağlayıcı ANAHTARLARI burada YOK — gerçek kimlik
+                | bilgisi varsayılan olamaz. Yalnızca sahte sağlayıcının
+                | imza anahtarı `kur()` içinde rastgele üretiliyor.
+                */
+                'provider' => 'fake',
+            ],
+
             SettingGroup::Checkout->value => [
                 // docs/domain-model.md §6: müşteri hesap açmadan sipariş
                 // verebilir; `customers.email` bu yüzden nullable.
@@ -78,6 +92,23 @@ class DefaultSettings
 
         // ⚠️ Mağaza KAPALI doğuyor.
         $this->ayarlar->yaz(SettingGroup::Store, StorePublication::ANAHTAR, false);
+
+        /*
+        | Sahte sağlayıcının imza anahtarı — MARKA BAŞINA rastgele.
+        |
+        | ⚠️ Sabit bir değer yazılsaydı (`'test'` gibi) imza doğrulaması
+        | her markada aynı olurdu ve testler gerçekte imzayı sınamazdı:
+        | bir markanın ürettiği bildirim diğerinde de geçerli olurdu.
+        |
+        | ⚠️ `is_encrypted = true` — düz metin kaydedilseydi veritabanı
+        | yedeğini gören herkes geçerli bildirim üretebilirdi.
+        */
+        $this->ayarlar->yaz(
+            SettingGroup::Payment,
+            FakePaymentProvider::GIZLI_ANAHTAR,
+            Str::random(48),
+            sifreli: true,
+        );
 
         /*
         | Yasal metinler TASLAK olarak kuruluyor, yayınlanmıyor.

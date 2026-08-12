@@ -2,6 +2,7 @@
 
 use App\Domain\Identity\DefaultRoles;
 use App\Domain\Legal\LegalDocumentService;
+use App\Domain\Settings\DefaultSettings;
 use App\Domain\Settings\SettingsService;
 use App\Enums\LegalDocumentType;
 use App\Enums\SettingGroup;
@@ -118,6 +119,21 @@ function markaKur(string $alanAdi = 'marka-a.test'): array
 
     (new DefaultRoles)->kur();
 
+    /*
+    | ⚠️ GERÇEK MARKA NE ALIYORSA TEST MARKASI DA ONU ALIYOR.
+    |
+    | Önceden yalnızca roller kuruluyordu; `tenant:create`'in kurduğu
+    | varsayılan ayarlar ve yasal taslaklar testte YOKTU. Yani testler,
+    | canlıda hiç var olmayan bir marka biçimi üzerinde koşuyordu.
+    |
+    | 1E.1'de ısırdı: sahte sağlayıcının imza anahtarı `DefaultSettings`
+    | tarafından kuruluyor, testte kurulmadığı için imza BOŞ ANAHTARLA
+    | üretiliyordu — doğrulama "çalışıyor" görünüyordu ama hiçbir şey
+    | korumuyordu. 1D.6'nın dersinin aynısı: test ortamı gerçekten
+    | ayrılırsa test yeşil kalır, gerçek bozulur.
+    */
+    app(DefaultSettings::class)->kur('Test Markası');
+
     $sahip = User::factory()->sahip()->create([
         'email' => 'sahip@'.$alanAdi,
         'password' => 'sifre1234',
@@ -210,6 +226,34 @@ function magazayiHazirla(): void
         $belgeler->taslagaYaz($tur, "{$tur->value} metni");
         $belgeler->yayinla($tur);
     }
+}
+
+/**
+ * Örnek ödeme gövdesi.
+ *
+ * ⚠️ Buraya TAŞINDI (1E.1): `CheckoutTest.php` içinde tanımlıydı ve
+ * onu kullanan diğer dosyalar tek başına koşturulduğunda "tanımsız
+ * fonksiyon" veriyordu. Tüm süit koşarken sorun görünmüyordu çünkü
+ * dosyalar alfabetik yükleniyor — tam olarak sessiz türden bir bağımlılık.
+ *
+ * @return array{email: string, legal_version_id: int, shipping: array<string, string|null>}
+ */
+function odemeVerisi(int $sozlesmeId): array
+{
+    return [
+        'email' => 'ayse@ornek.test',
+        'legal_version_id' => $sozlesmeId,
+        'shipping' => [
+            'full_name' => 'Ayşe Yılmaz',
+            'phone' => '+905321112233',
+            'city' => 'İstanbul',
+            'district' => 'Kadıköy',
+            'neighborhood' => 'Caferağa',
+            'line1' => 'Moda Cad. No:12',
+            'line2' => null,
+            'postal_code' => '34710',
+        ],
+    ];
 }
 
 /**
