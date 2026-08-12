@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Platform\DomainCheckController;
-use App\Http\Showcase\WebShowcaseController;
+use App\Models\Event;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
@@ -18,24 +18,58 @@ use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 
 /*
 |--------------------------------------------------------------------------
-| DEMO / SUNUM VİTRİNİ — markanın kendi alan adında
+| SUNUM VİTRİNİ — markanın kendi alan adında
 |--------------------------------------------------------------------------
 |
-| Bu rotalar API DEĞİL: yalnızca Blade ile sunum yapar. Yine de tenant
-| middleware'i şarttır; `Product::query()` gibi sorguların doğru marka
-| şemasında çalışmasının tek yolu budur. `routes/tenant.php` API yüzeyi
-| olarak saf kalır, hiçbir API controller'ı burada kullanılmaz.
+| ★ TEK DOSYA: bütün arayüz `resources/views/showcase.blade.php` içinde.
+| `app/` altında SUNUMA AİT HİÇBİR SINIF YOK — controller, servis, kaynak
+| sınıfı, hiçbiri. Sayfa gerçek API uçlarını tarayıcıdan `fetch` ile
+| çağırıyor; yani gösterdiği şey gerçekten çalışan sistem.
 |
-| ⚠️ Ekran sadece güvenli özetleri gösterir: müşteri bilgisi, adres, ham
-| webhook gövdesi veya ödeme anahtarı burada ASLA açılmaz. Ngrok adresi
-| izleyicilere verilebildiği için bu sınır özellikle önemlidir.
+| ⚠️ Buradaki iki kapanış (closure) "backend kodu" değil, YÖNLENDİRME:
+| biri şablonu basıyor, diğeri olay tablosunun güvenli özetini okuyor.
+| Olaylar için API ucu YOK (1F'de bilerek açılmadı) — sunum için bir uç
+| eklemek, API yüzeyini sunuma göre şekillendirmek olurdu.
+|
+| ⚠️ Kiracı middleware'i ŞART: `events` marka şemasında. Onsuz sayfa
+| merkez bağlamda koşar ve hiçbir şey bulamaz (M-2.4).
+|
+| ⚠️ `magaza-acik` kapısının DIŞINDA: mağaza kapalıyken de sunum açılsın,
+| kapanın davranışı sayfada gösterilebilsin diye.
 */
 Route::middleware([
     InitializeTenancyByDomain::class,
     PreventAccessFromCentralDomains::class,
 ])->prefix('showcase')->group(function (): void {
-    Route::get('/', [WebShowcaseController::class, 'index'])->name('showcase.index');
-    Route::get('/activity', [WebShowcaseController::class, 'activity'])->name('showcase.activity');
+
+    Route::get('/', fn () => view('showcase', [
+        'marka' => (string) tenant('id'),
+        'alanAdi' => request()->getHost(),
+    ]))->name('showcase.index');
+
+    /*
+    | Olay akışı — SALT OKUNUR.
+    |
+    | ⚠️ Yalnızca tip ve zaman dönüyor. `payload` DIŞARI VERİLMİYOR:
+    | ngrok adresi izleyicilere açık ve yükte sipariş kimlikleri var.
+    */
+    Route::get('/events', fn () => response()->json([
+        'events' => Event::query()
+            ->select(['type', 'occurred_at'])
+            ->latest('occurred_at')
+            ->limit(15)
+            ->get()
+            ->map(fn (Event $o): array => [
+                'type' => $o->type->value,
+                'at' => $o->occurred_at?->toIso8601String(),
+            ])
+            ->all(),
+        'counts' => Event::query()
+            ->selectRaw('type, count(*) as c')
+            ->groupBy('type')
+            ->pluck('c', 'type'),
+    ]))->name('showcase.events');
+
 });
 
 foreach (config('tenancy.central_domains') as $centralDomain) {
