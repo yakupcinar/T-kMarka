@@ -151,6 +151,29 @@ it('★ iyzico İŞ HATASINI 200 ile döndürüyor — yakalanıyor', function (
         ->toThrow(PaymentProviderException::class);
 });
 
+it('★ UÇTAN: sağlayıcı reddedince 502 — ham istisna SIZMIYOR', function () {
+    ['siparis' => $siparis] = odemeAsamasiSiparisi('iyz-j.test');
+    iyzicoluMarka('iyz-j.test');
+    app(StorePublication::class)->yayinla();
+
+    /*
+    | ⚠️ 1E.7.3'te GERÇEK sandbox'ta yaşandı: `.test` uzantılı e-posta
+    | reddedildi ve müşteri ham istisna gövdesini gördü — sınıf adı,
+    | dosya yolu, yığın izi dâhil.
+    */
+    Http::fake(['*' => Http::response([
+        'status' => 'failure',
+        'errorMessage' => 'email hatalı format ile gönderilmiştir',
+    ], 200)]);
+
+    $cevap = $this->postJson("http://iyz-j.test/api/orders/{$siparis->uuid}/pay")
+        ->assertStatus(502);
+
+    // ⚠️ Sağlayıcının mesajı da yığın izi de müşteriye gitmiyor.
+    expect(json_encode($cevap->json()))->not->toContain('email hatalı')
+        ->and(json_encode($cevap->json()))->not->toContain('IyzicoProvider');
+});
+
 it('★ İMZA: geçerli kabul, bozulmuş RED', function () {
     markaKur('iyz-d.test');
     magazayiHazirla();

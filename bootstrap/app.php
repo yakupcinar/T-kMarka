@@ -15,6 +15,7 @@ use App\Domain\Order\StaleContractException;
 use App\Domain\Payment\OrderNotPayableException;
 use App\Domain\Payment\PaymentAmountMismatchException;
 use App\Domain\Payment\PaymentNotConfiguredException;
+use App\Domain\Payment\PaymentProviderException;
 use App\Domain\Payment\UnknownPaymentReferenceException;
 use App\Domain\Settings\SettingLockedException;
 use App\Domain\Settings\StoreNotReadyException;
@@ -44,6 +45,30 @@ return Application::configure(basePath: dirname(__DIR__))
         __DIR__.'/../app/Tenancy/Commands',
     ])
     ->withMiddleware(function (Middleware $middleware): void {
+        /*
+        | ★ VEKİL SUNUCU GÜVENİ — şema (http/https) doğru okunsun diye.
+        |
+        | ⚠️ 1E.7.3'te ısırdı. Uygulama Caddy'nin ARKASINDA duruyor ve
+        | ngrok tünelinde Caddy'ye trafik `http` olarak geliyor (TLS'i
+        | ngrok sonlandırıyor). Laravel isteği `http` sanıyordu ve ürettiği
+        | her adres `http://` çıkıyordu.
+        |
+        | Bunun sessiz bedeli: iyzico callback adresinin SSL olmasını
+        | ZORUNLU tutuyor. `http://…/odeme/donus` gönderilseydi ödeme
+        | başlatma isteği reddedilir, müşteri hiçbir yere yönlendirilemez
+        | ve sebebi "ödeme çalışmıyor"dan ibaret kalırdı.
+        |
+        | ⚠️ `at: '*'` DEĞİL — yalnızca ÖZEL AĞ aralıkları. `*` denseydi,
+        | uygulamaya doğrudan ulaşabilen herkes `X-Forwarded-Proto` ve
+        | `X-Forwarded-For` başlıklarını uydurabilirdi. Bizde tek giriş
+        | Caddy ve o Docker ağının içinde (172.x).
+        */
+        $middleware->trustProxies(at: [
+            '10.0.0.0/8',
+            '172.16.0.0/12',
+            '192.168.0.0/16',
+        ]);
+
         /*
         | Rotalarda `izin:staff.manage` şeklinde kullanılabilmesi için takma ad.
         */
@@ -227,6 +252,24 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (PaymentNotConfiguredException $e) {
             return response()->json(['message' => $e->getMessage()], 503)
                 ->header('Retry-After', '300');
+        });
+
+        /*
+        | Sağlayıcı çağrısı başarısız → 502 + Retry-After.
+        |
+        | ⚠️ 500 DEĞİL: bizde bir şey patlamadı, DIŞ servis reddetti ya da
+        | ulaşılamadı. 1E.7.3'te gerçek sandbox `.test` uzantılı e-postayı
+        | reddetti ve müşteri ham istisna gövdesi gördü — sınıf adı, dosya
+        | yolu ve yığın izi dâhil.
+        |
+        | ⚠️ Sağlayıcının mesajı MÜŞTERİYE GİTMİYOR. İçinde hesap
+        | yapılandırmasına dair ayrıntı olabiliyor; ayrıca müşterinin
+        | yapabileceği bir şey yok. Ayrıntı istisnada duruyor ve günlüğe
+        | düşüyor.
+        */
+        $exceptions->render(function (PaymentProviderException $e) {
+            return response()->json(['message' => 'Ödeme başlatılamadı, lütfen tekrar deneyin.'], 502)
+                ->header('Retry-After', '10');
         });
 
         $exceptions->render(function (UnknownPaymentReferenceException $e) {

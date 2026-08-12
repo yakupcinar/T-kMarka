@@ -1,3 +1,29 @@
+# ⚠️ VEKİL GÜVENİ — Caddy'nin kendi ayarı, Laravel'inkinden AYRI.
+#
+# ÖLÇÜLDÜ: ngrok Caddy'ye `X-Forwarded-Proto: https` gönderiyor (erişim
+# günlüğünde görünüyor), ama Caddy onu FastCGI'ye iletirken KENDİ şemasıyla
+# (http) yeniden yazıyordu — çünkü gönderen taraf güvenilir sayılmıyordu.
+#
+# Ayar açıldıktan sonra ölçülen: scheme https · isSecure true · istemci IP
+# gerçek adres (konteyner IP'si değil).
+#
+# Bu ayar açıkken Caddy, özel ağdan gelen isteğin `X-Forwarded-*`
+# başlıklarını KORUYOR. Laravel de zaten aynı aralıklara güveniyor
+# (bootstrap/app.php).
+#
+# Sessiz bedeli neydi: iyzico callback adresinin SSL olmasını ZORUNLU
+# tutuyor. Şema http kalsaydı ödeme başlatma isteği reddedilir, müşteri
+# hiçbir yere yönlendirilemez ve elimizde yalnızca "ödeme çalışmıyor"
+# kalırdı.
+#
+# ⚠️ `private_ranges` — `0.0.0.0/0` DEĞİL. Herkese güvenilseydi, sunucuya
+# doğrudan ulaşan biri kendini HTTPS'ten geliyormuş gibi gösterebilirdi.
+{
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
 # Yerel geliştirme yapılandırması.
 #
 # Kiracı alan adları burada elle sayılıyor. Faz 3'te bunun yerine
@@ -60,9 +86,19 @@ marka-a.localhost, marka-b.localhost, localhost {
 # ve hiçbir isteği yakalamıyor. Varsayılan boş bırakılsaydı Caddy blok
 # adresi olmayan bir site tanımıyla açılmayı reddederdi.
 http://{$NGROK_DOMAIN:tunel-kapali.invalid} {
+
+	# ⚠️ Şema doğruluğu YUKARIDAKİ `trusted_proxies` ayarına bağlı.
+	#
+	# Sessiz bedeli: iyzico callback adresinin SSL olmasını ZORUNLU
+	# tutuyor. Şema `http` kalsaydı ödeme başlatma isteği reddedilir,
+	# müşteri hiçbir yere yönlendirilemez ve elimizde yalnızca "ödeme
+	# çalışmıyor" kalırdı.
+
 	root * /var/www/html/public
 	encode zstd gzip
+
 	php_fastcgi {$FPM_HOST:app}:{$FPM_PORT:9000}
+
 	file_server
 	log
 }

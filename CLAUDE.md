@@ -78,6 +78,14 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   ```
   Hata ayrıntısı **anotasyonlarda** (günlükler yönetici yetkisi ister);
   `.github/ci-kontrol.sh` çıktıyı oraya basıyor.
+- **Bağlı yapılandırma dosyası değişince `restart` gerekir; `up -d` YETMEZ.**
+  Compose tanımı değişmediyse `up -d <servis>` konteyneri yeniden
+  oluşturmuyor ve `:ro` bağlı dosya (Caddyfile, nginx.conf…) **bayat**
+  kalıyor. 1E.7.3'te yarım saat kaybettirdi: Caddyfile'a arka arkaya üç
+  düzeltme yazıldı, üçü de "işe yaramadı" sanıldı — hiçbiri
+  **yüklenmemişti**. Doğrusu `docker compose restart caddy`.
+  ⚠️ Ölçüm bayat yapılandırmaya karşı yapılırsa çıkan sonuç da bayattır;
+  "denedim olmadı" demeden önce değişikliğin **yüklendiğini** doğrula.
 - **`SoftDeletes` + `firstOrFail()` = gecikmeli patlama.** Varsayılan sorgu
   silinmişleri görmüyor; kayıt "yok" sayılıp istisna fırlıyor. 1E.6'da
   ısırdı: marka, ödemesi yolda olan siparişin varyantını katalogdan
