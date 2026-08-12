@@ -1,8 +1,8 @@
 <?php
 
+use App\Domain\Payment\FakePaymentProvider;
 use App\Domain\Payment\IyzicoProvider;
 use App\Domain\Payment\PaymentNotConfiguredException;
-use App\Domain\Payment\PaymentOutcome;
 use App\Domain\Payment\PaymentProviderException;
 use App\Domain\Payment\PaymentService;
 use App\Domain\Settings\SettingsService;
@@ -194,20 +194,71 @@ it("★ DÖNÜŞ: iyzico token'ı GÖVDEDE yolluyor", function () {
         ->assertJsonPath('state', 'processing');
 });
 
-it('★ BOŞ imza başlığı KABUL EDİLMİYOR', function () {
+it('★ İMZASIZ bildirim: iyzico KABUL (sorgulanabilir), sahte RED', function () {
     ['siparis' => $siparis] = odemeAsamasiSiparisi('iyz-l.test');
     iyzicoluMarka('iyz-l.test');
     app(StorePublication::class)->yayinla();
 
-    ['yuk' => $yuk] = iyzicoBildirimi('IYZ-TOKEN-6', 'u');
+    Http::fake([
+        '*/checkoutform/initialize/*' => Http::response([
+            'status' => 'success', 'token' => 'IYZ-TOKEN-6', 'paymentPageUrl' => 'https://x/',
+        ]),
+        '*/checkoutform/auth/ecom/detail' => Http::response([
+            'status' => 'success', 'paymentStatus' => 'SUCCESS',
+            'paidPrice' => (string) $siparis->grand_total,
+        ]),
+    ]);
+
+    app(PaymentService::class)->baslat($siparis, 'http://iyz-l.test/odeme/donus');
+
+    $deneme = Payment::firstOrFail();
+    ['yuk' => $yuk] = iyzicoBildirimi('IYZ-TOKEN-6', (string) $deneme->uuid);
 
     /*
-    | ⚠️ ÖLÇÜLDÜ: iyzico sandbox `X-Iyz-Signature` başlığını BOŞ değerle
-    | gönderdi. Boş değer "imzalanmamış" demektir; kabul edilseydi imza
-    | kontrolü hiçbir şey korumazdı.
+    | ★ 1E-K12. ÖLÇÜLDÜ: iyzico sandbox `X-Iyz-Signature` başlığını BOŞ
+    | gönderiyor. İmzasız bildirim yine de işleniyor — ama GÖVDESİNE
+    | GÜVENİLEREK değil, referansı alıp sağlayıcıya SORULARAK.
     */
     $this->withHeader('X-Iyz-Signature', '')
         ->postJson('http://iyz-l.test/webhooks/payment', $yuk)
+        ->assertOk()
+        ->assertJsonPath('result', 'paid');
+
+    expect($siparis->refresh()->payment_status->value)->toBe('paid');
+});
+
+it('★ SORGULANAMAYAN sağlayıcıda imzasız bildirim REDDEDİLİYOR', function () {
+    ['siparis' => $s, 'referans' => $ref, 'tutar' => $tutar] = bildirimeHazirSiparis('iyz-o.test');
+
+    ['yuk' => $yuk] = app(FakePaymentProvider::class)
+        ->bildirim($s->order_number, $ref, $tutar);
+
+    /*
+    | ⚠️ İstisna SAĞLAYICI BAŞINA. Sahte sağlayıcı imzalıyor ve
+    | sorgulanamıyor — imzasız bildirimi kabul etmesi için hiçbir sebep
+    | yok. Genel bir gevşetme olsaydı, imzalayan bir sağlayıcının imzası
+    | bir gün hiç gelmemeye başlasa da fark etmezdik.
+    */
+    $this->postJson('http://iyz-o.test/webhooks/payment', $yuk)
+        ->assertStatus(401);
+
+    expect($s->refresh()->payment_status->value)->toBe('pending');
+});
+
+it('★ BOZUK imza sorgulanabilir sağlayıcıda da REDDEDİLİYOR', function () {
+    markaKur('iyz-p.test');
+    magazayiHazirla();
+    iyzicoluMarka('iyz-p.test');
+
+    ['yuk' => $yuk] = iyzicoBildirimi('IYZ-TOKEN-5', 'u');
+
+    /*
+    | ⚠️ İmzasız kabul ediyoruz diye BOZUK imzayı da kabul etmiyoruz.
+    | Bozuk imza, imzasızdan DAHA kötü bir işarettir: ya anahtar değişmiş
+    | ya da biri kurcalıyor.
+    */
+    $this->withHeader('X-Iyz-Signature', 'uydurma-imza')
+        ->postJson('http://iyz-p.test/webhooks/payment', $yuk)
         ->assertStatus(401);
 });
 
@@ -265,7 +316,7 @@ it('★ ARA DURUMLAR başarı sayılmıyor', function () {
     expect($saglayici->webhookuCoz($basarili)->basarili)->toBeTrue();
 });
 
-it('★ TUTAR AYRI ÇAĞRIYLA soruluyor — bildirimde yok', function () {
+it('★ GERÇEK AYRI ÇAĞRIYLA soruluyor — bildirimde tutar YOK', function () {
     markaKur('iyz-f.test');
     magazayiHazirla();
     iyzicoluMarka('iyz-f.test');
@@ -276,17 +327,37 @@ it('★ TUTAR AYRI ÇAĞRIYLA soruluyor — bildirimde yok', function () {
         'paidPrice' => '289.90',
     ])]);
 
-    $sonuc = new PaymentOutcome(
-        siparisNumarasi: 'deneme-uuid',
-        saglayiciReferansi: 'IYZ-TOKEN-1',
-        basarili: true,
-        tutar: '0',
-    );
+    $sonuc = app(IyzicoProvider::class)->sorgula('IYZ-TOKEN-1');
 
-    // ⚠️ Bildirimdeki tutar '0' idi; gerçek tutar sorgudan geliyor (1E-K9).
-    expect(app(IyzicoProvider::class)->tutariDogrula($sonuc))->toBe('289.90');
+    // ⚠️ Durum ve tutar İKİSİ DE sorgudan (1E-K9 · 1E-K12).
+    expect($sonuc->tutar)->toBe('289.90')
+        ->and($sonuc->basarili)->toBeTrue();
 
     Http::assertSent(fn ($istek) => $istek->data()['token'] === 'IYZ-TOKEN-1');
+});
+
+it('★ BAŞARISIZ ödemede de paidPrice DÖNÜYOR — tutara bakıp ödendi denmiyor', function () {
+    markaKur('iyz-n.test');
+    magazayiHazirla();
+    iyzicoluMarka('iyz-n.test');
+
+    /*
+    | ⚠️ GERÇEK SANDBOX'TA ÖLÇÜLDÜ: 3DS'i geçemeyen bir ödemede bile
+    | `paidPrice: 299.8` dönüyor. Başarı ölçütü tutar olsaydı, doğrulaması
+    | başarısız her ödeme "ödendi" sayılırdı.
+    */
+    Http::fake(['*' => Http::response([
+        'status' => 'success',
+        'paymentStatus' => 'FAILURE',
+        'mdStatus' => 0,
+        'paidPrice' => '299.80',
+    ])]);
+
+    $sonuc = app(IyzicoProvider::class)->sorgula('IYZ-TOKEN-2');
+
+    expect($sonuc->basarili)->toBeFalse()
+        ->and($sonuc->tutar)->toBe('299.80')
+        ->and($sonuc->hataKodu)->toBe('FAILURE');
 });
 
 it('★ UÇTAN UCA: iyzico bildirimi geldi, stok düştü', function () {
@@ -300,7 +371,8 @@ it('★ UÇTAN UCA: iyzico bildirimi geldi, stok düştü', function () {
             'paymentPageUrl' => 'https://sandbox-cpp.iyzipay.com/?token=IYZ-TOKEN-9',
         ]),
         '*/checkoutform/auth/ecom/detail' => Http::response([
-            'status' => 'success', 'paidPrice' => (string) $siparis->grand_total,
+            'status' => 'success', 'paymentStatus' => 'SUCCESS',
+            'paidPrice' => (string) $siparis->grand_total,
         ]),
     ]);
 
@@ -336,7 +408,9 @@ it('★ SORGUDAKİ TUTAR FARKLIYSA ödeme saymıyor', function () {
             'status' => 'success', 'token' => 'IYZ-TOKEN-8', 'paymentPageUrl' => 'https://x/',
         ]),
         // ⚠️ iyzico 1,00 diyor; sipariş 289,90.
-        '*/checkoutform/auth/ecom/detail' => Http::response(['status' => 'success', 'paidPrice' => '1.00']),
+        '*/checkoutform/auth/ecom/detail' => Http::response([
+            'status' => 'success', 'paymentStatus' => 'SUCCESS', 'paidPrice' => '1.00',
+        ]),
     ]);
 
     app(PaymentService::class)->baslat($siparis, 'http://iyz-h.test/odeme/donus');

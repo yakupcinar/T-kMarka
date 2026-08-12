@@ -19,13 +19,13 @@ use Illuminate\Support\Str;
  *   baslat()          → CF başlat, `token` + `paymentPageUrl` al
  *   müşteri            → iyzico'nun sayfasında kartını girer, 3DS'ten geçer
  *   webhook            → imzalı bildirim: token + status
- *   tutariDogrula()   → CF sorgula, GERÇEK tutarı öğren
+ *   sorgula()         → CF sorgula, GERÇEK durum + tutar (1E-K12)
  *
  * ⚠️ `provider_ref` = iyzico'nun **token**'ı. Bildirimde geri gelen ve
  * sorgulamada kullanılan kimlik o. `paymentConversationId` ise bizim
  * ödeme denemesinin uuid'si (1E-K8) — çapraz kontrol için.
  */
-class IyzicoProvider implements PaymentProvider
+class IyzicoProvider implements QueryablePaymentProvider
 {
     public const API_ANAHTARI = 'iyzico_api_key';
 
@@ -125,21 +125,19 @@ class IyzicoProvider implements PaymentProvider
     }
 
     /**
-     * ★ 1E-K9 — TUTAR SAĞLAYICIDAN SORULUYOR.
+     * ★ 1E-K9 + 1E-K12 — GERÇEK SAĞLAYICIDAN SORULUYOR.
      *
-     * ⚠️ iyzico'nun HPP bildiriminde tutar YOK: yalnızca ödeme kimliği,
-     * token ve durum geliyor. Tutar doğrulaması 1E.4'te "imzaya rağmen
-     * ikinci savunma" diye konmuştu — burada onu kaybetmemek için
-     * ödemenin kendisi sorgulanıyor.
+     * İki sebep birden:
+     *   tutar   iyzico'nun bildiriminde HİÇ YOK
+     *   durum   bildirim imzasız geliyor, gövdesine güvenilmiyor
      *
-     * @return numeric-string
+     * ⚠️ Başarı ölçütü `paymentStatus`, bildirimdeki `status` DEĞİL.
+     * Ölçüldü: başarısız bir ödemede bile `paidPrice` doğru dönüyor —
+     * yani tutara bakıp "ödendi" demek yanlış olurdu.
      */
-    public function tutariDogrula(PaymentOutcome $sonuc): string
+    public function sorgula(string $referans): PaymentOutcome
     {
-        $cevap = $this->cagir(self::SORGU_YOLU, [
-            'locale' => 'tr',
-            'token' => $sonuc->saglayiciReferansi,
-        ]);
+        $cevap = $this->cagir(self::SORGU_YOLU, ['locale' => 'tr', 'token' => $referans]);
 
         $tutar = $cevap['paidPrice'] ?? null;
 
@@ -147,7 +145,16 @@ class IyzicoProvider implements PaymentProvider
             throw new PaymentProviderException($this->ad(), 'Sorgu cevabında tutar yok.', $cevap);
         }
 
-        return (string) $tutar;
+        $durum = $this->metin($cevap, 'paymentStatus');
+
+        return new PaymentOutcome(
+            siparisNumarasi: $this->metin($cevap, 'conversationId'),
+            saglayiciReferansi: $referans,
+            basarili: $durum === 'SUCCESS',
+            tutar: (string) $tutar,
+            hamCevap: $this->maskele($cevap),
+            hataKodu: $durum === 'SUCCESS' ? null : ($durum === '' ? 'unknown' : $durum),
+        );
     }
 
     public function webhookuDogrula(array $yuk, ?string $imza): bool
@@ -202,7 +209,7 @@ class IyzicoProvider implements PaymentProvider
             saglayiciReferansi: $this->metin($yuk, 'token'),
             basarili: $basarili,
 
-            // ⚠️ Bildirimde tutar YOK — `tutariDogrula()` soracak (1E-K9).
+            // ⚠️ Bildirimde tutar YOK — `sorgula()` soracak (1E-K9).
             tutar: '0',
 
             hamCevap: $this->maskele($yuk),

@@ -107,16 +107,6 @@ class FakePaymentProvider implements PaymentProvider
     }
 
     /**
-     * Sahte sağlayıcının bildiriminde tutar ZATEN var — ağa çıkmıyor.
-     *
-     * @return numeric-string
-     */
-    public function tutariDogrula(PaymentOutcome $sonuc): string
-    {
-        return $this->sayisal($sonuc->tutar);
-    }
-
-    /**
      * ★ SAĞLAYICI TARAFI — yalnızca test ve geliştirme için.
      *
      * Gerçek hayatta bu yükü iyzico'nun sunucusu üretir. Burada üretmemizin

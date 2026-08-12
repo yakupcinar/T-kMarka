@@ -67,24 +67,36 @@ class PaymentWebhookService
         }
 
         /*
-        | ⚠️ TUTAR KARŞILAŞTIRMASI — imzaya rağmen (1E-K9).
+        | ★ 1E-K12 — SORGULANABİLİR SAĞLAYICIDA GERÇEK BURADAN GELİYOR.
         |
-        | Tutar SAĞLAYICIYA SORULARAK alınıyor: iyzico'nun bildiriminde
-        | tutar yok. Ağ çağrısı düşerse istisna yükseliyor, 2xx dönmüyoruz
-        | ve sağlayıcı tekrar deniyor — doğru davranış.
+        | Bildirimin gövdesindeki "başarılı" yazısına BAKILMIYOR; ne olduğu
+        | sağlayıcıya sorularak öğreniliyor. İmzasız bildirim böyle
+        | güvenilir hâle geliyor: saldırganın yapabileceği tek şey bize
+        | zaten bizde olan bir referansı hatırlatmak.
         |
-        | İmza yükü koruyor ama sağlayıcı tarafındaki bir karışıklık ya da
-        | yanlış eşleşen referans, 549,70'lik siparişe 1,00'lik ödemeyi
-        | bağlayabilir. Karşılaştırma metin değil SAYISAL: '549.7' ile
-        | '549.70' aynı tutardır, düz `!==` bunları farklı görürdü.
+        | ⚠️ İmza VARSA yine doğrulanıyor (controller'da) — ikisi birlikte
+        | duruyor, biri diğerinin yerine geçmiyor.
         */
-        $gercekTutar = $this->saglayicilar->coz()->tutariDogrula($sonuc);
+        $saglayici = $this->saglayicilar->coz();
 
-        if (bccomp($this->sayisal($deneme->amount), $this->sayisal($gercekTutar), 2) !== 0) {
+        if ($saglayici instanceof QueryablePaymentProvider) {
+            $sonuc = $saglayici->sorgula($sonuc->saglayiciReferansi);
+        }
+
+        /*
+        | ⚠️ TUTAR KARŞILAŞTIRMASI. Sorgulanabilir sağlayıcıda tutar da
+        | sorgudan geldi; imzalı sağlayıcıda bildirimden.
+        |
+        | Sağlayıcı tarafındaki bir karışıklık ya da yanlış eşleşen
+        | referans, 549,70'lik siparişe 1,00'lik ödemeyi bağlayabilir.
+        | Karşılaştırma metin değil SAYISAL: '549.7' ile '549.70' aynı
+        | tutardır, düz `!==` bunları farklı görürdü.
+        */
+        if (bccomp($this->sayisal($deneme->amount), $this->sayisal($sonuc->tutar), 2) !== 0) {
             throw new PaymentAmountMismatchException(
                 $sonuc->saglayiciReferansi,
                 (string) $deneme->amount,
-                $gercekTutar,
+                $sonuc->tutar,
             );
         }
 

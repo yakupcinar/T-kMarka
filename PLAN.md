@@ -1463,6 +1463,43 @@ iyzico sunucusu  ──✓──>  <geçici-adres>      → tünel → yerel mak
 > **ihtiyaç duyduğu anahtarları bildirecek** ve panel eksikleri gösterecek —
 > `StoreReadiness` deseninin aynısı.
 
+**1E-K12 · İmzasız bildirim: gövdesine GÜVENME, SAĞLAYICIYA SOR.**
+
+> ⚠️ Gerçek sandbox'ta ölçüldü: iyzico `X-Iyz-Signature` başlığını **boş**
+> gönderiyor. İmza özelliği hesapta ayrıca aktive ediliyor
+> (`entegrasyon@iyzico.com`); panelden açılan bir ayar değil.
+>
+> 1E-K1 "imzasız bildirim reddedilir" diyordu ve o kural **doğru** — ama
+> reddettiğimiz sürece iyzico ile tek ödeme bile işlenemiyor.
+>
+> ```
+> ESKİ GÜVEN         mesaja güven      "imza tutuyorsa içindekine inanırım"
+> YENİ GÜVEN         KAYNAĞA güven     "referansı al, ne olduğunu SOR"
+> ```
+>
+> Bildirim artık bir **kapı zili**: "bir şey oldu, bak" diyor. Ne olduğunu
+> söyleme yetkisi yok — gövdesindeki `status` alanına hiç bakılmıyor.
+>
+> **Neden güvenli:** sahte bildirim atan birinin yapabileceği tek şey bize
+> *zaten bizde olan* bir referansı hatırlatmak. Cevabı yine sağlayıcı
+> veriyor, saldırgan değil.
+>
+> **Bedeli:** her bildirimde bir dış çağrı. Düşerse 2xx dönmüyoruz ve
+> sağlayıcı tekrar deniyor — doğru davranış.
+>
+> ⚠️ **Genel gevşetme DEĞİL, sağlayıcı başına beyan edilen yetenek**
+> (`QueryablePaymentProvider`). Sahte sağlayıcı imzalıyor, sorgulanamıyor
+> ve imzasız bildirimi **reddediyor**. Genel olsaydı, imzalayan bir
+> sağlayıcının imzası bir gün hiç gelmemeye başlasa fark etmezdik.
+>
+> ⚠️ **İmza VARSA yine doğrulanıyor (A + B birlikte).** Bozuk imza,
+> imzasızdan *daha kötü* bir işaret: ya anahtar değişmiş ya biri kurcalıyor.
+> iyzico imzayı açtığında tasarım kendiliğinden iki katmanlı oluyor.
+>
+> **Bu karar K9'u da kapatıyor:** sorgu hem tutarı hem `paymentStatus`'ü
+> veriyorsa asıl olan **sorgudur**. ⚠️ Ölçüldü: 3DS'i geçemeyen bir ödemede
+> bile `paidPrice` doğru dönüyor — tutara bakıp "ödendi" demek yanlış olurdu.
+
 ```
 1E.7.1  panel ödeme ayarları — sağlayıcı seçimi + anahtar doğrulama (K11)
 1E.7.2  IyzicoProvider — başlatma · imza · bildirim çözme · tutar sorgusu

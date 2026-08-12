@@ -110,24 +110,6 @@ interface PaymentProvider
     public function webhookuDogrula(array $yuk, ?string $imza): bool;
 
     /**
-     * ★ Ödemenin TUTARINI doğrular — gerekirse SAĞLAYICIYA SORARAK. (1E-K9)
-     *
-     * ⚠️ Ayrı metot olmasının sebebi: `webhookuCoz()` saf bir çeviri işi,
-     * ağa çıkmıyor. Sorgu oraya gömülseydi "bu metot ne kadar sürer,
-     * düşerse ne olur" sorusu görünmez olurdu.
-     *
-     * ⚠️ Neden gerekli: sahte sağlayıcının bildiriminde tutar var, ama
-     * iyzico'nun HPP bildiriminde YOK — yalnızca ödeme kimliği ve durum
-     * geliyor. Tutar doğrulaması 1E.4'te "imzaya rağmen ikinci savunma"
-     * diye konmuştu; gerçek sağlayıcıda onu kaybetmemek için sorulacak.
-     *
-     * Bildirimde tutar zaten varsa sağlayıcı onu döndürür, ağa çıkmaz.
-     *
-     * @return numeric-string
-     */
-    public function tutariDogrula(PaymentOutcome $sonuc): string;
-
-    /**
      * Doğrulanmış webhook yükünü bizim dilimize çevirir.
      *
      * ⚠️ Yalnızca imza doğrulandıktan SONRA çağrılır.

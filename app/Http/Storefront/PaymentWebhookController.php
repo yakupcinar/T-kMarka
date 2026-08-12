@@ -5,6 +5,7 @@ namespace App\Http\Storefront;
 use App\Domain\Payment\PaymentProvider;
 use App\Domain\Payment\PaymentProviderFactory;
 use App\Domain\Payment\PaymentWebhookService;
+use App\Domain\Payment\QueryablePaymentProvider;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -52,7 +53,32 @@ class PaymentWebhookController extends Controller
         | yorumlamaz. Sahte istek atan biri tekrar denemeye teşvik
         | edilmemeli.
         */
-        if (! $saglayici->webhookuDogrula($yuk, $this->imza($istek, $saglayici))) {
+        $imza = $this->imza($istek, $saglayici);
+
+        /*
+        | ★ İMZA VARSA MUTLAKA DOĞRULANIR (A).
+        |
+        | ⚠️ İmzasız kabul ediyoruz diye imzalıyı gevşetmiyoruz: bozuk
+        | imza, imzasızdan DAHA kötü bir işarettir — ya anahtar değişmiş
+        | ya da biri kurcalıyor.
+        */
+        if ($imza !== null && ! $saglayici->webhookuDogrula($yuk, $imza)) {
+            return response()->json(['message' => 'İmza doğrulanamadı.'], 401);
+        }
+
+        /*
+        | ★ İMZA YOKSA: yalnızca SORGULANABİLİR sağlayıcıya izin (B · 1E-K12).
+        |
+        | ⚠️ Ölçüldü: iyzico sandbox `X-Iyz-Signature` başlığını BOŞ
+        | gönderiyor (imza özelliği hesapta ayrıca aktive ediliyor).
+        | İmzasız mesaj bir yabancının yazdığı kâğıttan farksız — ama
+        | sorgulanabilir sağlayıcıda mesajın GÖVDESİNE hiç güvenilmiyor:
+        | içinden yalnızca referans okunup gerçek sağlayıcıya soruluyor.
+        |
+        | ⚠️ Sorgulanamayan sağlayıcıda imzasız bildirim REDDEDİLİR.
+        | Genel gevşetme değil, sağlayıcı başına beyan edilen yetenek.
+        */
+        if ($imza === null && ! $saglayici instanceof QueryablePaymentProvider) {
             return response()->json(['message' => 'İmza doğrulanamadı.'], 401);
         }
 
