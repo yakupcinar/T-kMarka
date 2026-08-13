@@ -19,6 +19,7 @@ use App\Domain\Payment\PaymentProviderException;
 use App\Domain\Payment\UnknownPaymentReferenceException;
 use App\Domain\Privacy\InvalidDataRequestException;
 use App\Domain\Privacy\UnknownDataSubjectException;
+use App\Domain\Promotion\InvalidCouponException;
 use App\Domain\Returns\OverReturnException;
 use App\Domain\Returns\ReturnNotRefundableException;
 use App\Domain\Returns\ReturnWindowClosedException;
@@ -289,6 +290,18 @@ return Application::configure(basePath: dirname(__DIR__))
         | ⚠️ ZAMAN sorunu: yetki var, veri geçerli, geçen şey süre.
         | ⚠️ Kusurlu ürün iadesi bu istisnayı almaz — cayma değil.
         */
+        /*
+        | Kupon uygulanamıyor → 422.
+        |
+        | ⚠️ Sebep söyleniyor ("tutar yetersiz") çünkü müşterinin
+        | yapabileceği bir şey var. Ama kuponun VARLIĞI hakkında bilgi
+        | verilmiyor: "yok" ile "süresi geçmiş" ayrımı, kod deneyerek
+        | geçerli kupon aramanın kapısını açardı.
+        */
+        $exceptions->render(function (InvalidCouponException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        });
+
         $exceptions->render(function (ReturnWindowClosedException $e) {
             return response()->json([
                 'message' => $e->getMessage(),

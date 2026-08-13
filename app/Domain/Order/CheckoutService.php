@@ -6,6 +6,7 @@ use App\Domain\Analytics\EventRecorder;
 use App\Domain\Cart\CartService;
 use App\Domain\Legal\LegalDocumentService;
 use App\Domain\Notification\Notifier;
+use App\Domain\Promotion\CouponService;
 use App\Domain\Settings\SettingsService;
 use App\Domain\Stock\StockService;
 use App\Enums\CartStatus;
@@ -55,6 +56,7 @@ class CheckoutService
         private readonly LegalDocumentService $belgeler,
         private readonly EventRecorder $olaylar,
         private readonly Notifier $bildirimler,
+        private readonly CouponService $kuponlar,
     ) {}
 
     /**
@@ -329,14 +331,44 @@ class CheckoutService
             '0.00',
         );
 
-        $kargo = $this->hesap->kargo(
-            $araToplam,
-            (string) ($kargoAyarlari['flat_fee'] ?? 0),
-            (string) ($kargoAyarlari['free_threshold'] ?? 0),
-        );
+        /*
+        | ★ 2A — KUPON. Etki iki parçalı: indirim ve ücretsiz kargo.
+        */
+        $kuponEtkisi = $this->kuponlar->etki($sepet->coupon_code, $araToplam);
+        $indirim = $kuponEtkisi['discount'];
+
+        /*
+        | ★ 2A-K1 — KARGO EŞİĞİ HANGİ TUTARA BAKIYOR?
+        |
+        | ```
+        | A  indirim → eşik   480 −%20 = 384 → eşiğin altında → kargo VAR
+        | B  eşik → indirim   480 eşiği geçti → kargo YOK → sonra indirim
+        | ```
+        |
+        | ⚠️ Bu KURUŞ değil YÜZDE kaybettirir: B'de müşteri indirimle
+        | birlikte bedava kargo da kazanıyor.
+        |
+        | Varsayılan A — müşterinin gerçekten ödediği tutar eşiği
+        | belirlemeli. WooCommerce'in varsayılanı da bu, ama onlar da
+        | AYAR yapmış ve konuyla ilgili en az iki hata kaydı açılmış;
+        | yani satıcılar anlaşamıyor. Biz de ayar bırakıyoruz.
+        */
+        $esigeIndirimliBak = (bool) ($kargoAyarlari['threshold_after_discount'] ?? true);
+
+        $esikTutari = $esigeIndirimliBak
+            ? bcsub($araToplam, $indirim, 2)
+            : $araToplam;
+
+        $kargo = $kuponEtkisi['free_shipping']
+            ? '0.00'
+            : $this->hesap->kargo(
+                $esikTutari,
+                (string) ($kargoAyarlari['flat_fee'] ?? 0),
+                (string) ($kargoAyarlari['free_threshold'] ?? 0),
+            );
 
         $kdvOrani = (string) $this->ayarlar->al(SettingGroup::Tax, 'default_rate', 20);
-        $toplamlar = $this->hesap->siparis($urunToplami, $kargo, $kdvOrani);
+        $toplamlar = $this->hesap->siparis($urunToplami, $kargo, $kdvOrani, $indirim);
 
         $siparis = new Order;
         $siparis->order_number = $this->siparisNumarasi();
@@ -345,6 +377,15 @@ class CheckoutService
         $siparis->payment_status = PaymentStatus::Pending;
 
         $siparis->items_total = $toplamlar['items_total'];
+        $siparis->discount_total = $indirim;
+
+        /*
+        | ★ 2A-K4 — KUPON KODU SİPARİŞE KOPYALANIYOR, bağlanmıyor.
+        | "Sipariş bir fotoğraftır" (1D): kupon sonradan silinse bile
+        | sipariş neyle indirildiğini söyleyebilmeli.
+        */
+        $siparis->coupon_code = $sepet->coupon_code;
+
         $siparis->shipping_total = $kargo;
         $siparis->tax_total = $toplamlar['tax_total'];
         $siparis->grand_total = $toplamlar['grand_total'];
@@ -384,6 +425,20 @@ class CheckoutService
         $siparis->legalVersion()->associate($sozlesme);
         $siparis->placed_at = now();
         $siparis->save();
+
+        /*
+        | ★ 2A-K3 — KUPON KOTASI BURADA HARCANIYOR, sepette değil.
+        |
+        | ⚠️ Sepette harcansaydı kuponu deneyip vazgeçen her müşteri
+        | kotadan bir kullanım yer ve kampanya hiç satış olmadan tükenirdi.
+        |
+        | ⚠️ Bu çağrı sipariş transaction'ının İÇİNDE: sipariş geri
+        | sarılırsa kota da geri sarılıyor. Satır kilidi kotanın yarışta
+        | aşılmasını engelliyor (1D-K5'in tekrarı).
+        */
+        if ($siparis->coupon_code !== null) {
+            $this->kuponlar->tuket($siparis, $siparis->coupon_code, (string) $siparis->discount_total);
+        }
 
         /*
         | ★ SATIRLAR DONUYOR.

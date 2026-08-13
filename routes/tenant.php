@@ -19,6 +19,7 @@ use App\Http\Storefront\AuthController as VitrinAuth;
 use App\Http\Storefront\CartController;
 use App\Http\Storefront\CatalogController;
 use App\Http\Storefront\CheckoutController as VitrinCheckout;
+use App\Http\Storefront\CouponController;
 use App\Http\Storefront\LegalController as VitrinLegal;
 use App\Http\Storefront\PaymentController;
 use App\Http\Storefront\PaymentReturnController;
@@ -137,6 +138,15 @@ Route::middleware([
             Route::post('/cart/items', [CartController::class, 'addItem']);
             Route::put('/cart/items/{variant}', [CartController::class, 'updateItem']);
             Route::delete('/cart/items/{variant}', [CartController::class, 'removeItem']);
+
+            /*
+            | KUPON (2A) — uygulamak KOTA HARCAMIYOR.
+            |
+            | ⚠️ Kota sipariş oluşurken harcanıyor; yoksa kuponu deneyip
+            | vazgeçen her müşteri kampanyadan bir kullanım yerdi.
+            */
+            Route::post('/cart/coupon', [CouponController::class, 'store']);
+            Route::delete('/cart/coupon', [CouponController::class, 'destroy']);
 
             /*
             | SİPARİŞ OLUŞTURMA — misafir de verebiliyor (M-1).

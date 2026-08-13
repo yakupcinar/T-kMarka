@@ -36,6 +36,10 @@ class Cart extends Model
         ];
     }
 
+    /**
+     * ⚠️ `coupon_code` doğrudan yazılıyor: `$fillable` boş (1C'de kütle
+     * atama kapatıldı) ve `update()` de kapalı.
+     */
     /** @return list<string> */
     public function uniqueIds(): array
     {

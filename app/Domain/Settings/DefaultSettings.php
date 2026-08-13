@@ -44,6 +44,19 @@ class DefaultSettings
             SettingGroup::Shipping->value => [
                 'flat_fee' => 49.90,
                 'free_threshold' => 500,
+
+                /*
+                | ★ 2A-K1 — ücretsiz kargo eşiği hangi tutara baksın?
+                |
+                | `true`  indirim DÜŞÜLDÜKTEN sonraki tutar (varsayılan)
+                | `false` indirimden önceki ara toplam
+                |
+                | ⚠️ Kuruş değil YÜZDE farkı: `false`'ta müşteri indirimle
+                | birlikte bedava kargo da kazanıyor. WooCommerce'in
+                | varsayılanı da `true` ama onlar da ayar bırakmış —
+                | satıcılar anlaşamıyor.
+                */
+                'threshold_after_discount' => true,
             ],
 
             SettingGroup::Payment->value => [

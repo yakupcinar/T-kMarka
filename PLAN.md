@@ -2326,7 +2326,7 @@ iki kez çağrılamıyor · 14 gün teslim tarihinden hesaplanıyor
 
 ---
 
-### 2A — Kupon
+### 2A — Kupon ✅
 
 **2A-K1 · Kargo eşiği İNDİRİMDEN SONRAKİ tutara bakar. (ayarlanabilir)**
 
@@ -2353,10 +2353,37 @@ B  eşik → indirim    480₺ eşiği geçti → kargo YOK → sonra indirim
 > ⚠️ "Sipariş bir fotoğraftır" ilkesi (1D). Kupon sonradan silinse bile sipariş
 > neyle indirildiğini söyleyebilmeli.
 
-**Tablolar:** `coupons` · `coupon_redemptions` (+ `orders.discount_total` zaten var)
+**Tablolar:** `coupons` · `coupon_redemptions` (+ `orders.coupon_code`,
+`carts.coupon_code`)
 **Bitiş ölçütü:** yüzde/sabit/ücretsiz kargo çalışıyor · eşik sırası ayarla
 değişiyor · son kullanım eşzamanlı iki istekte bir kez tükeniyor · sipariş
 kuponsuz da okunabiliyor
+
+> ✅ **TAMAMLANDI.** `CouponCode` · `DiscountCalculator` · `CouponService`
+> + vitrin ucu.
+>
+> **★ TÜRKÇE BÜYÜTME TUZAĞI — `EmailNormalizer`'ın (1A.2) kardeşi.**
+> `mb_strtoupper('indirim')` Türkçe yerelde `İNDİRİM` üretiyor; müşteri
+> klavyeden `INDIRIM` yazıyor ve kupon **bulunamıyor** — hata da vermiyor,
+> "geçersiz kupon" diyor ve marka kampanyasının neden tutmadığını
+> anlayamıyor. `CouponCode` harf harf ASCII'ye indiriyor; ayrıca
+> `CHECK (code = upper(code) AND code ~ '^[A-Z0-9_-]+$')` ile veritabanı
+> da zorluyor — uygulamadan kaçan tek satır bile bozuk kod yazamıyor.
+>
+> **★ Ek karar — KOTA SEPETTE DEĞİL SİPARİŞTE harcanıyor.** Sepette
+> harcansaydı kuponu deneyip vazgeçen her müşteri kampanyadan bir kullanım
+> yer, kupon hiç satış olmadan tükenirdi.
+>
+> **★ Ek karar — indirim SEPETTEN BÜYÜK OLAMIYOR.** Olsaydı `grand_total`
+> eksiye düşer, sağlayıcıya negatif tutar gider ve ödeme hiç başlatılamazdı.
+>
+> **⚠️ Müşteri başına sınır MİSAFİRDE UYGULANAMIYOR** — kimlik yok.
+> Sessizce "uygulandı" sayılsaydı marka "kişi başı 1" derken misafirler
+> sınırsız kullanırdı.
+>
+> **★ KIRMIZI KONTROL: satır kilidi silinince HİÇBİR TEST KIRILMADI** —
+> 1D'dekinin birebir tekrarı. Sıralı testler kilidi zorlamıyor. Çözüm de
+> aynı: üretilen SQL'de `for update` arayan **yapısal test**.
 
 ---
 
