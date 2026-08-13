@@ -9,6 +9,7 @@ use App\Http\Panel\OptionController;
 use App\Http\Panel\OrderController;
 use App\Http\Panel\PaymentSettingsController;
 use App\Http\Panel\ProductController;
+use App\Http\Panel\ReturnController as PanelIade;
 use App\Http\Panel\RoleController;
 use App\Http\Panel\SettingsController;
 use App\Http\Panel\StaffController;
@@ -23,6 +24,7 @@ use App\Http\Storefront\PaymentController;
 use App\Http\Storefront\PaymentReturnController;
 use App\Http\Storefront\PaymentWebhookController;
 use App\Http\Storefront\PrivacyController;
+use App\Http\Storefront\ReturnController as VitrinIade;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
@@ -180,6 +182,16 @@ Route::middleware([
             | asıl koruma ise doğrulama postası.
             */
             Route::post('/privacy/requests', [PrivacyController::class, 'store']);
+
+            /*
+            | İADE TALEBİ (2B) — müşteri yalnızca TALEP açıyor.
+            |
+            | ⚠️ Onay, teslim alma ve para iadesi markanın işi (2B-K1).
+            | `GET` ucu "hangi satır ne zamana kadar iade edilebilir"
+            | sorusunu cevaplıyor: müşteri reddedilince şaşırmasın.
+            */
+            Route::get('/orders/{siparis}/returns', [VitrinIade::class, 'show']);
+            Route::post('/orders/{siparis}/returns', [VitrinIade::class, 'store']);
         });
 
         // Hız sınırları AppServiceProvider'da tanımlı.
@@ -350,6 +362,21 @@ Route::middleware([
                 Route::post('/roles', [RoleController::class, 'store']);
                 Route::put('/roles/{rol}', [RoleController::class, 'update']);
                 Route::delete('/roles/{rol}', [RoleController::class, 'destroy']);
+            });
+
+            /*
+            | İADE YÖNETİMİ (2B) — `order.refund` izni ilk kez kapı bekliyor.
+            |
+            | ⚠️ `order.view` YETMİYOR: para geri gönderen işlem, siparişi
+            | görebilen herkese açık olamaz.
+            */
+            Route::middleware('izin:order.refund')->group(function () {
+                Route::get('/returns', [PanelIade::class, 'index']);
+                Route::get('/returns/{return}', [PanelIade::class, 'show']);
+                Route::post('/returns/{return}/approve', [PanelIade::class, 'approve']);
+                Route::post('/returns/{return}/reject', [PanelIade::class, 'reject']);
+                Route::post('/returns/{return}/receive', [PanelIade::class, 'receive']);
+                Route::post('/returns/{return}/refund', [PanelIade::class, 'refund']);
             });
 
             Route::middleware('izin:settings.write')->group(function () {

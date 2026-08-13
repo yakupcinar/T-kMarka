@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ShipmentStatus;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * Bir PAKET. Bir siparişin birden çok paketi olabilir (§7).
  *
+ * ⚠️ `@property` notu şart: statik analiz `casts()`'ten tarih dönüşümünü
+ * çıkaramıyor, kolonu metin görüyor.
+ *
  * @property ShipmentStatus $status
+ * @property CarbonInterface|null $shipped_at
+ * @property CarbonInterface|null $delivered_at
  */
 class Fulfillment extends Model
 {

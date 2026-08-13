@@ -25,7 +25,7 @@ use Illuminate\Support\Str;
  * sorgulamada kullanılan kimlik o. `paymentConversationId` ise bizim
  * ödeme denemesinin uuid'si (1E-K8) — çapraz kontrol için.
  */
-class IyzicoProvider implements QueryablePaymentProvider
+class IyzicoProvider implements QueryablePaymentProvider, RefundablePaymentProvider
 {
     public const API_ANAHTARI = 'iyzico_api_key';
 
@@ -34,6 +34,8 @@ class IyzicoProvider implements QueryablePaymentProvider
     private const BASLAT_YOLU = '/payment/iyzipos/checkoutform/initialize/auth/ecom';
 
     private const SORGU_YOLU = '/payment/iyzipos/checkoutform/auth/ecom/detail';
+
+    private const IADE_YOLU = '/payment/refund';
 
     public function __construct(private readonly SettingsService $ayarlar) {}
 
@@ -183,6 +185,68 @@ class IyzicoProvider implements QueryablePaymentProvider
                 ? null
                 : ($this->metin($cevap, 'errorGroup') ?: ($this->metin($cevap, 'errorCode') ?: 'unknown')),
         );
+    }
+
+    /**
+     * ★ 2B-K7 — para GERİ gönderiliyor.
+     *
+     * ⚠️ iyzico iadeyi ÖDEME İŞLEM numarasıyla (`paymentTransactionId`)
+     * yapıyor; bu, sorgu cevabındaki satır bazlı kimlik. Bizim
+     * `provider_ref`'imiz CF token'ı, o yüzden önce ödeme sorgulanıp
+     * işlem numarası alınıyor.
+     *
+     * ⚠️ Bu yol GERÇEK SANDBOX'A KARŞI HENÜZ KOŞULMADI — 1E.7.3'te
+     * öğrendiğimiz gibi taklit, protokolün ayrıntısını uyduramıyor.
+     * Gerçek iade koşusu yapılana kadar bu uygulama DOĞRULANMAMIŞ sayılır.
+     */
+    public function iadeEt(string $referans, string $tutar, string $idempotanslikAnahtari): PaymentOutcome
+    {
+        $ayrinti = $this->cagir(self::SORGU_YOLU, ['locale' => 'tr', 'token' => $referans], odemeCevabi: true);
+
+        $islemNo = $this->islemNumarasi($ayrinti);
+
+        if ($islemNo === null) {
+            throw new PaymentProviderException($this->ad(), 'İade için işlem numarası bulunamadı.', $this->maskele($ayrinti));
+        }
+
+        $cevap = $this->cagir(self::IADE_YOLU, [
+            'locale' => 'tr',
+            'conversationId' => $idempotanslikAnahtari,
+            'paymentTransactionId' => $islemNo,
+            'price' => $tutar,
+            'currency' => 'TRY',
+        ]);
+
+        return new PaymentOutcome(
+            siparisNumarasi: $this->metin($cevap, 'conversationId'),
+            saglayiciReferansi: $this->metin($cevap, 'paymentId') ?: $islemNo,
+            basarili: ($cevap['status'] ?? null) === 'success',
+            tutar: is_numeric($cevap['price'] ?? null) ? (string) $cevap['price'] : $tutar,
+            hamCevap: $this->maskele($cevap),
+        );
+    }
+
+    /**
+     * Sorgu cevabından ödeme işlem numarasını çıkarır.
+     *
+     * ⚠️ Tek satırlık sepet varsayılmıyor: iyzico her sepet satırı için
+     * ayrı `paymentTransactionId` döndürüyor. Şimdilik ilki alınıyor —
+     * satır bazlı kısmi iade Faz 3'ün işi, notu duruyor.
+     *
+     * @param  array<string, mixed>  $cevap
+     */
+    private function islemNumarasi(array $cevap): ?string
+    {
+        $satirlar = $cevap['itemTransactions'] ?? null;
+
+        if (! is_array($satirlar) || $satirlar === []) {
+            return null;
+        }
+
+        $ilk = reset($satirlar);
+        $no = is_array($ilk) ? ($ilk['paymentTransactionId'] ?? null) : null;
+
+        return is_scalar($no) && (string) $no !== '' ? (string) $no : null;
     }
 
     public function webhookuDogrula(array $yuk, ?string $imza): bool
@@ -394,6 +458,7 @@ class IyzicoProvider implements QueryablePaymentProvider
             'status', 'paymentStatus', 'iyziEventType', 'iyziPaymentId', 'iyziReferenceCode',
             'iyziEventTime', 'token', 'paymentConversationId', 'conversationId',
             'paidPrice', 'price', 'currency', 'errorCode', 'errorMessage', 'errorGroup',
+            'paymentTransactionId', 'refundedPrice',
         ];
 
         return array_intersect_key($yuk, array_flip($izinli));

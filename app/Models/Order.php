@@ -129,4 +129,16 @@ class Order extends Model
     {
         return $this->customer_id === null;
     }
+
+    /** @return HasMany<Refund, $this> */
+    public function refunds(): HasMany
+    {
+        return $this->hasMany(Refund::class);
+    }
+
+    /** @return HasMany<OrderReturn, $this> */
+    public function returns(): HasMany
+    {
+        return $this->hasMany(OrderReturn::class);
+    }
 }

@@ -19,6 +19,9 @@ use App\Domain\Payment\PaymentProviderException;
 use App\Domain\Payment\UnknownPaymentReferenceException;
 use App\Domain\Privacy\InvalidDataRequestException;
 use App\Domain\Privacy\UnknownDataSubjectException;
+use App\Domain\Returns\OverReturnException;
+use App\Domain\Returns\ReturnNotRefundableException;
+use App\Domain\Returns\ReturnWindowClosedException;
 use App\Domain\Settings\SettingLockedException;
 use App\Domain\Settings\StoreNotReadyException;
 use App\Domain\Stock\InsufficientStockException;
@@ -280,6 +283,40 @@ return Application::configure(basePath: dirname(__DIR__))
         | ⚠️ "Böyle bir müşteri yok" DEMİYORUZ. Deseydik, adres deneyerek
         | hangi e-postanın kayıtlı olduğu öğrenilebilirdi.
         */
+        /*
+        | Cayma süresi dolmuş → 409.
+        |
+        | ⚠️ ZAMAN sorunu: yetki var, veri geçerli, geçen şey süre.
+        | ⚠️ Kusurlu ürün iadesi bu istisnayı almaz — cayma değil.
+        */
+        $exceptions->render(function (ReturnWindowClosedException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'resolution' => 'Ürün kusurluysa cayma hakkı dışında talep açabilirsiniz.',
+            ], 409);
+        });
+
+        /* Sipariş edilenden fazla iade → 422. (1D.4'ün aynası) */
+        $exceptions->render(function (OverReturnException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'sku' => $e->sku,
+                'ordered' => $e->siparisAdedi,
+            ], 422);
+        });
+
+        /*
+        | Talep para iadesine hazır değil → 409.
+        |
+        | ⚠️ Bloğun en önemli koruması: ÜRÜN ELE GEÇMEDEN PARA GİTMİYOR.
+        */
+        $exceptions->render(function (ReturnNotRefundableException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'return_status' => $e->durum->value,
+            ], 409);
+        });
+
         $exceptions->render(function (UnknownDataSubjectException $e) {
             return response()->json(['message' => $e->getMessage()], 404);
         });

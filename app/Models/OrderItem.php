@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Donmuş sipariş satırı. (docs/domain-model.md §7)
@@ -53,5 +54,18 @@ class OrderItem extends Model
     public function variant(): BelongsTo
     {
         return $this->belongsTo(ProductVariant::class, 'variant_id');
+    }
+
+    /**
+     * Bu satırın gittiği paket kalemleri. (2B-K2)
+     *
+     * ⚠️ Cayma süresi buradan hesaplanıyor: satırın teslim tarihi,
+     * hangi pakette gittiyse ONUN tarihi (1D.4 kısmi sevkiyat).
+     *
+     * @return HasMany<FulfillmentItem, $this>
+     */
+    public function fulfillmentItems(): HasMany
+    {
+        return $this->hasMany(FulfillmentItem::class);
     }
 }

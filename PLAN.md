@@ -2216,7 +2216,7 @@ talebi doğrulama maili olmadan işlemiyor
 
 ---
 
-### 2B — İade ve cayma hakkı  ← **en zor blok**
+### 2B — İade ve cayma hakkı ✅  *(en zor blok)*
 
 **2B-K1 · İADE TALEBİ ile PARA İADESİ AYRI ŞEYLERDİR.**
 
@@ -2269,10 +2269,34 @@ para iadesi   marka onaylar, para gider          stok geri girer
 > ⚠️ 1E-K4'ün tekrarı — bu sefer para **geri** giderken. İki kez iade,
 > iki kez tahsilattan beter.
 
-**Tablolar:** `returns` · `refunds`
+**Tablolar:** `returns` · `return_items` · `refunds`
 **Bitiş ölçütü:** kısmi iade satır bazlı çalışıyor · vergi doğru geri dönüyor ·
 tam caymada kargo iade ediliyor · stok yalnızca onayla geri giriyor · aynı iade
 iki kez çağrılamıyor · 14 gün teslim tarihinden hesaplanıyor
+
+> ✅ **TAMAMLANDI.** `WithdrawalWindow` · `RefundTotals` · `ReturnService` ·
+> `RefundService` + `RefundablePaymentProvider` + vitrin/panel uçları.
+>
+> **★ TESTLER İKİ GERÇEK EKSİK BULDU:**
+>
+> 1. **Kısmi iadeden sonra ikinci talep açılamıyordu.** `talepAc` yalnızca
+>    `paid` kabul ediyordu; ilk kısmi iade siparişi `partially_refunded`
+>    yapınca kalan satırların iade hakkı kapanıyordu.
+>
+> 2. **İki adımda yapılan tam cayma "tam" sayılmıyordu.** Kargo yalnızca
+>    tek talepte tüm adetler iade edilirse geri veriliyordu. Müşteri
+>    siparişin tamamını iki talepte iade ederse bu da tam caymadır —
+>    artık BİRİKİMLİ sayılıyor, ve kargo bir kez iade ediliyor.
+>
+> **★ KIRMIZI KONTROL BİR TESTİ ÇÜRÜTTÜ.** Cayma süresini `placed_at`'ten
+> saydırdım ve testler **yeşil kaldı**: her senaryoda sipariş "az önce"
+> verilmişti, fark görünmüyordu. Ayrımın göründüğü tek durum **geç
+> teslimat** — 20 gün önce verilip dün teslim edilen sipariş. O test
+> eklendi; şimdi kırılma gerçekten yakalanıyor.
+>
+> ⚠️ **iyzico iade yolu GERÇEK SANDBOX'A KARŞI KOŞULMADI.** 1E.7.3'ün
+> dersi: taklit, protokolün ayrıntısını uyduramıyor. Gerçek iade koşusu
+> yapılana kadar `IyzicoProvider::iadeEt()` **doğrulanmamış** sayılır.
 
 ---
 

@@ -24,7 +24,7 @@ use Illuminate\Support\Str;
  * alanlar SIRAYLA birleştirilip HMAC): gerçek sağlayıcı takıldığında
  * değişen yalnızca alan adları olsun.
  */
-class FakePaymentProvider implements PaymentProvider
+class FakePaymentProvider implements RefundablePaymentProvider
 {
     /** `settings` içindeki imza anahtarının adı — şifreli saklanıyor. */
     public const GIZLI_ANAHTAR = 'fake_secret';
@@ -103,6 +103,23 @@ class FakePaymentProvider implements PaymentProvider
             tutar: $this->sayisal($yuk['amount'] ?? null),
             hamCevap: $yuk,
             hataKodu: $basarili ? null : (string) ($yuk['error_code'] ?? 'declined'),
+        );
+    }
+
+    /**
+     * Sahte iade — gerçek para yok, ama akış gerçek (2B-K7).
+     *
+     * ⚠️ Aynı anahtarla ikinci istek AYNI referansı döndürüyor: gerçek
+     * sağlayıcı da öyle davranıyor ve idempotanslık böyle sınanabiliyor.
+     */
+    public function iadeEt(string $referans, string $tutar, string $idempotanslikAnahtari): PaymentOutcome
+    {
+        return new PaymentOutcome(
+            siparisNumarasi: '',
+            saglayiciReferansi: 'FAKE-IADE-'.substr(hash('sha256', $idempotanslikAnahtari), 0, 16),
+            basarili: true,
+            tutar: $this->sayisal($tutar),
+            hamCevap: ['refunded' => $tutar, 'source_ref' => $referans],
         );
     }
 
