@@ -17,6 +17,8 @@ use App\Domain\Payment\PaymentAmountMismatchException;
 use App\Domain\Payment\PaymentNotConfiguredException;
 use App\Domain\Payment\PaymentProviderException;
 use App\Domain\Payment\UnknownPaymentReferenceException;
+use App\Domain\Privacy\InvalidDataRequestException;
+use App\Domain\Privacy\UnknownDataSubjectException;
 use App\Domain\Settings\SettingLockedException;
 use App\Domain\Settings\StoreNotReadyException;
 use App\Domain\Stock\InsufficientStockException;
@@ -270,6 +272,26 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (PaymentProviderException $e) {
             return response()->json(['message' => 'Ödeme başlatılamadı, lütfen tekrar deneyin.'], 502)
                 ->header('Retry-After', '10');
+        });
+
+        /*
+        | KVKK talebi: sahibi doğrulanamadı → 404.
+        |
+        | ⚠️ "Böyle bir müşteri yok" DEMİYORUZ. Deseydik, adres deneyerek
+        | hangi e-postanın kayıtlı olduğu öğrenilebilirdi.
+        */
+        $exceptions->render(function (UnknownDataSubjectException $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
+        });
+
+        /*
+        | Doğrulama bağlantısı geçersiz/süresi dolmuş/kullanılmış → 410.
+        |
+        | ⚠️ Üç durum TEK mesaj: ayrılsaydı "bu jeton vardı ama süresi
+        | doldu" bilgisi, jeton tahmin edene geri bildirim olurdu.
+        */
+        $exceptions->render(function (InvalidDataRequestException $e) {
+            return response()->json(['message' => $e->getMessage()], 410);
         });
 
         $exceptions->render(function (UnknownPaymentReferenceException $e) {

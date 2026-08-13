@@ -2156,7 +2156,7 @@ etkilenmiyor · doğru markanın ayarlarıyla üretiliyor (M-2.4)
 
 ---
 
-### 2G — KVKK: anonimleştirme ve veri indirme
+### 2G — KVKK: anonimleştirme ve veri indirme ✅
 
 > **Araştırma:** Magento ve WooCommerce **ikisi de** aynı yolu tutuyor —
 > sipariş muhasebe için saklanıyor, kişisel alanlar anonimleştiriliyor.
@@ -2196,6 +2196,23 @@ order_items      dokunulmaz (tutar, sku, adet kalır)
 **Bitiş ölçütü:** anonimleştirme sonrası siparişin tutarı ve satırları duruyor ·
 kişisel alanların hiçbiri okunamıyor · `events` zaten temiz (1F-K4) · misafir
 talebi doğrulama maili olmadan işlemiyor
+
+> ✅ **TAMAMLANDI.** `Anonymizer` · `DataExporter` · `DataRequestService`
+> + vitrin uçları. Kırmızı kontrol iki kez: sipariş alanları
+> anonimleştirmeden çıkarılınca 3 test, doğrulama kapısı kaldırılınca
+> 6 test kırmızıya döndü.
+>
+> **Ek karar — ŞEHİR ve İLÇE KALIYOR.** Kişiyi tanımlamıyorlar ama markanın
+> satış coğrafyası raporu onlara dayanıyor. Silinseydi geçmiş dağılım
+> bozulur, KVKK açısından hiçbir kazanç olmazdı.
+>
+> **Ek karar — e-posta ANONİMLEŞTİRİLİRKEN benzersiz kalıyor.**
+> `customers.email` unique; hepsine aynı işaret yazılsaydı ikinci
+> anonimleştirme veritabanı hatasıyla düşerdi.
+>
+> ⚠️ Talep kaydında **e-posta tamamlanınca siliniyor**, `email_hash`
+> kalıyor: "bu adres için talep var mıydı" cevaplanabilsin ama adres
+> okunamasın. Kalsaydı silme kaydı, silinen verinin kopyası olurdu.
 
 ---
 

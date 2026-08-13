@@ -22,6 +22,7 @@ use App\Http\Storefront\LegalController as VitrinLegal;
 use App\Http\Storefront\PaymentController;
 use App\Http\Storefront\PaymentReturnController;
 use App\Http\Storefront\PaymentWebhookController;
+use App\Http\Storefront\PrivacyController;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
@@ -87,6 +88,15 @@ Route::middleware([
     | müşteri ne olduğunu görebilmeli.
     */
     Route::match(['get', 'post'], PaymentController::DONUS_YOLU, [PaymentReturnController::class, 'show']);
+
+    /*
+    | KVKK DOĞRULAMA BAĞLANTISI (2G-K3).
+    |
+    | ⚠️ `magaza-acik` DIŞINDA ve `api` önekinden AYRI: bağlantı postadan
+    | tıklanıyor, mağaza kapalıyken de çalışmalı. Yasal bir hak, mağazanın
+    | açık olmasına bağlanamaz.
+    */
+    Route::get(PrivacyController::DONUS_YOLU.'/{token}', [PrivacyController::class, 'confirm']);
 
     /*
     | VİTRİN — markanın müşterisi
@@ -161,6 +171,15 @@ Route::middleware([
             | gelmeli.
             */
             Route::post('/orders/{siparis}/pay', [PaymentController::class, 'store']);
+
+            /*
+            | KVKK VERİ TALEPLERİ (2G).
+            |
+            | ⚠️ Kimlik doğrulaması İSTEĞE BAĞLI: misafir de talep
+            | edebilmeli (M-1). Kimlik kanıtı e-posta + sipariş numarası;
+            | asıl koruma ise doğrulama postası.
+            */
+            Route::post('/privacy/requests', [PrivacyController::class, 'store']);
         });
 
         // Hız sınırları AppServiceProvider'da tanımlı.

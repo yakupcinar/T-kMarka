@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\FulfillmentStatus;
 use App\Enums\PaymentStatus;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *
  * @property PaymentStatus $payment_status
  * @property bool $stock_shortfall
+ * @property CarbonInterface|null $placed_at
  * @property FulfillmentStatus $fulfillment_status
  * @property string $items_total
  * @property string $discount_total

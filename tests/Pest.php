@@ -359,6 +359,29 @@ function odemeAsamasiSiparisi(string $alanAdi, int $stok = 5): array
 }
 
 /**
+ * Ödenmemiş sipariş — ama KAYITLI MÜŞTERİYE bağlı.
+ *
+ * ⚠️ `odemeAsamasiSiparisi` misafir siparişi üretiyor; anonimleştirme
+ * testinde müşteri bağının koptuğunu görebilmek için hesap gerekiyor.
+ *
+ * @return array{siparis: Order, varyant: ProductVariant}
+ */
+function odemeAsamasiSiparisiMusteriyle(string $alanAdi, Customer $musteri): array
+{
+    $urun = app(ProductService::class)->olustur(['title' => 'Tişört']);
+    $varyant = app(VariantService::class)->ekle($urun, ['sku' => 'TS-1', 'price' => 100, 'stock' => 5]);
+    app(ProductService::class)->durumDegistir($urun->refresh(), ProductStatus::Active);
+
+    $sepet = app(CartService::class)->musteriSepeti($musteri);
+    app(CartService::class)->ekle($sepet, $varyant, 1);
+
+    $sozlesme = app(LegalDocumentService::class)->guncelSurum(LegalDocumentType::DistanceSales);
+    $siparis = app(CheckoutService::class)->baslat($sepet, odemeVerisi((int) $sozlesme?->id));
+
+    return ['siparis' => $siparis, 'varyant' => $varyant];
+}
+
+/**
  * Örnek ödeme gövdesi.
  *
  * ⚠️ Buraya TAŞINDI (1E.1): `CheckoutTest.php` içinde tanımlıydı ve
