@@ -2294,9 +2294,35 @@ iki kez çağrılamıyor · 14 gün teslim tarihinden hesaplanıyor
 > teslimat** — 20 gün önce verilip dün teslim edilen sipariş. O test
 > eklendi; şimdi kırılma gerçekten yakalanıyor.
 >
-> ⚠️ **iyzico iade yolu GERÇEK SANDBOX'A KARŞI KOŞULMADI.** 1E.7.3'ün
-> dersi: taklit, protokolün ayrıntısını uyduramıyor. Gerçek iade koşusu
-> yapılana kadar `IyzicoProvider::iadeEt()` **doğrulanmamış** sayılır.
+> ✅ **iyzico iade yolu GERÇEK SANDBOX'TA DOĞRULANDI** — ve ilk hâli
+> çalışmadı. 1E.7.3'ün dersi bir kez daha:
+>
+> **Bulgu 1 — iyzico ödemeyi KIRILIMLARA bölüyor.** Sepetteki her satır
+> ayrı bir `paymentTransactionId` alıyor ve **iade her kırılım için ayrı**
+> yapılıyor:
+>
+> ```
+> ödeme 299,80  →  kırılım A: ürün   249,90
+>                  kırılım B: kargo   49,90
+> ```
+>
+> İlk uygulama tek kırılıma tüm tutarı gönderdi ve gerçek sandbox
+> reddetti: `5093 — verilen iade tutarı kırılımın tutarından büyük
+> olamaz`. Taklit bunu uyduramazdı. Artık tutar kırılımlara dağıtılıyor
+> ve `refundedPrice` düşülüyor (kısmi iadeden sonraki kalan).
+>
+> **Bulgu 2 — başarısız çağrıdan sonra iade TEKRAR DENENEMİYORDU.**
+> Sağlayıcı çağrısı düşünce kayıt `pending` kalıyor, ikinci deneme
+> sağlayıcıya hiç gitmeden o kaydı geri veriyordu. Artık yalnızca
+> `completed` kayıt erken dönüyor.
+>
+> **⚠️ Bulgu 3 — AÇIKLANAMAYAN TUTAR.** Bir çağrıda 249,90 istendi,
+> `status: success` ve `price: 200` döndü; sebebi cevaptan anlaşılamadı.
+> Kontrollü tekrar ölçümde aynı tutar tam geçti. Sebep **kesinleşmedi**.
+> Kapatılan şey belirti: sağlayıcının iade ettiği tutar istenenle
+> karşılaştırılıyor, tutmuyorsa **gürültülü hata**. Olmasaydı kayıtta
+> 299,80 iade yazarken müşteriye 249,90 gitmiş olurdu — hiçbir yerde
+> görünmeden.
 
 ---
 

@@ -97,6 +97,11 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   **yüklenmemişti**. Doğrusu `docker compose restart caddy`.
   ⚠️ Ölçüm bayat yapılandırmaya karşı yapılırsa çıkan sonuç da bayattır;
   "denedim olmadı" demeden önce değişikliğin **yüklendiğini** doğrula.
+- **Dış servisin "başarılı" demesi, İSTEDİĞİNİ yaptığı anlamına gelmez.**
+  iyzico iadesinde `status: success` döndü ama `price` istenenden düşüktü
+  (249,90 istendi, 200 döndü; sebep kesinleşmedi). Kayıtta tam iade
+  yazarken müşteriye eksik para gitmiş olurdu. Kural: cevabın **durumuna
+  değil sonucuna** bak — tutar, adet, kimlik neyse onu karşılaştır.
 - **"Çağrı başarısız" ile "işlem başarısız" AYRI ŞEYLERDİR.** Dış servisler
   ikisini de aynı alanla bildirebiliyor. iyzico yetersiz bakiyede servis
   düzeyinde de `status: failure` döndürüyor; ama `paymentStatus` alanı

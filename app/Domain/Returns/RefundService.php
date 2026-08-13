@@ -71,11 +71,19 @@ class RefundService
 
         $mevcut = Refund::where('order_id', $siparis->id)->where('idempotency_key', $anahtar)->first();
 
-        if ($mevcut !== null) {
+        /*
+        | ⚠️ Yalnızca TAMAMLANMIŞ iade erken dönüyor.
+        |
+        | Gerçek sandbox koşusunda bulundu: sağlayıcı çağrısı düşünce kayıt
+        | `pending` kalıyordu ve ikinci deneme sağlayıcıya HİÇ gitmeden o
+        | kaydı geri veriyordu — yani hata düzeltilse bile iade bir daha
+        | denenemiyordu. Para hiç gitmemişken sistem "iade var" diyordu.
+        */
+        if ($mevcut !== null && $mevcut->status === RefundStatus::Completed) {
             return $mevcut;
         }
 
-        $iade = $this->kayitAc($siparis, $talep, $odeme, $tutarlar, $anahtar, $sebep);
+        $iade = $mevcut ?? $this->kayitAc($siparis, $talep, $odeme, $tutarlar, $anahtar, $sebep);
 
         $saglayici = $this->saglayicilar->coz();
 

@@ -278,6 +278,89 @@ it('★ ESKİ imza başlığı da okunuyor', function () {
         ->assertStatus(404);   // imza GEÇTİ; referans bu markada yok
 });
 
+it('★ İADE: kırılım kırılım gönderiliyor', function () {
+    markaKur('iyz-s.test');
+    magazayiHazirla();
+    iyzicoluMarka('iyz-s.test');
+
+    /*
+    | ★ GERÇEK SANDBOX'TA ÖLÇÜLDÜ: iyzico ödemeyi sepet satırlarına
+    | bölüyor ("kırılım") ve iade HER KIRILIM İÇİN AYRI yapılıyor.
+    | Tek kırılıma tüm tutar gönderildiğinde reddediliyor:
+    | `5093 — verilen iade tutarı kırılımın tutarından büyük olamaz`.
+    */
+    Http::fake([
+        '*/checkoutform/auth/ecom/detail' => Http::response([
+            'status' => 'success', 'paymentStatus' => 'SUCCESS', 'paidPrice' => '299.80',
+            'itemTransactions' => [
+                ['paymentTransactionId' => 'TX-1', 'paidPrice' => 249.9],
+                ['paymentTransactionId' => 'TX-2', 'paidPrice' => 49.9],
+            ],
+        ]),
+        '*/payment/refund' => Http::sequence()
+            ->push(['status' => 'success', 'price' => 249.9, 'paymentId' => 'R1'])
+            ->push(['status' => 'success', 'price' => 49.9, 'paymentId' => 'R2']),
+    ]);
+
+    $sonuc = app(IyzicoProvider::class)->iadeEt('TOKEN', '299.80', 'anahtar');
+
+    expect($sonuc->basarili)->toBeTrue()
+        ->and($sonuc->tutar)->toBe('299.80');
+
+    // İki ayrı çağrı, her biri kendi kırılımına kendi tutarıyla.
+    Http::assertSentCount(3);
+});
+
+it('★ İADE: sağlayıcı FARKLI TUTAR iade ederse gürültülü hata', function () {
+    markaKur('iyz-t.test');
+    magazayiHazirla();
+    iyzicoluMarka('iyz-t.test');
+
+    /*
+    | ⚠️ GERÇEK KOŞUDA YAŞANDI: 249,90 istendi, cevapta `price: 200`
+    | döndü ve sebebi cevaptan anlaşılamadı. `status: success` yetmiyor.
+    |
+    | Kontrol olmasaydı kayıtta 299,80 iade yazarken müşteriye 249,90
+    | gitmiş olurdu — ve bu hiçbir yerde görünmezdi.
+    */
+    Http::fake([
+        '*/checkoutform/auth/ecom/detail' => Http::response([
+            'status' => 'success', 'paymentStatus' => 'SUCCESS', 'paidPrice' => '249.90',
+            'itemTransactions' => [['paymentTransactionId' => 'TX-1', 'paidPrice' => 249.9]],
+        ]),
+        '*/payment/refund' => Http::response(['status' => 'success', 'price' => 200]),
+    ]);
+
+    expect(fn () => app(IyzicoProvider::class)->iadeEt('TOKEN', '249.90', 'anahtar'))
+        ->toThrow(PaymentProviderException::class);
+});
+
+it('★ İADE: daha önce iade edilen tutar DÜŞÜLÜYOR', function () {
+    markaKur('iyz-u.test');
+    magazayiHazirla();
+    iyzicoluMarka('iyz-u.test');
+
+    /*
+    | ⚠️ Kısmi iadeden sonra kalan hesaba katılmasaydı ikinci iade yine
+    | 5093 alırdı.
+    */
+    Http::fake([
+        '*/checkoutform/auth/ecom/detail' => Http::response([
+            'status' => 'success', 'paymentStatus' => 'SUCCESS', 'paidPrice' => '249.90',
+            'itemTransactions' => [
+                ['paymentTransactionId' => 'TX-1', 'paidPrice' => 249.9, 'refundedPrice' => 149.9],
+            ],
+        ]),
+        '*/payment/refund' => Http::response(['status' => 'success', 'price' => 100]),
+    ]);
+
+    $sonuc = app(IyzicoProvider::class)->iadeEt('TOKEN', '100.00', 'anahtar');
+
+    expect($sonuc->basarili)->toBeTrue();
+
+    Http::assertSent(fn ($istek) => ! str_contains($istek->url(), 'refund') || $istek->data()['price'] === '100.00');
+});
+
 it('★ İMZA: geçerli kabul, bozulmuş RED', function () {
     markaKur('iyz-d.test');
     magazayiHazirla();

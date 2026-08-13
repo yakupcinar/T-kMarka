@@ -190,63 +190,156 @@ class IyzicoProvider implements QueryablePaymentProvider, RefundablePaymentProvi
     /**
      * ★ 2B-K7 — para GERİ gönderiliyor.
      *
-     * ⚠️ iyzico iadeyi ÖDEME İŞLEM numarasıyla (`paymentTransactionId`)
-     * yapıyor; bu, sorgu cevabındaki satır bazlı kimlik. Bizim
-     * `provider_ref`'imiz CF token'ı, o yüzden önce ödeme sorgulanıp
-     * işlem numarası alınıyor.
+     * ⚠️ ★ GERÇEK SANDBOX'TA ÖLÇÜLDÜ: iyzico ödemeyi sepet satırlarına
+     * bölüyor ("kırılım") ve **iade her kırılım için AYRI** yapılıyor.
      *
-     * ⚠️ Bu yol GERÇEK SANDBOX'A KARŞI HENÜZ KOŞULMADI — 1E.7.3'te
-     * öğrendiğimiz gibi taklit, protokolün ayrıntısını uyduramıyor.
-     * Gerçek iade koşusu yapılana kadar bu uygulama DOĞRULANMAMIŞ sayılır.
+     * ```
+     * ödeme 299,80  →  kırılım 0: ürün   249,90   (paymentTransactionId A)
+     *                  kırılım 1: kargo   49,90   (paymentTransactionId B)
+     * ```
+     *
+     * İlk yazımda tek kırılıma tüm tutar gönderildi ve gerçek sandbox
+     * reddetti:
+     *   `5093 — verilen iade tutarı … kırılımın tutarından büyük olamaz`
+     *
+     * Taklit bunu uyduramazdı; 1E.7.3'ün dersinin tekrarı.
+     *
+     * ⚠️ `conversationId` kırılım numarasıyla tekilleştiriliyor: aynı
+     * anahtarla iki kırılıma istek gidiyor ve sağlayıcı bunları ayırabilmeli.
      */
     public function iadeEt(string $referans, string $tutar, string $idempotanslikAnahtari): PaymentOutcome
     {
         $ayrinti = $this->cagir(self::SORGU_YOLU, ['locale' => 'tr', 'token' => $referans], odemeCevabi: true);
 
-        $islemNo = $this->islemNumarasi($ayrinti);
+        $kirilimlar = $this->kirilimlar($ayrinti);
 
-        if ($islemNo === null) {
-            throw new PaymentProviderException($this->ad(), 'İade için işlem numarası bulunamadı.', $this->maskele($ayrinti));
+        if ($kirilimlar === []) {
+            throw new PaymentProviderException($this->ad(), 'İade için ödeme kırılımı bulunamadı.', $this->maskele($ayrinti));
         }
 
-        $cevap = $this->cagir(self::IADE_YOLU, [
-            'locale' => 'tr',
-            'conversationId' => $idempotanslikAnahtari,
-            'paymentTransactionId' => $islemNo,
-            'price' => $tutar,
-            'currency' => 'TRY',
-        ]);
+        $kalan = $this->sayisal($tutar);
+        $referanslar = [];
+        $cevaplar = [];
+
+        foreach ($kirilimlar as $kirilim) {
+            if (bccomp($kalan, '0', 2) <= 0) {
+                break;
+            }
+
+            /*
+            | ⚠️ Her kırılıma EN FAZLA kendi kalanı kadar gönderiliyor.
+            | Fazlası 5093 ile reddediliyor — ölçüldü.
+            */
+            $pay = bccomp($kirilim['kalan'], $kalan, 2) >= 0 ? $kalan : $kirilim['kalan'];
+
+            if (bccomp($pay, '0', 2) <= 0) {
+                continue;
+            }
+
+            $cevap = $this->cagir(self::IADE_YOLU, [
+                'locale' => 'tr',
+                'conversationId' => $idempotanslikAnahtari.'-'.$kirilim['id'],
+                'paymentTransactionId' => $kirilim['id'],
+                'price' => $pay,
+                'currency' => 'TRY',
+            ]);
+
+            $referanslar[] = $this->metin($cevap, 'paymentId') ?: $kirilim['id'];
+            $cevaplar[] = $this->maskele($cevap);
+
+            /*
+            | ★ SAĞLAYICININ İADE ETTİĞİ TUTAR, İSTEDİĞİMİZLE AYNI MI?
+            |
+            | ⚠️ Gerçek sandbox koşusunda ölçüldü: bir çağrıda 249,90
+            | istendi, cevapta `price: 200` döndü ve sebebi cevaptan
+            | anlaşılamadı. Kontrol edilmeseydi kayıtta 299,80 iade
+            | yazarken müşteriye 249,90 gitmiş olurdu — ve bu hiçbir yerde
+            | görünmezdi.
+            |
+            | `status: success` YETMİYOR: tutarın kendisi de doğrulanmalı.
+            */
+            $gerceklesen = is_numeric($cevap['price'] ?? null) ? (string) $cevap['price'] : '0';
+
+            if (bccomp($gerceklesen, $pay, 2) !== 0) {
+                throw new PaymentProviderException(
+                    $this->ad(),
+                    'Sağlayıcı istenen tutardan farklı iade etti.',
+                    ['istenen' => $pay, 'gerceklesen' => $gerceklesen, 'kirilim' => $kirilim['id']],
+                );
+            }
+
+            $kalan = bcsub($kalan, $pay, 2);
+        }
+
+        /*
+        | ⚠️ Tutarın tamamı karşılanamadıysa GÜRÜLTÜLÜ hata. Sessiz
+        | kalsaydı müşteriye eksik para gider ve kayıt "tamamlandı"
+        | görünürdü.
+        */
+        if (bccomp($kalan, '0', 2) > 0) {
+            throw new PaymentProviderException(
+                $this->ad(),
+                'İade tutarı kırılımlarla karşılanamadı.',
+                ['kalan' => $kalan, 'kirilim' => count($kirilimlar)],
+            );
+        }
 
         return new PaymentOutcome(
-            siparisNumarasi: $this->metin($cevap, 'conversationId'),
-            saglayiciReferansi: $this->metin($cevap, 'paymentId') ?: $islemNo,
-            basarili: ($cevap['status'] ?? null) === 'success',
-            tutar: is_numeric($cevap['price'] ?? null) ? (string) $cevap['price'] : $tutar,
-            hamCevap: $this->maskele($cevap),
+            siparisNumarasi: $idempotanslikAnahtari,
+            saglayiciReferansi: implode(',', $referanslar),
+            basarili: true,
+            tutar: $this->sayisal($tutar),
+            hamCevap: ['refunds' => $cevaplar],
         );
     }
 
     /**
-     * Sorgu cevabından ödeme işlem numarasını çıkarır.
+     * Ödeme kırılımları: hangi işlem numarası, ne kadar iade edilebilir.
      *
-     * ⚠️ Tek satırlık sepet varsayılmıyor: iyzico her sepet satırı için
-     * ayrı `paymentTransactionId` döndürüyor. Şimdilik ilki alınıyor —
-     * satır bazlı kısmi iade Faz 3'ün işi, notu duruyor.
+     * ⚠️ `refundedPrice` daha önce iade edilen tutar — kısmi iadeden
+     * sonra kalan buradan çıkıyor. Hesaba katılmasaydı ikinci iade yine
+     * 5093 alırdı.
      *
      * @param  array<string, mixed>  $cevap
+     * @return list<array{id: string, kalan: numeric-string}>
      */
-    private function islemNumarasi(array $cevap): ?string
+    private function kirilimlar(array $cevap): array
     {
         $satirlar = $cevap['itemTransactions'] ?? null;
 
-        if (! is_array($satirlar) || $satirlar === []) {
-            return null;
+        if (! is_array($satirlar)) {
+            return [];
         }
 
-        $ilk = reset($satirlar);
-        $no = is_array($ilk) ? ($ilk['paymentTransactionId'] ?? null) : null;
+        $sonuc = [];
 
-        return is_scalar($no) && (string) $no !== '' ? (string) $no : null;
+        foreach ($satirlar as $satir) {
+            if (! is_array($satir)) {
+                continue;
+            }
+
+            $no = $satir['paymentTransactionId'] ?? null;
+            $odenen = $satir['paidPrice'] ?? null;
+
+            if (! is_scalar($no) || ! is_numeric($odenen)) {
+                continue;
+            }
+
+            $iade = is_numeric($satir['refundedPrice'] ?? null) ? (string) $satir['refundedPrice'] : '0';
+
+            $sonuc[] = [
+                'id' => (string) $no,
+                'kalan' => $this->sayisal(bcsub((string) $odenen, $iade, 2)),
+            ];
+        }
+
+        return $sonuc;
+    }
+
+    /** @return numeric-string */
+    private function sayisal(mixed $deger): string
+    {
+        return is_numeric($deger) ? (string) $deger : '0';
     }
 
     public function webhookuDogrula(array $yuk, ?string $imza): bool
