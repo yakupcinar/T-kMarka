@@ -5,6 +5,7 @@ namespace App\Http\Storefront;
 use App\Domain\Analytics\EventRecorder;
 use App\Domain\Catalog\CategoryService;
 use App\Domain\Catalog\ProductQuery;
+use App\Domain\Search\ProductSearch;
 use App\Enums\EventType;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
@@ -36,12 +37,25 @@ class CatalogController extends Controller
         private readonly ProductQuery $sorgu,
         private readonly CategoryService $kategoriler,
         private readonly EventRecorder $olaylar,
+        private readonly ProductSearch $arama,
     ) {}
 
     /** Ürün listesi — kategoriye göre daraltılabilir. */
     public function index(Request $istek): JsonResponse
     {
-        $sorgu = $this->sorgu->forStorefront();
+        /*
+        | ★ ARAMA (2C). `q` verilmişse liste sorgusu yerine arama sorgusu.
+        |
+        | ⚠️ Arama da `forStorefront()` üzerinden gidiyor: taslak, arşiv ve
+        | satılamayan ürün aramada da çıkmıyor (1B-K10). Ayrı bir sorgu
+        | yazılsaydı arama, vitrinin göstermediği ürünleri gösterirdi.
+        */
+        $kelime = $istek->query('q');
+        $aramaVar = is_string($kelime) && trim($kelime) !== '';
+
+        $sorgu = $aramaVar
+            ? $this->arama->ara($kelime)
+            : $this->sorgu->forStorefront();
 
         $kategoriSlug = $istek->query('category');
 
@@ -55,7 +69,31 @@ class CatalogController extends Controller
             $sorgu = $this->sorgu->kategoriyeGore($sorgu, $kategori);
         }
 
-        $sayfa = $sorgu->orderByDesc('id')->paginate(24);
+        /*
+        | ⚠️ Aramanın sıralaması ARAMAYA AİT: `ara()` alakaya (`ts_rank`)
+        | göre sıralıyor. Burada `orderByDesc('id')` eklenseydi alaka
+        | sıralaması korunur ama listede gereksiz ikinci anahtar olurdu;
+        | listede ise sıralama yok — bu yüzden ayrıldı.
+        */
+        $sayfa = ($aramaVar ? $sorgu : $sorgu->orderByDesc('id'))->paginate(24);
+
+        /*
+        | ★ `search_performed` İLK ÜRETİCİSİNE KAVUŞUYOR (1F).
+        |
+        | ⚠️ Yalnızca gerçek aramada yazılıyor; liste sayfası olay
+        | üretmiyor. Yoksa "arama sayısı" ölçümü liste gezintileriyle
+        | şişerdi.
+        |
+        | ⚠️ Aranan kelime KİŞİSEL VERİ SAYILMIYOR ama sonuç sayısı da
+        | kaydediliyor: "hangi arama sonuç bulamıyor" markanın en değerli
+        | sorusu (1F-K4 sınırları içinde).
+        */
+        if ($aramaVar) {
+            $this->olaylar->kaydet(EventType::SearchPerformed, [
+                'query' => mb_substr(trim((string) $kelime), 0, 100),
+                'result_count' => $sayfa->total(),
+            ], $istek->user() instanceof Customer ? $istek->user() : null);
+        }
 
         return response()->json([
             'products' => collect($sayfa->items())->map(fn (Product $u) => $this->listeGoster($u)),

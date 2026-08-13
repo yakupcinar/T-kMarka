@@ -2,6 +2,7 @@
 
 namespace App\Domain\Catalog;
 
+use App\Domain\Search\ProductSearch;
 use App\Models\Option;
 use App\Models\OptionValue;
 use App\Models\Product;
@@ -18,6 +19,8 @@ use Illuminate\Support\Facades\DB;
  */
 class VariantService
 {
+    public function __construct(private readonly ProductSearch $arama) {}
+
     /** Ürün başına en fazla kaç varyant (1B-K4). */
     public const MAKS_VARYANT = 200;
 
@@ -41,6 +44,9 @@ class VariantService
         $varyant = $urun->variants()->make($veri);
         $varyant->options = $secenekler;
         $varyant->save();
+
+        // ⚠️ SKU aramaya giriyor — varyant değişince tazelenmeli (2C).
+        $this->urunuTazele($varyant);
 
         return $varyant;
     }
@@ -69,6 +75,9 @@ class VariantService
 
         $varyant->fill($veri);
         $varyant->save();
+
+        // ⚠️ SKU aramaya giriyor — varyant değişince tazelenmeli (2C).
+        $this->urunuTazele($varyant);
 
         return $varyant;
     }
@@ -217,5 +226,20 @@ class VariantService
         }
 
         return $sonuc;
+    }
+
+    /**
+     * Varyantın ürününün arama alanlarını tazeler. (2C)
+     *
+     * ⚠️ İlişki boş dönebiliyor (silinmiş ürün); o durumda yapacak bir
+     * şey yok, sessizce geçiliyor.
+     */
+    private function urunuTazele(ProductVariant $varyant): void
+    {
+        $urun = $varyant->product;
+
+        if ($urun !== null) {
+            $this->arama->tazele($urun);
+        }
     }
 }

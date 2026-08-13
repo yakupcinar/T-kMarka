@@ -2,6 +2,7 @@
 
 namespace App\Domain\Catalog;
 
+use App\Domain\Search\ProductSearch;
 use App\Domain\Settings\SettingsService;
 use App\Enums\ProductStatus;
 use App\Enums\SettingGroup;
@@ -24,7 +25,10 @@ class ProductService
     /** Bir üründe en fazla kaç eksen olabilir (1B-K4). */
     public const MAKS_EKSEN = 3;
 
-    public function __construct(private readonly SettingsService $ayarlar) {}
+    public function __construct(
+        private readonly SettingsService $ayarlar,
+        private readonly ProductSearch $arama,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $veri  title · description · brand · model · attributes · tax_rate
@@ -56,6 +60,13 @@ class ProductService
         $urun->status = ProductStatus::Draft;
         $urun->save();
 
+        /*
+        | ⚠️ ARAMA ALANLARI HER DEĞİŞİKLİKTE tazeleniyor (2C).
+        | Unutulursa arama bayat kalır ve bu HATA VERMEZ — yalnızca yeni
+        | ürün bulunamaz.
+        */
+        $this->arama->tazele($urun);
+
         return $urun;
     }
 
@@ -78,6 +89,8 @@ class ProductService
         */
         $urun->category()->associate($kategori);
         $urun->save();
+
+        $this->arama->tazele($urun);
 
         return $urun;
     }

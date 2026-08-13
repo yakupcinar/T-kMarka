@@ -123,6 +123,21 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   sormaz. 1D.6'da iki ölü uç bu yüzden 232 testin altından geçti: vitrin varyant
   `uuid`'sini döndürmüyordu ve vitrinde yasal metin ucu hiç yoktu — yani gerçek
   müşteri sipariş **veremiyordu**. İki kiracıda gerçek HTTP koşusu yakaladı.
+- **Türetilmiş metne DEĞİŞKEN SAYIDA parça konmaz.** Benzerlik puanı metnin
+  uzunluğuna duyarlı; parça sayısı veriye göre değişince eşik kayar ve kayıt
+  **sessizce aranamaz** olur. 2C'de ısırdı: `search_text`'e varyant SKU'ları da
+  yazılıyordu; testte 1, gerçek üründe **9** varyant vardı, skor 0,33'ten
+  0,286'ya düştü ve ürün *varyant sayısı arttığı için* bulunamaz oldu. Test
+  yeşildi, iki kiracıda gerçek HTTP koşusu yakaladı. SKU tam-token eşleşmesine
+  (FTS vektörü) taşındı.
+- **Kolon sonradan eklendiyse GERİYE DÖNÜK DOLDURMA gerekir.** Türetilmiş kolon
+  yalnızca kayıt *değiştiğinde* yazılır; migration'dan önceki satırlar boş kalır
+  ve bu **hata vermez**. 2C'de arama, mevcut hiçbir ürünü bulmuyordu — vitrin
+  çalıştığı için fark edilmesi zordu. `php artisan tenants:run "search:reindex"`.
+- **Uzantılar `public`'te, marka `search_path`'i onları GÖRMEZ.** Üç kez ısırdı:
+  `citext` (1A) · `ltree` (1B) · `pg_trgm` (2C). Hepsi nitelikli yazılmalı —
+  `public.similarity`, `public.gin_trgm_ops`, `OPERATOR(public.<%)`. (Türkçe FTS
+  sözlüğü `pg_catalog`'ta olduğu için görünüyor, o istisna.)
 - **Yeni marka geliştirmede HTTPS'e çıkmaz.** `docker/caddy/Caddyfile`'da alan
   adları elle sayılı; `tenant:create` başarılı görünür ama site açılmaz.
   Alan adını ekleyip `docker compose restart caddy`. (Faz 3: on-demand TLS.)

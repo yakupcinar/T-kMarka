@@ -792,9 +792,20 @@ FAZ 2 AÇIK — 32 karar plana yazıldı, hepsi araştırmayla
       tek kupon · kullanım sınırı SATIR KİLİDİYLE (1D-K5 tekrarı)
       kupon kodu siparişe KOPYALANIR (fotoğraf ilkesi)
 
-  2C  PostgreSQL'in kendisi: Türkçe sözlük hazır + pg_trgm ile
-      yazım hatası toleransı. Dış servis yok.
-      ⚠️ hız ÖLÇÜLÜR · Türkçe küçük harf tuzağı tekrar çıkacak
+  2C  ✅ BİTTİ — PostgreSQL'in kendisi, dış servis yok
+      ⚠️ pg_trgm `public`'te, marka görmüyor — citext/ltree ÜÇÜNCÜ KEZ
+        (Türkçe FTS sözlüğü `pg_catalog`'ta, o görünüyor)
+      similarity() DEĞİL word_similarity, fonksiyon DEĞİL `<%` operatörü
+        (fonksiyon biçimi GIN indeksini kullanmıyor — plan ölçüldü)
+      ★ FTS kolu SİLİNDİ, hiçbir test kırılmadı → trigram zaten buluyormuş
+        → karar değişti: FTS'in işi bulmak değil SIRALAMAK (ts_rank, A/B/C)
+      ★ test yeşil, gerçek marka BOŞ: SKU'lar search_text'i uzatıyordu,
+        9 varyantlı ürün skoru 0,33→0,286, yani VARYANT SAYISI YÜZÜNDEN
+        aranamaz oldu → SKU tam-token eşleşmesine (FTS) taşındı
+      eşik 0,3 ölçülerek: cuzdn 0,67 · gomlek 1,00 (gürültüsü 0,286)
+        ⚠️ sınır dürüst: "tsiort" 0,286 → BULUNMUYOR, test bunu da ölçüyor
+      `tenants:run "search:reindex"` — kolon sonradan eklendi, eski
+        ürünlerin alanı boştu ve bu hata VERMİYORDU
 
   2D  kural SORGU ANINDA — saklanan liste fiyat değişince bayatlar
   2E  satın alan yazar · onay bekler · puan sayacı GECE DENETLENİR

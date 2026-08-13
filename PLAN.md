@@ -2414,6 +2414,82 @@ Meilisearch/ES      ayrı servis, ayrı bakım — Faz 2'ye fazla
 **Bitiş ölçütü:** çok kelimeli arama çalışıyor · yazım hatası tolere ediliyor ·
 sorgu planı indeks kullanıyor (ölçüldü) · Türkçe karakterde tutarlı
 
+#### 2C — BİTTİ ✅ (13 test · 396 test yeşil)
+
+Kod: `app/Domain/Search/` (`SearchText`, `ProductSearch`) ·
+`app/Console/Commands/ReindexSearch.php` ·
+`database/migrations/tenant/2026_08_12_210000_add_search_to_products.php` ·
+`tests/Tenancy/SearchTest.php`
+
+**Planla çelişen dört bulgu — hepsi ölçümle, üçü testleri yalanlayarak.**
+
+**1 · `pg_trgm` marka şemasından GÖRÜNMÜYOR (2C-K1'e ek).**
+Eklenti `public`'te; marka `search_path`'i onu içermiyor. citext (1A) ve
+ltree (1B) ile aynı tuzak — **üçüncü kez**. Bu sefer gürültülü (sorgu
+patlıyor, sessizce yanlış sonuç vermiyor). Bütün çağrılar nitelikli:
+`public.similarity`, `public.gin_trgm_ops`, `OPERATOR(public.<%)`.
+Türkçe FTS sözlüğü ise `pg_catalog`'ta — o **görünüyor**, ek iş yok.
+
+**2 · `similarity()` DEĞİL `word_similarity` — ve fonksiyon değil OPERATÖR.**
+```
+similarity('basic tisort demo', 'tsiort')       = 0,20   ✗ hiç bulmuyor
+word_similarity('tsiort', 'basic tisort demo')  = 0,29
+```
+`similarity()` metnin *tamamıyla* karşılaştırıyor: arama kelimesi kısa,
+ürün metni uzun olduğu için puan eşiğin altında kalıyor. Ayrıca fonksiyon
+biçimi GIN indeksini **kullanmıyor**; `<%` operatörü kullanıyor (plan
+`Bitmap Index Scan on products_search_text_trgm_idx` gösteriyor — 2C-K2).
+
+**3 · ★ FTS kolu SİLİNDİĞİNDE HİÇBİR TEST KIRILMADI.**
+Kırma denemesiyle bulundu. Sebep ölçüldü: eşik 0,3'te trigram, FTS'in
+bulduğu her şeyi zaten buluyor (`tişörtler` 0,60 · `gömlekleri` 0,55 ·
+`ayakkabıları` 0,62). Yani "Türkçe kök bulma" testi aslında **trigram'ı**
+ölçüyordu. Ters yön de ölçüldü — Türkçe stemmer sanıldığı kadar güçlü
+değil, 4+ ekli kelimede duruyor (`tişörtlerimizdekiler` → FTS bulmuyor,
+trigram buluyor).
+
+→ **Karar değişti:** FTS'in işi *bulmak* değil **sıralamak**.
+`setweight` A/B/C ile alaka sıralaması (`ts_rank`) eklendi ve onu ölçen
+bir test yazıldı. İlk hâli yine yalancıydı — ürünler `id` sırasında zaten
+doğru geliyordu; sıra ters kurulunca test gerçekten kırılır oldu.
+
+**4 · ★ TEST YEŞİL, GERÇEK MARKA BOŞ — `search_text` uzunluğa duyarlıymış.**
+`tsiort` araması testte çalışıyordu, iki kiracıda gerçek HTTP koşusunda
+**hiçbir şey bulmadı**. Sebep: SKU'lar da `search_text`'e yazılıyordu;
+test verisinde 1, gerçek üründe **9** varyant vardı →
+`"basic tisort demo bt-9 bt-8 … bt-5"` → skor 0,33'ten 0,286'ya düştü.
+Yani ürün, **varyant sayısı arttığı için** aranamaz oldu.
+
+→ SKU `search_text`'ten çıktı, FTS vektörüne (C ağırlığı) girdi: orada
+tam token eşleşmesi yapıyor ve metnin uzunluğunu etkilemiyor. `?q=BT-1`
+gerçek markada doğrulandı.
+
+**Eşik 0,3 — ölçülerek seçildi, gerçek katalog metinleri üzerinde:**
+
+| arama | doğru ürün | en yüksek gürültü |
+|---|---|---|
+| `cuzdn` | 0,667 | 0,000 |
+| `gomlek` | 1,000 | 0,286 |
+| `kolleksyon` | 0,467 | 0,091 |
+| `tsiort` | **0,286** | 0,000 |
+
+⚠️ **Sınır dürüstçe kaydedildi:** `tsiort` (6 harfte iki harf yer
+değiştirmiş) bulunmuyor. Eşiği oraya indirmek `gomlek`'in yanlış ürünü
+getirmesi demekti. Trigram her yazım hatasını kurtarmaz — kurtardığı
+iddia edilseydi test yalan söylerdi. Test artık **hem çalışan hem
+çalışmayan** vakayı ölçüyor.
+
+**`search:reindex` komutu — kolon sonradan eklendiği için ZORUNLU.**
+`search_text`/`search_vector` yalnızca ürün *değiştiğinde* yazılıyor;
+migration'dan önceki ürünlerin alanları boş kaldı ve bu **hata vermedi** —
+ürünler duruyor, vitrin çalışıyor, sadece arama onları bulmuyordu. Gerçek
+iki markada ölçüldü: tek ürün bile aranabilir değildi.
+⚠️ Marka verisine dokunuyor → `php artisan tenants:run "search:reindex"`.
+
+**Doğrulandı (iki kiracıda gerçek HTTP):** `?q=tişört` · `?q=tişörtler`
+(kök) · `?q=cuzdn` (yazım hatası) · `?q=BT-1` (SKU) → hepsi doğru ürün;
+taslak "Yaklaşan Koleksiyon" aramada **çıkmıyor** (`forStorefront` — 1B-K10).
+
 ---
 
 ### 2D — Koleksiyon
