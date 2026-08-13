@@ -16,7 +16,7 @@
 │                    1E ödeme → 1F olay kaydı                    │
 │                    ╰ çıktı: misafir müşteri sipariş verebiliyor│
 │                                                                │
-│  2 · OLGUNLAŞMA    kampanya · kupon · iade · arama · kvkk      │
+│  2 · OLGUNLAŞMA    bildirim · kvkk · iade · kupon · arama      │
 │  3 · SATILABİLİRLİK kontrol düzlemi · abonelik · gerçek TLS    │
 │  4 · ARAYÜZ        ← teknoloji burada seçilir (M-3)            │
 │  5 · ENTEGRASYON   kargo · e-fatura                            │
@@ -55,7 +55,7 @@
 |-----|-----|--------------------------|
 | **0** | Temel kurulum + kiracılık zemini | Boş ama çalışan, test edilebilir, **çok kiracılı** Laravel projesi |
 | **1** | Çekirdek mağaza | Bir müşteri gerçekten sipariş verebiliyor (API üzerinden) |
-| **2** | Olgunlaştırma | Kampanya, kupon, iade, arama, yorum, koleksiyon |
+| **2** | Olgunlaştırma | Bildirim, KVKK, iade, kupon, arama, koleksiyon, yorum |
 | **3** | Satılabilirlik | Kontrol düzlemi, abonelik, marka açma akışının tamamı |
 | **4** | Arayüz | Vitrin + yönetim paneli (M-3) |
 | **5** | Entegrasyonlar | Kargo, e-fatura |
@@ -460,7 +460,7 @@ sepete atar → ödeme yapar → sipariş oluşur → stok düşer → sipariş 
 edilir → olaylar kaydedilir. Ve aynı akış **ikinci bir kiracıda** da çalışıyor, iki
 kiracının verisi birbirine karışmıyor.
 
-> ✅ **FAZ 1 TAMAMLANDI** — 1A'dan 1F'e. Sırada Faz 2 (olgunlaştırma).
+> ✅ **FAZ 1 TAMAMLANDI** — 1A'dan 1F'e. **Faz 2 açık**: 2H bildirim ilk iş.
 
 - [x] **1A — Kimlik, yetki ve mağaza ayarları** ✅ ← aşağıda
 - [x] 1B — Katalog ✅
@@ -2097,19 +2097,301 @@ ayrı dosyaya taşınmalı.
 
 ---
 
-## Faz 2 — Olgunlaştırma  *(henüz açılmadı)*
+## Faz 2 — Olgunlaştırma  ← **AÇIK**
 
-Kampanya ve kupon motoru · iade · arama · yorum · koleksiyonlar · terk edilmiş sepet
+```
+2H bildirim    → 2G kvkk → 2B iade → 2A kupon → 2C arama → 2D · 2E · 2F
+```
 
-**Bu faza ayrıca M-1'den iki madde düşüyor:**
+> **Sıranın gerekçesi.** Bildirim olmadan diğerlerinin yarısı yazılamaz (iade
+> sonucu, hatırlatma, veri indirme bağlantısı hep maile bağlı). KVKK her yeni
+> tabloyla büyüyor — şimdi üç tablo taranacak, 2A ve 2B'den sonra beş. İade ise
+> ödeme kodu tazeyken yazılmalı; altı ay sonra iyzico'nun düzenini yeniden
+> öğrenmek gerekir.
 
-- **Cayma hakkı (14 gün)** — iade akışının parçası, ayrı iş değil
-- **KVKK veri silme talebi** — müşterinin kişisel alanları **anonimleştirilir**
-  > ⚠️ **`DELETE` değil.** Siparişler yasal saklama süresi boyunca silinemez; silinen şey
-  > kişisel alanlardır (ad, e-posta, telefon, adres). Sipariş satırı tutarıyla birlikte
-  > yerinde kalır, kime ait olduğu okunamaz hale gelir. Basit bir silme yazılırsa ya yasal
-  > kayıt kaybolur ya da yabancı anahtarlar kırılır.
-- **Müşterinin kendi verisini indirmesi** — küçük bir uç, yukarıdakinin yanında yazılır
+> **Araştırma yapıldı, kararlar ona göre verildi.** Kaynaklar bölüm sonunda.
+> ⚠️ Bir öneri araştırma sonucu **DEĞİŞTİ**: kısmi iadede kargo bedeli
+> "geri verilmez" denmişti; mevzuat tam caymada teslim masraflarının da iadesini
+> **zorunlu** tutuyor (2B-K5).
+
+---
+
+### 2H — Bildirim altyapısı  ← **ilk iş**
+
+> ⚠️ **Faz 1'in görülmemiş eksiği.** Sipariş onay maili bile yok; `mailpit`
+> compose'da duruyor ama tek satır kod yazılmadı. Bu, e-ticarette
+> "müşteri parasını verdi ve hiçbir şey duymadı" demek.
+
+**2H-K1 · Mail KUYRUKTA gider.**
+> Müşteri bekletilmez. 1F'deki gerekçenin aynısı: mailin bir saniye geç gitmesi
+> zararsız, isteğin bir saniye uzaması vitrini yavaşlatır.
+
+**2H-K2 · Mail düşerse İŞ BOZULMAZ.**
+> ⚠️ 1F-K3'ün tekrarı. Mail gitmemesi kötü, sipariş oluşamaması felaket.
+> Kuyruk zaten tekrar deniyor.
+
+**2H-K3 · Şablonlar KODDA, marka yalnızca değişkenleri değiştirir.**
+> Logo, ad, imza markadan; metin ve düzen kodda. Yasal metinler gibi
+> **sürümlenmesine gerek yok** — mail geçmişe dönük bir dayanak değil (1A.4).
+> Panelden serbest metin düzenleme Faz 4'ün işi.
+
+**2H-K4 · İlk dört mail:** sipariş onayı · ödeme başarısız · kargoya verildi · teslim edildi.
+
+**Tablolar:** — (kuyruk yeterli)
+**Bitiş ölçütü:** dört mail gidiyor · kuyrukta gidiyor · mail düşünce sipariş
+etkilenmiyor · doğru markanın ayarlarıyla üretiliyor (M-2.4)
+
+---
+
+### 2G — KVKK: anonimleştirme ve veri indirme
+
+> **Araştırma:** Magento ve WooCommerce **ikisi de** aynı yolu tutuyor —
+> sipariş muhasebe için saklanıyor, kişisel alanlar anonimleştiriliyor.
+> Magento anonimleşen siparişi **"misafir siparişi"ne** çeviriyor.
+
+**2G-K1 · SİLME DEĞİL ANONİMLEŞTİRME.**
+
+```
+customers        ad · e-posta · telefon      → tanınmaz hale
+addresses        tamamı                       → tanınmaz hale
+orders           shipping_* · billing_* · email  ← ⚠️ ASIL İŞ BURADA
+order_items      dokunulmaz (tutar, sku, adet kalır)
+```
+
+> ⚠️ Sipariş bir **fotoğraf**: adres müşteri defterinden değil, siparişin kendi
+> kopyasından okunuyor (1D). Yalnızca `customers` temizlenseydi kişisel veri
+> siparişlerde olduğu gibi kalırdı — ve kimse fark etmezdi.
+>
+> ⚠️ `DELETE` yazılsaydı ya yasal kayıt kaybolur ya yabancı anahtar kırılırdı.
+
+**2G-K2 · Anonimleşen sipariş MİSAFİR SİPARİŞİNE dönüşür.**
+> `customer_id → null`. Yapı zaten hazır: misafir siparişi Faz 1'den beri var
+> (M-1) ve `orders.customer_id` nullable.
+
+**2G-K3 · Misafir de talep edebilir: e-posta + sipariş numarası.**
+> ⚠️ Doğrulama maili şart. Olmasaydı sipariş numarası tahmin eden biri
+> (numaralar ardışık, 1D-K4) başkasının verisini sildirebilirdi.
+
+**2G-K4 · İşlem GERİ ALINAMAZ; talebin kendisi kayda geçer.**
+> Ne zaman, hangi sipariş kapsamında — ama **kişisel veri olmadan**.
+> "Sildim mi silmedim mi" sorusunun cevabı kalmalı.
+
+**2G-K5 · Müşteri kendi verisini indirir — makine okunur.**
+> Küçük bir uç; anonimleştirmenin yanında yazılıyor.
+
+**Tablolar:** `data_requests` (talep izi)
+**Bitiş ölçütü:** anonimleştirme sonrası siparişin tutarı ve satırları duruyor ·
+kişisel alanların hiçbiri okunamıyor · `events` zaten temiz (1F-K4) · misafir
+talebi doğrulama maili olmadan işlemiyor
+
+---
+
+### 2B — İade ve cayma hakkı  ← **en zor blok**
+
+**2B-K1 · İADE TALEBİ ile PARA İADESİ AYRI ŞEYLERDİR.**
+
+```
+iade talebi   müşteri "geri göndereceğim" der   ürün YOLDA
+para iadesi   marka onaylar, para gider          stok geri girer
+```
+
+> ⚠️ Karıştırılırsa ya para ürün gelmeden gider ya stok gelmeden açılır.
+> **Magento da ayırmış:** kredi notu ekranında "stoğa geri" ayrı bir onay kutusu.
+
+**2B-K2 · 14 gün TESLİM GÜNÜNDEN başlar.**
+> Mevzuat açık: süre tüketicinin **malı teslim aldığı** gün başlıyor; malın
+> **taşıyıcıya teslimi süreyi BAŞLATMIYOR**.
+>
+> ⚠️ Bizde bu `fulfillments.delivered_at` demek — `orders.placed_at` değil.
+> Sipariş tarihinden sayılsaydı kargoda geçen her gün müşterinin hakkından
+> yenirdi.
+>
+> ⚠️ **Kısmi sevkiyatta her paketin kendi teslim tarihi var** (1D.4). Süre
+> paket paket işliyor.
+
+**2B-K3 · İade SATIR SATIR yapılır — tutar yazılarak değil.**
+> **Magento'nun modeli:** kredi notunda satırlar seçiliyor.
+> ⚠️ Tutar bazlı olsaydı verginin hangi satırdan düştüğü bilinemez, KDV hesabı
+> tutmazdı.
+
+**2B-K4 · Vergi YENİDEN HESAPLANMAZ; seçilen satırın vergisi geri döner.**
+> Magento da böyle yapıyor. Vergi dâhil fiyatlandırmada (§8.2) satırın vergisi
+> zaten donmuş durumda — yeniden hesaplamak kuruş kaydırırdı.
+
+**2B-K5 · ⚠️ TAM CAYMADA KARGO BEDELİ DE GERİ VERİLİR.**
+
+> **Bu madde araştırma sonucu DEĞİŞTİ.** İlk öneri "kısmi iadede kargo geri
+> verilmez, tam iptalde verilir" idi; mevzuat daha katı:
+> satıcı **teslim masrafları dâhil tahsil edilen tüm ödemeleri** iade etmekle
+> yükümlü.
+>
+> ⚠️ Ayrıca **süre işliyor:** malın iade taşıyıcısına verilmesinden itibaren
+> 14 gün içinde para geri gitmiş olmalı.
+>
+> Kısmi iadede operatör belirliyor (Magento'da da ayrı alan) — ama tam caymada
+> seçenek yok.
+
+**2B-K6 · Stok OTOMATİK geri girmez.**
+> Ayrı onay: ürün gerçekten geldi mi, satılabilir mi? Otomatik olsaydı
+> hiç gelmeyen ürün satışa açılırdı.
+
+**2B-K7 · Sağlayıcıya iade çağrısı İDEMPOTANSLIK ANAHTARI taşır.**
+> ⚠️ 1E-K4'ün tekrarı — bu sefer para **geri** giderken. İki kez iade,
+> iki kez tahsilattan beter.
+
+**Tablolar:** `returns` · `refunds`
+**Bitiş ölçütü:** kısmi iade satır bazlı çalışıyor · vergi doğru geri dönüyor ·
+tam caymada kargo iade ediliyor · stok yalnızca onayla geri giriyor · aynı iade
+iki kez çağrılamıyor · 14 gün teslim tarihinden hesaplanıyor
+
+---
+
+### 2A — Kupon
+
+**2A-K1 · Kargo eşiği İNDİRİMDEN SONRAKİ tutara bakar. (ayarlanabilir)**
+
+```
+A  indirim → eşik    480₺ −%20 = 384₺ → eşiğin altında → kargo VAR   ← varsayılan
+B  eşik → indirim    480₺ eşiği geçti → kargo YOK → sonra indirim
+```
+
+> ⚠️ **Bu kuruş değil YÜZDE kaybettirir.**
+> **Araştırma:** WooCommerce'in varsayılanı da A — ama bunu bir **ayar** yapmış
+> ve konuyla ilgili en az iki hata kaydı açılmış; yani satıcılar anlaşamıyor.
+> Biz de aynısını yapıyoruz: varsayılan A, `settings`'te bayrak.
+
+**2A-K2 · Sipariş başına TEK kupon.**
+> Üst üste binme (stacking) Faz 2'de yok. İki kupon aynı anda uygulanınca
+> "hangisi önce" sorusu doğuyor ve indirim beklenenden büyük çıkabiliyor.
+
+**2A-K3 · Kullanım sınırı SATIR KİLİDİYLE korunur.**
+> ⚠️ 1D-K5'in tekrarı: "acaba kullanılmış mı" kontrolü yarışı çözmez. Son bir
+> kullanımı kalan kupon, aynı anda gelen iki istekte iki kez kullanılırdı —
+> hatasız.
+
+**2A-K4 · Kupon kodu ve tutarı SİPARİŞE KOPYALANIR.**
+> ⚠️ "Sipariş bir fotoğraftır" ilkesi (1D). Kupon sonradan silinse bile sipariş
+> neyle indirildiğini söyleyebilmeli.
+
+**Tablolar:** `coupons` · `coupon_redemptions` (+ `orders.discount_total` zaten var)
+**Bitiş ölçütü:** yüzde/sabit/ücretsiz kargo çalışıyor · eşik sırası ayarla
+değişiyor · son kullanım eşzamanlı iki istekte bir kez tükeniyor · sipariş
+kuponsuz da okunabiliyor
+
+---
+
+### 2C — Arama
+
+**2C-K1 · PostgreSQL'İN KENDİ ARAMASI — dış servis yok.**
+
+```
+LIKE '%kelime%'     indeks kullanmaz, ölçekte çöker
+PostgreSQL FTS      Türkçe sözlük HAZIR, tsvector + GIN     ← seçilen
+pg_trgm             yazım hatası toleransı                   ← birlikte
+Meilisearch/ES      ayrı servis, ayrı bakım — Faz 2'ye fazla
+```
+
+> **Araştırma:** üretimde ikisi birlikte kullanılıyor — FTS kelime için,
+> trigram hata için ("tişort" → "tişört").
+
+**2C-K2 · Hız ÖLÇÜLÜR, varsayılmaz.**
+> ⚠️ İndekssiz `similarity()` her satırı tarıyor. 1B'de `text_pattern_ops`
+> ölçümünde aynı tuzağa düşmüştük: sorgu çalışır, sessizce tam tarama yapar.
+
+**2C-K3 · ⚠️ Türkçe küçük harf tuzağı burada TEKRAR çıkacak.**
+> `KIRMIZI` → `kirmizi` ama `Kırmızı` → `kırmızı` (1B'de ölçüldü). Arama
+> normalleştirmesi `EmailNormalizer`'daki dersi tekrarlamalı.
+
+★ `search_performed` olayı ilk üreticisine kavuşuyor (1F).
+
+**Bitiş ölçütü:** çok kelimeli arama çalışıyor · yazım hatası tolere ediliyor ·
+sorgu planı indeks kullanıyor (ölçüldü) · Türkçe karakterde tutarlı
+
+---
+
+### 2D — Koleksiyon
+
+**2D-K1 · Manuel liste VE kural birlikte.**
+> 1B-K7'de not düşülmüştü: koleksiyon "nerede göstereyim" sorusudur, kategori
+> "bu nedir". Ürün tek kategoride, çok koleksiyonda.
+
+**2D-K2 · Kural SORGU ANINDA çalışır — önceden hesaplanmaz.**
+> ⚠️ Saklanan liste, fiyat değişince **bayatlar ve kimse fark etmez**.
+> "250₺ altı" koleksiyonunda 400₺'lik ürün durur.
+> Ölçekte yavaşlarsa materyalleştirme + tazeleme işi ayrı karar olur.
+
+**Tablolar:** `collections` · `collection_product`
+**Bitiş ölçütü:** manuel ve kurallı koleksiyon çalışıyor · fiyat değişince
+kurallı koleksiyon kendiliğinden güncelleniyor
+
+---
+
+### 2E — Yorum ve puan
+
+**2E-K1 · Yalnızca SATIN ALAN yazabilir.**
+> Sipariş kontrolü. Herkese açık olsaydı rakip ve bot yorumu kaçınılmazdı.
+
+**2E-K2 · Yorum ONAY BEKLER, otomatik yayınlanmaz.**
+> ⚠️ Markanın sorumluluğu: hakaret veya kişisel veri içeren yorum vitrinde
+> anında görünmemeli.
+
+**2E-K3 · Ortalama puan sayacı GECE DENETLENİR.**
+> ⚠️ `committed` sayacının aynısı (1D.5): materyalleştirilmiş sayının bedeli
+> denetimdir. Onarmaz, **haber verir** — kendiliğinden düzeltseydi sayacı hangi
+> kod yolunun bozduğu hiç görünmezdi.
+
+**Tablolar:** `reviews` (+ `products.rating_avg`, `rating_count`)
+**Bitiş ölçütü:** satın almayan yazamıyor · onaysız yorum vitrinde yok ·
+ortalama denetimle doğrulanıyor
+
+---
+
+### 2F — Terk edilmiş ödeme
+
+**2F-K1 · Sepet DEĞİL, ödemesi yarım kalmış SİPARİŞ hedeflenir.**
+
+> ⚠️ Sınır dürüstçe kabul ediliyor: misafirin e-postasını **ancak ödeme
+> adımında** öğreniyoruz. Sepette e-posta alanı yok.
+>
+> **Araştırma:** WooCommerce eklentileri de aynı sorunla boğuşuyor — seçenekleri
+> *hiç kaydetme · ödeme sayfasında e-posta girilince yakala · açılır pencereyle
+> önceden iste.* Bizim tek POST'luk checkout'umuzda ara yakalama yok.
+>
+> Ama elimizde **daha güçlü** bir sinyal var: `pending` kalmış siparişler.
+> Orada e-posta zaten dolu (1D: misafir siparişinde bile zorunlu). Daha az
+> kayıt, çok daha yüksek dönüşüm.
+
+**2F-K2 · Olay kaydını İLK KEZ TÜKETEN iş bu.**
+> 1F'de "tüketicisi şu an yok" diye yazılmıştı; burada kavuşuyor.
+
+**2F-K3 · Hatırlatma BİR KEZ gider.**
+> ⚠️ Zamanlanmış görev `tenants:run` ile sarılır (0.5, 5. tuzak) ve gönderilen
+> hatırlatma işaretlenir — yoksa her koşumda aynı müşteriye tekrar gider.
+
+**Bitiş ölçütü:** ödemesi yarım kalan siparişe bir kez hatırlatma gidiyor ·
+ödenmiş siparişe gitmiyor · iki markada karışmıyor
+
+---
+
+##### Bu kararların dayandığı kaynaklar
+
+> · **Mevzuat** — [Mesafeli Sözleşmeler / cayma hakkı](https://tuketici.ticaret.gov.tr/yayinlar/tuketici-bilgi-rehberi/mesafeli-sozlesmeler-hakkinda-bilgilendirme)
+>   (14 gün **teslimden** başlar; taşıyıcıya teslim süreyi başlatmaz; teslim
+>   masrafları dâhil tüm ödemeler iade edilir)
+> · **Magento** — [kredi notu](https://experienceleague.adobe.com/en/docs/commerce-admin/stores-sales/order-management/credit-memos/credit-memo-create)
+>   (satır bazlı iade · vergi yeniden hesaplanmaz · kargo ayrı alan · "stoğa
+>   geri" ayrı kutu) · [GDPR anonimleştirme](https://www.scommerce-mage.com/magento-2-gdpr.html)
+> · **WooCommerce** — [ücretsiz kargo](https://woocommerce.com/document/free-shipping/)
+>   ve tartışma kayıtları [#17274](https://github.com/woocommerce/woocommerce/issues/17274) ·
+>   [#11232](https://github.com/woocommerce/woocommerce/issues/11232)
+>   (eşik varsayılan olarak **indirimden sonraki** tutara bakıyor, ama ayar) ·
+>   [GDPR](https://condorito.fr/docs/woocommerce-manual/clients-rgpd.html) ·
+>   [terk edilmiş sepet](https://woocommerce.com/document/abandoned-cart-recovery/)
+> · **PostgreSQL** — [metin arama](https://www.postgresql.org/docs/current/textsearch-controls.html)
+>   (Türkçe sözlük hazır) · [pg_trgm](https://www.postgresql.org/docs/current/pgtrgm.html)
+>   (yazım hatası toleransı)
+
+---
 
 ## Faz 3 — Satılabilirlik  *(henüz açılmadı)*
 

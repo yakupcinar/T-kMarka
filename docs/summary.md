@@ -763,8 +763,43 @@ FAZ 1'İN TAŞIYICI DERSİ, altı blokta da aynı çıktı:
     veritabanı tetiği > "yasal metni UPDATE etmeyi unutma"
     sabit kilit sırası > "deadlock'a dikkat et"
 
-SIRADAKİ: Faz 2 — kampanya · kupon · iade · arama · yorum · koleksiyon
-          + M-1'den devir: cayma hakkı (14 gün) · KVKK veri silme
-            (⚠️ DELETE değil ANONİMLEŞTİRME — sipariş yasal saklama
-             süresince silinemez) · müşterinin verisini indirmesi
+FAZ 2 AÇIK — 32 karar plana yazıldı, hepsi araştırmayla
+
+  sıra: 2H bildirim → 2G kvkk → 2B iade → 2A kupon → 2C arama
+        → 2D koleksiyon · 2E yorum · 2F terk edilmiş ödeme
+
+  2H  ⚠️ FAZ 1'İN GÖRÜLMEMİŞ EKSİĞİ: sipariş onay maili bile yok.
+      İade bildirimi, hatırlatma, veri indirme — hepsi buna bağlı.
+      mail kuyrukta gider · düşerse iş bozulmaz · şablon kodda
+
+  2G  SİLME DEĞİL ANONİMLEŞTİRME. Magento ve WooCommerce de böyle:
+      sipariş muhasebe için kalır, kişisel alanlar tanınmaz olur.
+      ⚠️ ASIL İŞ orders'taki KOPYA adreslerde — sipariş bir fotoğraf,
+        yalnızca customers temizlense veri siparişlerde kalırdı
+      anonimleşen sipariş MİSAFİR siparişine dönüşüyor
+
+  2B  ★ EN ZOR. İade talebi ≠ para iadesi (Magento'da da ayrı kutu).
+      14 gün TESLİM gününden (mevzuat: taşıyıcıya teslim başlatmaz)
+        → bizde fulfillments.delivered_at, kısmi sevkte paket paket
+      satır bazlı iade · vergi yeniden hesaplanmaz, satırınki döner
+      ⚠️ ÖNERİ ARAŞTIRMAYLA DEĞİŞTİ: tam caymada KARGO DA GERİ —
+        mevzuat teslim masrafları dâhil tüm ödemelerin iadesini
+        zorunlu tutuyor. "Kısmi iadede kargo geri verilmez" yanlıştı.
+      stok otomatik geri girmez · iade çağrısı idempotanslık taşır
+
+  2A  kargo eşiği İNDİRİMDEN SONRAKİ tutara bakar (WooCommerce de
+        böyle — ama ayar yapmış, iki hata kaydı açılmış; biz de ayar)
+      tek kupon · kullanım sınırı SATIR KİLİDİYLE (1D-K5 tekrarı)
+      kupon kodu siparişe KOPYALANIR (fotoğraf ilkesi)
+
+  2C  PostgreSQL'in kendisi: Türkçe sözlük hazır + pg_trgm ile
+      yazım hatası toleransı. Dış servis yok.
+      ⚠️ hız ÖLÇÜLÜR · Türkçe küçük harf tuzağı tekrar çıkacak
+
+  2D  kural SORGU ANINDA — saklanan liste fiyat değişince bayatlar
+  2E  satın alan yazar · onay bekler · puan sayacı GECE DENETLENİR
+  2F  sepet değil "terk edilmiş ÖDEME": misafirin e-postasını ancak
+      ödeme adımında öğreniyoruz. WooCommerce eklentileri de aynı
+      sorunla boğuşuyor. pending sipariş daha güçlü sinyal.
+      ★ 1F olaylarını İLK TÜKETEN iş
 ```
