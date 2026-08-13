@@ -11,6 +11,7 @@ use App\Http\Panel\OrderController;
 use App\Http\Panel\PaymentSettingsController;
 use App\Http\Panel\ProductController;
 use App\Http\Panel\ReturnController as PanelIade;
+use App\Http\Panel\ReviewController;
 use App\Http\Panel\RoleController;
 use App\Http\Panel\SettingsController;
 use App\Http\Panel\StaffController;
@@ -28,6 +29,7 @@ use App\Http\Storefront\PaymentReturnController;
 use App\Http\Storefront\PaymentWebhookController;
 use App\Http\Storefront\PrivacyController;
 use App\Http\Storefront\ReturnController as VitrinIade;
+use App\Http\Storefront\ReviewController as StorefrontReviewController;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
@@ -129,6 +131,15 @@ Route::middleware([
             | hesaplanıyor — bu uçtan bakıldığında hiçbir fark yok, fark
             | fiyat değişince ortaya çıkıyor: liste kendiliğinden güncel.
             */
+            /*
+            | YORUMLAR (2E). Okuma herkese açık, YAZMA `auth:customer`
+            | arkasında — aşağıdaki müşteri bloğunda.
+            |
+            | ⚠️ Misafir yorum yazamıyor: kimlik yok, "bu kişi gerçekten
+            | aldı mı" sorusu cevaplanamaz. Bu bir SINIR, gizlenmiyor.
+            */
+            Route::get('/products/{slug}/reviews', [StorefrontReviewController::class, 'index']);
+
             Route::get('/collections', [StorefrontCollectionController::class, 'index']);
             Route::get('/collections/{slug}', [StorefrontCollectionController::class, 'show']);
 
@@ -224,6 +235,12 @@ Route::middleware([
         Route::middleware('auth:customer')->group(function () {
             Route::post('/logout', [VitrinAuth::class, 'logout']);
             Route::get('/me', [VitrinAuth::class, 'me']);
+
+            /*
+            | YORUM YAZMA (2E-K1). Satın alma kanıtı [PurchaseProof]'ta —
+            | burada değil: kontrol HTTP dışından da atlanmamalı.
+            */
+            Route::post('/products/{slug}/reviews', [StorefrontReviewController::class, 'store']);
 
             /*
             | ADRES DEFTERİ.
@@ -362,6 +379,17 @@ Route::middleware([
                 | ⚠️ `GET /products` kuralın ŞU AN ne getirdiğini gösteriyor
                 | — marka kuralını kaydetmeden sonucunu görebilmeli.
                 */
+                /*
+                | YORUM MODERASYONU (2E-K2).
+                |
+                | ⚠️ `product.write` arkasında: yorum ürünün vitrin
+                | içeriğidir. Ayrı izin açılsaydı üç sistem rolünün
+                | hiçbirinde bulunmaz, pratikte yalnızca sahip yapabilirdi.
+                */
+                Route::get('/reviews', [ReviewController::class, 'index']);
+                Route::post('/reviews/{review}/approve', [ReviewController::class, 'approve']);
+                Route::post('/reviews/{review}/reject', [ReviewController::class, 'reject']);
+
                 Route::get('/collections', [CollectionController::class, 'index']);
                 Route::post('/collections', [CollectionController::class, 'store']);
                 Route::put('/collections/{collection}', [CollectionController::class, 'update']);

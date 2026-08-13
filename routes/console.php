@@ -61,3 +61,17 @@ Schedule::command('tenants:run stok:rezervasyon-temizle')
 Schedule::command('tenants:run stok:sayac-denetle')
     ->dailyAt('03:30')
     ->withoutOverlapping();
+
+/*
+| PUAN SAYACI DENETİMİ — gecelik. (2E-K3)
+|
+| `stok:sayac-denetle`'nin ikizi: `rating_avg` / `rating_count` onaylı
+| yorumların özeti olmak zorunda. Bir onay/red geçişinde tazeleme
+| atlanırsa vitrinde yanlış puan görünür ve bu HATA VERMEZ.
+|
+| ⚠️ Stok denetiminden 15 dk sonra: ikisi aynı anda koşup aynı markanın
+| bağlantı havuzunu birlikte tüketmesin.
+*/
+Schedule::command('tenants:run puan:sayac-denetle')
+    ->dailyAt('03:45')
+    ->withoutOverlapping();

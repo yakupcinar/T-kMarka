@@ -134,6 +134,30 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   yalnızca kayıt *değiştiğinde* yazılır; migration'dan önceki satırlar boş kalır
   ve bu **hata vermez**. 2C'de arama, mevcut hiçbir ürünü bulmuyordu — vitrin
   çalıştığı için fark edilmesi zordu. `php artisan tenants:run "search:reindex"`.
+- **Her cevap JSON — `Accept` başlığı OLMAYAN istemci 500 alıyordu.** Laravel
+  kimliksiz HTML isteğini `login` rotasına yönlendirmeye çalışıyor; arayüz
+  olmadığı için (M-3) öyle bir rota yok. **425 testin hiçbiri yakalamadı**:
+  `postJson`/`getJson` başlığı otomatik ekliyor, gerçek `curl` koşusu ortaya
+  çıkardı. Çözüm `app/Http/Middleware/ForceJson.php` (istek düzeyinde başlık).
+  ⚠️ `shouldRenderJsonWhen` ve `$exceptions->render(AuthenticationException)`
+  ikisi de denendi, **ikisi de çözmedi** — Laravel bu istisnayı kullanıcı geri
+  çağırmalarından önce eşliyor. Test: `tests/Tenancy/JsonCevapTest.php`, ve o
+  dosyada `postJson` KULLANILMAZ (kullanılırsa hiçbir şey ölçmez).
+- **Docker Desktop bir dosyayı konteynerde OKUNAMAZ hâle getirebiliyor.**
+  Belirti: `hash_file(): … errno=35 Resource deadlock avoided` — phpstan
+  başlamadan düşüyor, hangi dosya olduğunu söylemiyor. Host'ta dosya
+  sorunsuz okunuyor. Bulmak için konteyner içinden tara:
+  ```
+  docker compose exec -T app php -r '$it=new RecursiveIteratorIterator(new RecursiveDirectoryIterator("/var/www/html/app")); foreach($it as $f){ if($f->isFile() && @hash_file("sha256",$f->getPathname())===false) echo $f->getPathname(),PHP_EOL; }'
+  ```
+  Çözüm: dosyayı **sil ve yeniden yaz** (inode değişsin). `touch` ve konteyner
+  yeniden başlatma yetmiyor — ikisi de denendi.
+- **`<>` ile `IS DISTINCT FROM` aynı şey DEĞİL.** SQL'de `null <> null` sonucu
+  `null`'dur — yani "farklı" sayılmaz ve satır `WHERE`/`HAVING`'den sessizce
+  düşer. 2E'de denetim sorgusunda ısırdı: yorumu olmayan ürünlerdeki sayaç
+  bozukluğu (`rating_avg` dolu ama olması gereken `null`) denetimden tamamen
+  kaçıyordu. Karşılaştırılan iki taraftan biri `null` olabiliyorsa
+  `IS DISTINCT FROM` kullan.
 - **Yeni PostgreSQL uzantısı İKİ yere yazılır.** `docker/postgres/init.sql`
   (yerel) **ve** `.github/workflows/ci.yml` (CI servis konteynerinde init.sql
   yok). 2C'de ikincisi unutuldu: yerelde 396 test yeşil, CI kırmızı — uzantı

@@ -822,7 +822,29 @@ FAZ 2 AÇIK — 32 karar plana yazıldı, hepsi araştırmayla
       sınıf adı ProductCollection — Laravel'in Collection'ıyla çakışmasın
       ★ beş kırma denemesi, beşi de doğru testi düşürdü (2C'nin dersi)
 
-  2E  satın alan yazar · onay bekler · puan sayacı GECE DENETLENİR
+  2E  ✅ BİTTİ — satın alan yazar · onay bekler · sayaç GECE DENETLENİR
+      "satın aldı" DEĞİL "TESLİM ALDI" — ödeme yetmez, kargodaki ürün
+        hakkında yorum deneyim değil BEKLENTİ olurdu
+        teslim tespiti WithdrawalWindow'dan, kopya yazılmadı (1D.4 inceliği)
+      iade edilmiş sipariş SAYILIYOR — memnun olmayan susturulmasın
+      misafir yazamaz: kimlik yok, bu bir SINIR, gizlenmiyor
+      ürün başına TEK yorum, SİLİNMİŞİ de sayılarak
+        (sayılmasaydı sil-yaz ile kota sonsuz, kısıt 500 verirdi)
+      puan aralığı VERİTABANINDA da kısıtlı (CHECK 1..5)
+      vitrinde ad kısaltılıyor "Ahmet Y." · moderation_note hiç yok
+      sayaç artırma DEĞİL yeniden hesaplama · onayda VE reddetmede
+      ⚠️ IS DISTINCT FROM, <> değil — null<>null null döner, yorumsuz
+        üründeki bozukluk sessizce denetimden kaçardı
+      ★ kırma denemesi bir testin YALANINI ortaya çıkardı: "onaysız
+        ortalamaya girmiyor" testi aslında hiçbir şey ölçmüyordu
+      ★★ 2E'nin EN BÜYÜK bulgusu 2E'yle ilgili değil: HER CEVAP JSON
+        DEĞİLMİŞ. Accept başlığı olmayan istemci korumalı uçta 500
+        alıyordu (Laravel login rotasına yönlendiriyor, arayüz yok).
+        425 testin hiçbiri yakalamadı — hepsi postJson kullanıyor,
+        başlığı otomatik ekliyor. Gerçek curl koşusu ortaya çıkardı.
+        shouldRenderJsonWhen ve istisna eşlemesi denendi, İKİSİ DE
+        çözmedi → app/Http/Middleware/ForceJson.php
+        test: tests/Tenancy/JsonCevapTest.php (postJson KULLANMIYOR)
   2F  sepet değil "terk edilmiş ÖDEME": misafirin e-postasını ancak
       ödeme adımında öğreniyoruz. WooCommerce eklentileri de aynı
       sorunla boğuşuyor. pending sipariş daha güçlü sinyal.

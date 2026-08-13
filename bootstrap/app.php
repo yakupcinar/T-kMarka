@@ -24,10 +24,13 @@ use App\Domain\Promotion\InvalidCouponException;
 use App\Domain\Returns\OverReturnException;
 use App\Domain\Returns\ReturnNotRefundableException;
 use App\Domain\Returns\ReturnWindowClosedException;
+use App\Domain\Review\DuplicateReviewException;
+use App\Domain\Review\NotPurchasedException;
 use App\Domain\Settings\SettingLockedException;
 use App\Domain\Settings\StoreNotReadyException;
 use App\Domain\Stock\InsufficientStockException;
 use App\Domain\Stock\StockLockTimeoutException;
+use App\Http\Middleware\ForceJson;
 use App\Http\Middleware\RequireOwner;
 use App\Http\Middleware\RequirePermission;
 use App\Http\Middleware\RequirePublishedStore;
@@ -75,6 +78,17 @@ return Application::configure(basePath: dirname(__DIR__))
             '172.16.0.0/12',
             '192.168.0.0/16',
         ]);
+
+        /*
+        | ★ HER CEVAP JSON — ölçülerek eklendi (2E).
+        |
+        | `Accept: application/json` göndermeyen bir istemci korumalı bir
+        | uca vurduğunda Laravel `login` rotasına yönlendirmeye çalışıyor;
+        | arayüz olmadığı için (M-3) öyle bir rota yok ve 500 dönüyor.
+        | Gerekçenin tamamı [ForceJson]'da — `shouldRenderJsonWhen` ve
+        | istisna eşlemesinin ikisi de denendi, ikisi de çözmedi.
+        */
+        $middleware->prepend(ForceJson::class);
 
         /*
         | Rotalarda `izin:staff.manage` şeklinde kullanılabilmesi için takma ad.
@@ -317,6 +331,26 @@ return Application::configure(basePath: dirname(__DIR__))
         */
         $exceptions->render(function (CollectionRuleException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
+        });
+
+        /*
+        | Satın almamış müşteri yorum yazamaz → 403. (2E-K1)
+        |
+        | ⚠️ 404 DEĞİL: ürün var ve görünüyor, eksik olan YETKİ.
+        | ⚠️ 422 de değil: gönderilen veri geçerli.
+        */
+        $exceptions->render(function (NotPurchasedException $e) {
+            return response()->json(['message' => $e->getMessage()], 403);
+        });
+
+        /*
+        | Aynı ürüne ikinci yorum → 409.
+        |
+        | ⚠️ DURUM sorunu: veri geçerli, yetki var; engelleyen şey mevcut
+        | kayıt. Veritabanı kısıtına bırakılsaydı müşteri 500 görürdü.
+        */
+        $exceptions->render(function (DuplicateReviewException $e) {
+            return response()->json(['message' => $e->getMessage()], 409);
         });
 
         $exceptions->render(function (ReturnWindowClosedException $e) {

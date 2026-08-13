@@ -2597,6 +2597,104 @@ taslak ürün vitrinde **çıkmadı** (`forStorefront` — 1B-K10).
 **Bitiş ölçütü:** satın almayan yazamıyor · onaysız yorum vitrinde yok ·
 ortalama denetimle doğrulanıyor
 
+#### 2E — BİTTİ ✅ (14 test)
+
+Kod: `app/Domain/Review/` (`ReviewService`, `PurchaseProof`, `RatingCounter`,
+iki istisna) · `app/Models/Review.php` · `app/Enums/ReviewStatus.php` ·
+`app/Console/Commands/AuditRatingCounters.php` ·
+`app/Http/{Storefront,Panel}/ReviewController.php` ·
+`database/migrations/tenant/2026_08_13_120000_create_reviews_table.php` ·
+`tests/Tenancy/ReviewTest.php`
+
+**2E-K1 netleşti: "satın aldı" değil "TESLİM ALDI".**
+> Ödemeyle yetinilseydi kargodaki ürün hakkında yorum yazılırdı — ürün
+> deneyimi değil, beklenti olurdu. Teslim tespiti `WithdrawalWindow::teslimTarihi()`'nden
+> geliyor, kopyası yazılmadı: orada iptal edilmiş paketlerin sayılmaması gibi
+> ölçülmüş bir incelik var (1D.4). İki kopya olsaydı biri düzeltilir, diğeri
+> sessizce eski davranışta kalırdı.
+>
+> ⚠️ **İade edilmiş sipariş SAYILIYOR:** parası geri verilmiş olabilir ama
+> ürünü kullandı. Dışlansaydı memnun olmayan müşteri, tam da yorumu en
+> değerli olan kişi olarak susturulurdu.
+>
+> ⚠️ **Misafir yazamıyor — bu bir SINIR, gizlenmiyor.** Misafir siparişte
+> kimlik yok, "bu kişi gerçekten aldı mı" sorusu cevaplanamaz.
+
+**2E-K4 · ÜRÜN BAŞINA TEK YORUM — silinmişi de sayılarak.**
+> Kısıt olmasaydı aynı müşteri aynı ürüne defalarca 5 yıldız verip ortalamayı
+> tek başına belirlerdi. `withTrashed` şart: bakılmasaydı müşteri yorumunu
+> silip yenisini yazarak kotayı sonsuz kullanır, veritabanı kısıtı
+> `deleted_at`'e bakmadığı için istek 500 ile düşerdi.
+
+**2E-K5 · Puan aralığı VERİTABANINDA da kısıtlı** (`CHECK rating BETWEEN 1 AND 5`).
+> Yalnızca uygulamada doğrulansaydı tohumlayıcı ya da elle yazılan bir satır
+> 7 yıldızlı yorum sokabilir ve ortalama sessizce bozulurdu.
+
+**2E-K6 · Vitrinde ad KISALTILIYOR** ("Ahmet Y."), `moderation_note` hiç yok.
+> Tam ad yazılsaydı müşterinin kim olduğu vitrinde herkese açık olurdu;
+> moderasyon notu personel içindir.
+
+**Sayaç: artırma değil YENİDEN HESAPLAMA.**
+> Artırma yazılsaydı her durum geçişinde (onay → red → onay) ayrı düzeltme
+> gerekirdi ve biri unutulduğunda sayaç sessizce kayardı. Onayda **ve**
+> reddetmede tazeleniyor: yalnızca onayda yazılsaydı geri alınan yorum
+> ortalamada kalır, puan şişik görünürdü.
+
+**⚠️ `IS DISTINCT FROM`, `<>` DEĞİL.**
+> `null <> null` sonucu `null`, yani "farklı" sayılmaz: **yorumu olmayan
+> ürünlerdeki bozukluk sessizce denetimden kaçardı.** Ayrı bir test bunu
+> ölçüyor.
+
+**Gecelik denetim:** `tenants:run puan:sayac-denetle` (03:45, stok
+denetiminden 15 dk sonra — ikisi aynı anda aynı markanın bağlantı havuzunu
+tüketmesin). `stok:sayac-denetle`'nin ikizi: **onarmıyor, haber veriyor.**
+
+**Beş kırma denemesi yapıldı ve BİRİ testlerdeki bir yalanı ortaya çıkardı:**
+
+| kırılan | düşen test |
+|---|---|
+| teslim şartı kalktı | "ödedi ama teslim almadı" |
+| ortalama bekleyenleri de saydı | ⚠️ **hiçbiri** → test düzeltildi |
+| red'de tazeleme yok | onay/red ortalaması |
+| silinmiş yorum sayılmadı | ikinci yorum engeli |
+| `IS DISTINCT FROM` → `<>` | null tuzağı |
+
+> ★ "Onaysız yorum ortalamaya girmiyor" testi aslında **yanlış şeyi
+> ölçüyordu**: sayaç zaten 0'dı çünkü yazma sırasında hiç tazeleme
+> yapılmıyor. Teste açık bir `tazele()` çağrısı eklendi; şimdi kırma
+> denemesi onu düşürüyor. 2C'deki dersin tekrarı.
+
+**★ 2E'NİN EN BÜYÜK BULGUSU 2E İLE İLGİLİ DEĞİL: her cevap JSON değilmiş.**
+
+Gerçek `curl` koşusunda misafirin yorum denemesi **500** döndü; testte 401'di.
+Ölçüldü ve sorunun 2E'ye özel olmadığı görüldü — **bütün korumalı uçlar**:
+
+```
+                              Accept: application/json    başlık YOK
+api/products/{slug}/reviews            401                    500
+api/addresses                          401                    500
+panel/collections                      401                    500
+```
+
+Sebep: Laravel kimliksiz HTML isteğini `login` adlı rotaya yönlendirmeye
+çalışıyor; arayüz olmadığı için (M-3) öyle bir rota yok →
+`RouteNotFoundException` → 500.
+
+⚠️ **425 testin hiçbiri yakalamamıştı.** Hepsi `postJson`/`getJson` kullanıyor
+ve o yardımcılar başlığı otomatik ekliyor. Bu, 1D.6'daki "uçtan uca testte
+kimlik modelden okunmaz" dersinin kardeşi: test istemcisi gerçek istemci gibi
+davranmıyorsa yeşil hiçbir şey kanıtlamaz.
+
+İki çözüm denendi ve **ikisi de çalışmadı** (ölçüldü, ölü kod bırakılmadı):
+`$exceptions->shouldRenderJsonWhen(fn () => true)` cevabı JSON yaptı ama durum
+kodu 500 kaldı; `$exceptions->render(AuthenticationException::class)` hiç
+çalışmadı — Laravel bu istisnayı kullanıcı geri çağırmalarından **önce**
+eşliyor. Çalışan çözüm istek düzeyinde: `app/Http/Middleware/ForceJson.php`.
+
+Test: `tests/Tenancy/JsonCevapTest.php` (3 test) — ve o dosyada `postJson`
+**kullanılmıyor**; kullanılsaydı yeşil olur ama hiçbir şey ölçmezdi. Middleware
+kaldırılınca üçü de düşüyor (doğrulandı).
+
 ---
 
 ### 2F — Terk edilmiş ödeme
