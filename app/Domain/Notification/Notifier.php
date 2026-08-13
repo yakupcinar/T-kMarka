@@ -2,6 +2,7 @@
 
 namespace App\Domain\Notification;
 
+use App\Mail\AbandonedOrderMail;
 use App\Mail\OrderPaidMail;
 use App\Mail\PaymentFailedMail;
 use App\Mail\ShipmentMail;
@@ -34,6 +35,18 @@ class Notifier
     public function odemeBasarisiz(Order $siparis): void
     {
         $this->gonder($siparis->email, new PaymentFailedMail($siparis));
+    }
+
+    /**
+     * Ödemesi yarım kalmış sipariş hatırlatması. (2F)
+     *
+     * ⚠️ `odemeBasarisiz` ile AYRI: orada müşteri denedi ve reddedildi,
+     * burada hiç denemedi. Aynı mail kullanılsaydı vazgeçen müşteri
+     * kartında sorun olduğunu sanırdı.
+     */
+    public function odemeHatirlatmasi(Order $siparis): void
+    {
+        $this->gonder($siparis->email, new AbandonedOrderMail($siparis));
     }
 
     public function kargoBildirimi(Fulfillment $paket): void

@@ -75,3 +75,22 @@ Schedule::command('tenants:run stok:sayac-denetle')
 Schedule::command('tenants:run puan:sayac-denetle')
     ->dailyAt('03:45')
     ->withoutOverlapping();
+
+/*
+| TERK EDİLMİŞ ÖDEME HATIRLATMASI — saatlik. (2F)
+|
+| Ödemesi yarım kalmış siparişe BİR KEZ hatırlatma gider. Gönderim
+| `abandoned_reminded_at` ile işaretleniyor; işaretlenmeseydi bu görev her
+| saat aynı müşteriye tekrar mail atardı.
+|
+| ⚠️ Saatlik yeterli: eşik zaten 60 dakika (rezervasyon süresi). Daha sık
+| koşmak yalnızca aynı pencereyi tekrar taramak olurdu.
+|
+| ⚠️ Üst sınır (72 saat) `AbandonedOrderService`'te ve KRİTİK: kolon
+| sonradan eklendiği için geçmişteki tüm `pending` siparişler
+| "hatırlatılmamış" görünüyor. Sınır olmasaydı ilk koşu aylar öncesine
+| kadar herkese mail atardı.
+*/
+Schedule::command('tenants:run siparis:terk-hatirlat')
+    ->hourly()
+    ->withoutOverlapping();

@@ -2712,8 +2712,21 @@ kaldırılınca üçü de düşüyor (doğrulandı).
 > Orada e-posta zaten dolu (1D: misafir siparişinde bile zorunlu). Daha az
 > kayıt, çok daha yüksek dönüşüm.
 
-**2F-K2 · Olay kaydını İLK KEZ TÜKETEN iş bu.**
-> 1F'de "tüketicisi şu an yok" diye yazılmıştı; burada kavuşuyor.
+**2F-K2 · ⚠️ BU KARAR GERÇEKLE ÇELİŞTİ — DÜZELTİLDİ.**
+
+> Plan "olay kaydını ilk kez tüketen iş bu" diyordu. Uygulayınca öyle
+> **olmadı**: bu işin ihtiyacı olan her şey (`payment_status`, `created_at`,
+> `email`) zaten `orders` tablosunda. Olaylara bakmak ek sorgu getirir ve
+> hiçbir yeni bilgi vermezdi.
+>
+> Zorlanabilecek tek kullanım "müşteri hâlâ sitede geziniyorsa mail gönderme"
+> idi; o da yalnızca **kayıtlı** müşteride çalışırdı (olayda `customer_id`
+> var, misafirde yok) — yani yarım çalışan bir özellik olurdu. Eşik zaten
+> 60 dakika: o kadar süre ödeme yapmayan biri gitmiştir.
+>
+> **`search_performed`** olayı 2C'de gerçek üreticisine kavuştu; olay
+> kaydının ilk gerçek **tüketicisi** markanın rapor ekranı olacak (Faz 3).
+> 1F'de "tüketicisi şu an yok" doğruydu ve hâlâ doğru.
 
 **2F-K3 · Hatırlatma BİR KEZ gider.**
 > ⚠️ Zamanlanmış görev `tenants:run` ile sarılır (0.5, 5. tuzak) ve gönderilen
@@ -2721,6 +2734,71 @@ kaldırılınca üçü de düşüyor (doğrulandı).
 
 **Bitiş ölçütü:** ödemesi yarım kalan siparişe bir kez hatırlatma gidiyor ·
 ödenmiş siparişe gitmiyor · iki markada karışmıyor
+
+#### 2F — BİTTİ ✅ (12 test)
+
+Kod: `app/Domain/Order/AbandonedOrderService.php` ·
+`app/Console/Commands/RemindAbandonedOrders.php` · `app/Mail/AbandonedOrderMail.php` ·
+`resources/views/mail/abandoned-order.blade.php` ·
+`Notifier::odemeHatirlatmasi()` · `routes/console.php` (saatlik) ·
+`database/migrations/tenant/2026_08_13_160000_add_abandoned_reminder_to_orders.php` ·
+`tests/Tenancy/AbandonedOrderTest.php`
+
+**2F-K4 · PENCERE: 60 dakika ile 72 saat arası.**
+
+```
+|---- 60 dk ----|--------- hatırlatma gider ---------|---- 72 saat: YOK ----
+ rezervasyon      sipariş gerçekten terk edilmiş       çok geç ve rahatsız
+ hâlâ ayakta                                            edici
+```
+
+> **Alt eşik** `StockService::ODEME_DAKIKA` ile aynı, tesadüfen değil: daha
+> erken gönderilseydi müşteri hâlâ 3DS ekranında olabilirdi ve "ödemenizi
+> tamamlayın" maili tam ödeme yaparken düşerdi.
+>
+> **★ ÜST SINIR EN ÖNEMLİ KORUMA.** `abandoned_reminded_at` kolonu sonradan
+> eklendi; eklendiği an geçmişteki **bütün** `pending` siparişler
+> "hatırlatılmamış" görünüyor. Sınır olmasaydı görevin ilk koşusu aylar
+> öncesine kadar herkese mail atardı — hata vermeden, tek seferde, geri
+> alınamaz biçimde. (2C'de aynı sınıf hata sessiz bir **eksiklikti**; burada
+> sessiz bir **saldırı** olurdu.)
+
+**2F-K5 · Mail STOK SÖZÜ VERMİYOR.**
+> Rezervasyon 60 dakikada düşüyor (1D-K3) ve mail o süre dolduktan sonra
+> gidiyor. "Ürünleriniz sizin için ayrıldı" demek tutulamayacak bir söz
+> olurdu: ödeme kabul edilse bile stok açığı çıkabilir (1E-K5). Metin
+> "stok durumu o anda kontrol edilecek" diyor ve test bunu ölçüyor.
+
+**2F-K6 · `failed` siparişe GİTMİYOR — ayrı hikâye.**
+> `failed`'da müşteri denedi ve reddedildi (`PaymentFailedMail` gitti),
+> `pending`'de hiç denemedi. İkisine de gönderilseydi müşteri aynı sipariş
+> için çelişkili iki mail alırdı.
+
+**İşaretleme gönderimden ÖNCE, koşullu güncellemeyle.**
+> Sonra işaretlenseydi süreç düştüğünde ikinci mail giderdi. Koşul
+> (`whereNull`) ise 1D-K5'in tekrarı: birden çok `scheduler` konteyneri
+> aynı siparişi görebilir ve `withoutOverlapping` yalnızca kendi süreci için
+> geçerli (0.5'te ölçülmüştü).
+
+**Dört kırma denemesi — biri yine bir testin yalanını ortaya çıkardı:**
+
+| kırılan | düşen test |
+|---|---|
+| üst sınır kalktı | geçmişe mail bombardımanı |
+| alt eşik kalktı | çok yeni sipariş |
+| `failed` de dâhil edildi | ayrı hikâye |
+| işaretleme gönderimden sonraya alındı | ⚠️ **hiçbiri** → test düzeltildi |
+
+> ★ "Yarış koşulu" testi `hatirlat()` üzerinden yazılmıştı ve hiçbir şey
+> ölçmüyordu: `bekleyenler()` zaten işaretlileri eliyor. Gerçek yarışı
+> görebilmek için `hatirlatBir()` public yapıldı ve test iki koşucuyu
+> doğrudan taklit ediyor. **2C ve 2E'deki dersin üçüncü tekrarı.**
+
+**⚠️ Ölü savunma bulundu ve kaldırıldı.** Sorguda `whereNotNull('email')`
+vardı; test `null` yazmayı denedi ve **veritabanı reddetti** — kolon zaten
+`NOT NULL`. Savunma hiçbir şey yapmıyordu. Yerine `!= ''` kondu: boş metin
+geçebiliyor ve gönderim sessizce düşerken sipariş "hatırlatıldı"
+işaretlenirdi.
 
 ---
 

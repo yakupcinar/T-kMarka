@@ -845,8 +845,19 @@ FAZ 2 AÇIK — 32 karar plana yazıldı, hepsi araştırmayla
         shouldRenderJsonWhen ve istisna eşlemesi denendi, İKİSİ DE
         çözmedi → app/Http/Middleware/ForceJson.php
         test: tests/Tenancy/JsonCevapTest.php (postJson KULLANMIYOR)
-  2F  sepet değil "terk edilmiş ÖDEME": misafirin e-postasını ancak
-      ödeme adımında öğreniyoruz. WooCommerce eklentileri de aynı
-      sorunla boğuşuyor. pending sipariş daha güçlü sinyal.
-      ★ 1F olaylarını İLK TÜKETEN iş
+  2F  ✅ BİTTİ — sepet değil "terk edilmiş ÖDEME"
+      pending sipariş daha güçlü sinyal: e-posta zaten dolu (1D)
+      pencere: 60 dk (rezervasyon dolsun) … 72 saat (üst sınır)
+      ★★ ÜST SINIR EN ÖNEMLİ KORUMA: kolon sonradan eklendi, geçmişteki
+        TÜM pending siparişler "hatırlatılmamış" görünüyor. Sınır
+        olmasaydı İLK KOŞU aylar öncesine kadar herkese mail atardı —
+        2C'de aynı sınıf hata sessiz EKSİKLİKTİ, burada sessiz SALDIRI
+      mail STOK SÖZÜ VERMİYOR — rezervasyon zaten düşmüş (1E-K5)
+      failed'a gitmiyor: o PaymentFailedMail aldı, çelişkili iki mail
+      işaretleme gönderimden ÖNCE + koşullu güncelleme (1D-K5 tekrarı)
+      ⚠️ 2F-K2 GERÇEKLE ÇELİŞTİ, plan düzeltildi: olay tüketimi burada
+        zorlama olurdu, her şey zaten orders tablosunda
+      ⚠️ ölü savunma bulundu: whereNotNull('email') — kolon zaten NOT
+        NULL, test null yazmayı deneyince veritabanı reddetti
+      ★ kırma denemesi ÜÇÜNCÜ kez bir testin yalanını ortaya çıkardı
 ```
