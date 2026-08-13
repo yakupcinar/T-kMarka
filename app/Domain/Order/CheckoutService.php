@@ -5,6 +5,7 @@ namespace App\Domain\Order;
 use App\Domain\Analytics\EventRecorder;
 use App\Domain\Cart\CartService;
 use App\Domain\Legal\LegalDocumentService;
+use App\Domain\Notification\Notifier;
 use App\Domain\Settings\SettingsService;
 use App\Domain\Stock\StockService;
 use App\Enums\CartStatus;
@@ -53,6 +54,7 @@ class CheckoutService
         private readonly SettingsService $ayarlar,
         private readonly LegalDocumentService $belgeler,
         private readonly EventRecorder $olaylar,
+        private readonly Notifier $bildirimler,
     ) {}
 
     /**
@@ -182,6 +184,16 @@ class CheckoutService
         $siparis->stock_shortfall = $acikVar;
         $siparis->save();
 
+        /*
+        | ⚠️ SİPARİŞ ONAYI BURADA, `baslat()`'ta DEĞİL (2H).
+        |
+        | Sipariş `pending` doğuyor ve ödemesi hiç tamamlanmayabiliyor.
+        | Oluşma anında gönderilseydi, ödeme sayfasını açıp vazgeçen her
+        | müşteri "siparişiniz alındı" maili alır ve gelmeyecek bir
+        | kargoyu beklerdi.
+        */
+        $this->bildirimler->siparisOnayi($siparis);
+
         return $siparis;
     }
 
@@ -238,6 +250,12 @@ class CheckoutService
 
         $siparis->payment_status = PaymentStatus::Failed;
         $siparis->save();
+
+        /*
+        | ⚠️ 1E.7.3'te ölçülen boşluğu kapatıyor: yetersiz bakiyede müşteri
+        | neden reddedildiğini hiç öğrenemiyordu.
+        */
+        $this->bildirimler->odemeBasarisiz($siparis);
 
         return $siparis;
     }

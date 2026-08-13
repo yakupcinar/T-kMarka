@@ -2,6 +2,7 @@
 
 namespace App\Domain\Order;
 
+use App\Domain\Notification\Notifier;
 use App\Enums\FulfillmentStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\ShipmentStatus;
@@ -25,6 +26,8 @@ use Illuminate\Support\Facades\DB;
  */
 class FulfillmentService
 {
+    public function __construct(private readonly Notifier $bildirimler) {}
+
     /**
      * Paket oluşturur.
      *
@@ -94,6 +97,10 @@ class FulfillmentService
         $paket->shipped_at = now();
         $paket->save();
 
+        // ⚠️ PAKET bazında bildirim: kısmi sevkiyat var, müşteri bu
+        // pakette ne geldiğini görmeli (2H).
+        $this->bildirimler->kargoBildirimi($paket);
+
         return $paket;
     }
 
@@ -102,6 +109,8 @@ class FulfillmentService
         $paket->status = ShipmentStatus::Delivered;
         $paket->delivered_at = now();
         $paket->save();
+
+        $this->bildirimler->kargoBildirimi($paket);
 
         return $paket;
     }

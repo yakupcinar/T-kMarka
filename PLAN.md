@@ -2116,7 +2116,7 @@ ayrı dosyaya taşınmalı.
 
 ---
 
-### 2H — Bildirim altyapısı  ← **ilk iş**
+### 2H — Bildirim altyapısı ✅
 
 > ⚠️ **Faz 1'in görülmemiş eksiği.** Sipariş onay maili bile yok; `mailpit`
 > compose'da duruyor ama tek satır kod yazılmadı. Bu, e-ticarette
@@ -2140,6 +2140,19 @@ ayrı dosyaya taşınmalı.
 **Tablolar:** — (kuyruk yeterli)
 **Bitiş ölçütü:** dört mail gidiyor · kuyrukta gidiyor · mail düşünce sipariş
 etkilenmiyor · doğru markanın ayarlarıyla üretiliyor (M-2.4)
+
+> ✅ **TAMAMLANDI.** `BrandMail` tabanı + üç posta sınıfı + `Notifier`.
+> Gerçek koşu: Mailpit'e `A Markası <destek@ornek.test>` adresinden
+> "Siparişiniz alındı — TM-2026-000013" gitti, gövdede satırlar ve
+> "KDV (dâhil)" doğru.
+>
+> ★ **Sipariş onayı `odemeBasarili()`'de**, `baslat()`'ta değil — sipariş
+> `pending` doğuyor ve ödemesi hiç tamamlanmayabiliyor. Kırmızı kontrol:
+> çağrı `baslat()`'a taşınınca ilgili test kırmızıya döndü.
+>
+> ★ **Gönderen işçide okunuyor**, atış anında gömülmüyor: gömülseydi marka
+> iletişim adresini değiştirdikten sonra kuyrukta bekleyen postalar eski
+> adresle giderdi.
 
 ---
 

@@ -30,39 +30,6 @@ use Illuminate\Database\QueryException;
 | karşılığını verdiği yer (§7).
 */
 
-/**
- * İki satırlı, ÖDENMİŞ bir sipariş üretir.
- */
-function sevkiyatlikSiparis(string $alanAdi): Order
-{
-    markaKur($alanAdi);
-    magazayiHazirla();
-
-    $urunler = app(ProductService::class);
-    $varyantlar = app(VariantService::class);
-    $sepetler = app(CartService::class);
-
-    $tisort = $urunler->olustur(['title' => 'Tişört']);
-    $vTisort = $varyantlar->ekle($tisort, ['sku' => 'TS-1', 'price' => 100, 'stock' => 20]);
-    $urunler->durumDegistir($tisort->refresh(), ProductStatus::Active);
-
-    $kupa = $urunler->olustur(['title' => 'Kupa']);
-    $vKupa = $varyantlar->ekle($kupa, ['sku' => 'KP-1', 'price' => 50, 'stock' => 20]);
-    $urunler->durumDegistir($kupa->refresh(), ProductStatus::Active);
-
-    $sepet = $sepetler->misafirSepetiOlustur();
-    $sepetler->ekle($sepet, $vTisort, 3);
-    $sepetler->ekle($sepet, $vKupa, 2);
-
-    $sozlesme = app(LegalDocumentService::class)
-        ->guncelSurum(LegalDocumentType::DistanceSales);
-
-    $odeme = app(CheckoutService::class);
-    $siparis = $odeme->baslat($sepet, odemeVerisi((int) $sozlesme?->id));
-
-    return $odeme->odemeBasarili($siparis);
-}
-
 it('ödenmemiş sipariş SEVK EDİLEMİYOR', function () {
     markaKur('sevk-a.test');
     magazayiHazirla();
