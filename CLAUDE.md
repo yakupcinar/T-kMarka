@@ -134,6 +134,10 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   yalnızca kayıt *değiştiğinde* yazılır; migration'dan önceki satırlar boş kalır
   ve bu **hata vermez**. 2C'de arama, mevcut hiçbir ürünü bulmuyordu — vitrin
   çalıştığı için fark edilmesi zordu. `php artisan tenants:run "search:reindex"`.
+- **Yeni PostgreSQL uzantısı İKİ yere yazılır.** `docker/postgres/init.sql`
+  (yerel) **ve** `.github/workflows/ci.yml` (CI servis konteynerinde init.sql
+  yok). 2C'de ikincisi unutuldu: yerelde 396 test yeşil, CI kırmızı — uzantı
+  yerelde vardı. "Otorite CI" kuralının ikinci örneği.
 - **Uzantılar `public`'te, marka `search_path`'i onları GÖRMEZ.** Üç kez ısırdı:
   `citext` (1A) · `ltree` (1B) · `pg_trgm` (2C). Hepsi nitelikli yazılmalı —
   `public.similarity`, `public.gin_trgm_ops`, `OPERATOR(public.<%)`. (Türkçe FTS

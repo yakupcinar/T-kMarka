@@ -87,13 +87,21 @@ jobs:
           cp .env.example .env
           php artisan key:generate
 
-      # 5) citext eklentisi. Yerelde docker/postgres/init.sql yapıyordu;
-      #    CI'daki servis konteynerinde o dosya yok, elle kuruyoruz.
-      #    (docs/domain-model.md §0 — e-posta benzersizliği buna dayanıyor)
-      - name: citext eklentisini kur
+      # 5) Uzantılar. Yerelde docker/postgres/init.sql yapıyordu; CI'daki
+      #    servis konteynerinde o dosya yok, elle kuruyoruz.
+      #
+      #    ⚠ İKİ DOSYA AYRI AYRI GÜNCELLENMEK ZORUNDA — bu unutuldu ve CI
+      #      kırıldı: 2C'de `pg_trgm` init.sql'e eklendi, buraya eklenmedi.
+      #      Yerelde 396 test yeşildi çünkü uzantı ORADA vardı. Yerel yeşil
+      #      ≠ CI yeşil kuralının ikinci örneği.
+      #
+      #    citext → docs/domain-model.md §0, e-posta benzersizliği
+      #    pg_trgm → 2C araması, yazım hatası toleransı
+      - name: Uzantıları kur
         run: |
           PGPASSWORD=secret psql -h 127.0.0.1 -U tikmarka -d tikmarka_test \
-            -c "CREATE EXTENSION IF NOT EXISTS citext;"
+            -c "CREATE EXTENSION IF NOT EXISTS citext;" \
+            -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
 
       # 6) Üç kontrol. Biri bile kırılırsa iş kırmızı döner.
       #
