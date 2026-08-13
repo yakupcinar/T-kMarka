@@ -3,6 +3,7 @@
 use App\Domain\Cart\VariantNotPurchasableException;
 use App\Domain\Catalog\CatalogConflictException;
 use App\Domain\Catalog\CatalogRuleException;
+use App\Domain\Catalog\CollectionRuleException;
 use App\Domain\Catalog\EmptySlugException;
 use App\Domain\Identity\RoleInUseException;
 use App\Domain\Identity\SystemRoleException;
@@ -299,6 +300,22 @@ return Application::configure(basePath: dirname(__DIR__))
         | geçerli kupon aramanın kapısını açardı.
         */
         $exceptions->render(function (InvalidCouponException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        });
+
+        /*
+        | Geçersiz koleksiyon kuralı → 422. (2D)
+        |
+        | ⚠️ Eşlenmeseydi marka yığın izi görürdü ve panel hatayı
+        | kullanıcıya anlatamazdı — 1E'de aynısı yaşandı, sağlayıcı
+        | hatası 500 dönüyordu.
+        |
+        | ⚠️ Sebep AÇIKÇA söyleniyor ("bilinmeyen alan: x"): kuralı yazan
+        | markanın kendisi ve düzeltebilmesi için neyin yanlış olduğunu
+        | bilmesi gerekiyor. Kupon istisnasından farkı bu — orada bilgi
+        | saklamanın bir gerekçesi vardı.
+        */
+        $exceptions->render(function (CollectionRuleException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         });
 

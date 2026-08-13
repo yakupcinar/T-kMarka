@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Panel\AuthController as PanelAuth;
 use App\Http\Panel\CategoryController;
+use App\Http\Panel\CollectionController;
 use App\Http\Panel\LegalController;
 use App\Http\Panel\OptionController;
 use App\Http\Panel\OrderController;
@@ -19,6 +20,7 @@ use App\Http\Storefront\AuthController as VitrinAuth;
 use App\Http\Storefront\CartController;
 use App\Http\Storefront\CatalogController;
 use App\Http\Storefront\CheckoutController as VitrinCheckout;
+use App\Http\Storefront\CollectionController as StorefrontCollectionController;
 use App\Http\Storefront\CouponController;
 use App\Http\Storefront\LegalController as VitrinLegal;
 use App\Http\Storefront\PaymentController;
@@ -121,6 +123,14 @@ Route::middleware([
             Route::get('/products', [CatalogController::class, 'index']);
             Route::get('/products/{slug}', [CatalogController::class, 'show']);
             Route::get('/categories', [CatalogController::class, 'categories']);
+
+            /*
+            | KOLEKSİYONLAR (2D). Kurallı olanın üyeleri sorgu anında
+            | hesaplanıyor — bu uçtan bakıldığında hiçbir fark yok, fark
+            | fiyat değişince ortaya çıkıyor: liste kendiliğinden güncel.
+            */
+            Route::get('/collections', [StorefrontCollectionController::class, 'index']);
+            Route::get('/collections/{slug}', [StorefrontCollectionController::class, 'show']);
 
             /*
             | SEPET — kimlik doğrulama İSTEĞE BAĞLI.
@@ -340,6 +350,27 @@ Route::middleware([
                 Route::put('/categories/{category}', [CategoryController::class, 'update']);
                 Route::post('/categories/{category}/move', [CategoryController::class, 'move']);
                 Route::delete('/categories/{category}', [CategoryController::class, 'destroy']);
+
+                /*
+                | KOLEKSİYONLAR.
+                |
+                | ⚠️ Üyelik uçları (`products/…`) AYRI ve yalnızca manuel
+                | koleksiyonda çalışıyor; kurallıda `CollectionService`
+                | reddediyor. Aynı uçtan yönetilseydi elle eklenen ürün,
+                | kural onu dışlasa bile listede kalırdı.
+                |
+                | ⚠️ `GET /products` kuralın ŞU AN ne getirdiğini gösteriyor
+                | — marka kuralını kaydetmeden sonucunu görebilmeli.
+                */
+                Route::get('/collections', [CollectionController::class, 'index']);
+                Route::post('/collections', [CollectionController::class, 'store']);
+                Route::put('/collections/{collection}', [CollectionController::class, 'update']);
+                Route::delete('/collections/{collection}', [CollectionController::class, 'destroy']);
+
+                Route::get('/collections/{collection}/products', [CollectionController::class, 'products']);
+                Route::post('/collections/{collection}/products', [CollectionController::class, 'attach']);
+                Route::post('/collections/{collection}/products/reorder', [CollectionController::class, 'reorder']);
+                Route::delete('/collections/{collection}/products/{urun}', [CollectionController::class, 'detach']);
 
                 Route::post('/options/{option}/values', [OptionController::class, 'storeValue']);
                 Route::put('/options/{option}/values/{deger}', [OptionController::class, 'updateValue']);

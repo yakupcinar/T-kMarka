@@ -2507,6 +2507,76 @@ taslak "Yaklaşan Koleksiyon" aramada **çıkmıyor** (`forStorefront` — 1B-K1
 **Bitiş ölçütü:** manuel ve kurallı koleksiyon çalışıyor · fiyat değişince
 kurallı koleksiyon kendiliğinden güncelleniyor
 
+#### 2D — BİTTİ ✅ (15 test · 411 test yeşil)
+
+Kod: `app/Domain/Catalog/` (`CollectionService`, `CollectionQuery`,
+`CollectionRules`, `CollectionRuleException`) · `app/Models/ProductCollection.php` ·
+`app/Enums/CollectionType.php` · `app/Http/Panel/CollectionController.php` ·
+`app/Http/Storefront/CollectionController.php` ·
+`database/migrations/tenant/2026_08_13_090000_create_collections_tables.php` ·
+`tests/Tenancy/CollectionTest.php`
+
+**2D-K3 · Kural şeması KAPALI LİSTE — plana eklendi.**
+
+```
+field       op                anlamı
+brand       eq · contains
+title       contains
+category    in_tree           ALT AĞAÇ dâhil (1B-K6)
+price       lte · gte         ⚠️ VARYANTIN alanı, ürünün değil
+match: all │ any
+```
+
+> ⚠️ Alan listesi açık bırakılsaydı `{"field":"cost_price"}` yazan bir kural
+> maliyet üzerinden koleksiyon kurabilir, hatta hata mesajıyla maliyeti
+> sızdırabilirdi. Bilinmeyen alan **sessizce atlanmıyor**, istisna fırlıyor —
+> atlansaydı üç koşullu kuralın ikisi uygulanır, koleksiyon fazla ürün
+> gösterir ve kimse fark etmezdi.
+
+> ⚠️ `price` "en az bir satılabilir varyant bu koşulu sağlıyor" diye okunuyor.
+> Ürünün en düşük fiyatı üzerinden okunsaydı `gte` anlamsızlaşırdı.
+
+**2D-K4 · BOŞ KURAL YASAK.**
+> İzin verilseydi koleksiyon **tüm kataloğu** gösterirdi — hata vermeden.
+> Marka "kampanya koleksiyonu" sanır, vitrinde her ürün çıkardı.
+
+**2D-K5 · Kayıtlı kural ÇALIŞTIRILMADAN ÖNCE TEKRAR doğrulanıyor.**
+> "Yazarken doğruladık" yetmez: kural veritabanına elle, tohumlayıcıyla ya da
+> eski bir sürümle girmiş olabilir. Test bunu veritabanına bozuk kural yazarak
+> ölçüyor.
+
+**2D-K6 · Manuel ve kurallı KARIŞMIYOR.**
+> Kurallı koleksiyona elle ürün eklenemiyor (422), manuele dönerken kural
+> siliniyor. Karışsaydı "bu ürün neden burada" sorusunun **iki** cevabı olurdu
+> ve elle eklenen ürün, kural onu dışlasa bile listede kalırdı. Kural kalsaydı
+> tip bir gün geri çevrildiğinde markanın hatırlamadığı eski kural yürürlüğe
+> girerdi.
+
+**2D-K7 · `LIKE` joker karakteri kaçırılıyor.**
+> Kaçırılmasaydı `%` yazan tek bir kural tüm kataloğu eşleştirirdi — sessizce.
+
+**Sınıf adı `Collection` DEĞİL `ProductCollection`.**
+> Laravel'in `Support\Collection` ve `Eloquent\Collection` sınıfları her
+> dosyada import edili; aynı ad her `use` satırında takma ad gerektirirdi ve
+> bir gün biri yanlış olanı import ederdi. Tablo adı `collections` kalıyor.
+
+**Beş kırma denemesi, beşi de doğru testi düşürdü** (2C'deki dersin
+uygulanması — orada üç test yanlış şeyi ölçüyordu):
+
+| kırılan | düşen test |
+|---|---|
+| manuel sıra → `id` | markanın SIRASI |
+| `any` → `all` | "any" ile "all" farkı |
+| `forStorefront()` → ham sorgu | TASLAK ürün çıkmıyor |
+| `LIKE` kaçırma kalktı | joker karakter |
+| kayıtlı kural doğrulanmadı | 6 test birden |
+
+**Doğrulandı (iki kiracıda gerçek HTTP):** kurallı koleksiyon açıldı,
+fiyat veritabanından değiştirildi ve **koleksiyona dokunmadan** liste
+güncellendi (1 ürün → 0 → başka ürün → geri). Geçersiz kural 422.
+Manuel koleksiyonda sıra panelden değiştirildi ve vitrine yansıdı; eklenen
+taslak ürün vitrinde **çıkmadı** (`forStorefront` — 1B-K10).
+
 ---
 
 ### 2E — Yorum ve puan

@@ -86,6 +86,23 @@ class Product extends Model
             ->orderBy('options.id');
     }
 
+    /**
+     * Ürünün elle eklendiği koleksiyonlar. (2D)
+     *
+     * ⚠️ Yalnızca MANUEL koleksiyonlar. Kurallı koleksiyonun üyeliği hiçbir
+     * yere yazılmıyor (2D-K2), bu ilişkide de görünmez — "ürün hangi
+     * koleksiyonlarda" sorusunun tam cevabı değil, elle eklendiklerinin
+     * cevabı.
+     *
+     * @return BelongsToMany<ProductCollection, $this>
+     */
+    public function collections(): BelongsToMany
+    {
+        return $this->belongsToMany(ProductCollection::class, 'collection_product', 'product_id', 'collection_id')
+            ->withPivot('position')
+            ->withTimestamps();
+    }
+
     /** @return HasMany<ProductVariant, $this> */
     public function variants(): HasMany
     {

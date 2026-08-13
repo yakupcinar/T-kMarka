@@ -807,7 +807,21 @@ FAZ 2 AÇIK — 32 karar plana yazıldı, hepsi araştırmayla
       `tenants:run "search:reindex"` — kolon sonradan eklendi, eski
         ürünlerin alanı boştu ve bu hata VERMİYORDU
 
-  2D  kural SORGU ANINDA — saklanan liste fiyat değişince bayatlar
+  2D  ✅ BİTTİ — kural SORGU ANINDA, üyelik hiçbir yere yazılmıyor
+      gerçek veride kanıtlandı: fiyat değişti, koleksiyona DOKUNULMADI,
+        liste kendiliğinden güncellendi (1 ürün → 0 → başka ürün)
+      kural şeması KAPALI LİSTE: brand · title · category · price
+        ⚠️ açık olsaydı {"field":"cost_price"} maliyeti sızdırırdı
+        ⚠️ bilinmeyen alan SESSİZCE ATLANMIYOR — atlansaydı koleksiyon
+          fazla ürün gösterir, kimse fark etmezdi
+      boş kural YASAK = tüm katalog demek olurdu
+      kayıtlı kural çalıştırılmadan önce TEKRAR doğrulanıyor
+        (elle/seed/eski sürümle bozuk kural girmiş olabilir)
+      manuel ↔ kurallı KARIŞMIYOR: kurallıya elle eklenemez (422),
+        manuele dönerken kural silinir
+      sınıf adı ProductCollection — Laravel'in Collection'ıyla çakışmasın
+      ★ beş kırma denemesi, beşi de doğru testi düşürdü (2C'nin dersi)
+
   2E  satın alan yazar · onay bekler · puan sayacı GECE DENETLENİR
   2F  sepet değil "terk edilmiş ÖDEME": misafirin e-postasını ancak
       ödeme adımında öğreniyoruz. WooCommerce eklentileri de aynı
