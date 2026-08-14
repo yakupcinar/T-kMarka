@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ─────────────────────── şu an: 3A başlıyor ───┐
+┌─ YOL HARİTASI ─────────────────────── şu an: 3B sırada  ───┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -23,7 +23,7 @@
 │                      bulunabiliyor, güven üretiyor             │
 │                                                                │
 │  3 · SATILABİLİRLİK ◀ AÇILDI — 9 karar, araştırmayla           │
-│                    3A backfill → 3B merkez tablo → 3C kontrol  │
+│                 ✅ 3A backfill → 3B merkez tablo → 3C kontrol  │
 │                    3D marka açma → 3E abonelik → 3F kota       │
 │                    3G yaşam döngüsü → 3H özel alan adı         │
 │  4 · ARAYÜZ        ← teknoloji burada seçilir (M-3)            │
@@ -3206,6 +3206,61 @@ tenants.data         json (jsonb DEĞİL)            ← indekslenemez
 > json'a konsaydı "ödemesi geçmiş markalar" ya da "denemesi bugün biten
 > markalar" sorgusu yazılamazdı — ve zamanlanmış görevlerin tamamı bu
 > sorgulara dayanıyor.
+
+---
+
+### 3A — BİTTİ ✅ (15 test)
+
+Kod: `app/Domain/Settings/DefaultsBackfill.php` ·
+`app/Console/Commands/BackfillDefaults.php` ·
+`tests/Tenancy/BackfillDefaultsTest.php`
+
+```bash
+php artisan tenants:run marka:eksikleri-tamamla --option="kuru=1"   # önce BAK
+php artisan tenants:run marka:eksikleri-tamamla                     # sonra YAP
+```
+
+**⚠️ NAİF ÇÖZÜM FELAKET OLURDU.** İlk akla gelen "mevcut markalarda
+`DefaultSettings::kur()` çalıştır" idi. O metot `yaz()` kullanıyor ve var
+olanı **eziyor**; kırma denemesiyle ölçüldü — tek satır değişiklikle **dört
+test birden** düştü:
+
+| ezilen | sonuç |
+|---|---|
+| `is_published` → false | **AÇIK MAĞAZA KAPANIR**, tek koşuda, bütün markalarda |
+| `fake_secret` yenilenir | yoldaki ödeme bildirimlerinin imzası geçersiz olur (1E.6 zinciri) |
+| yasal taslak | markanın saatlerce yazdığı sözleşme metni silinir, yerine iskelet |
+| vergi/kargo ayarı | markanın değiştirdiği değerler varsayılana döner |
+
+Bu yüzden komut **eksik olanı ekler, var olana hiç dokunmaz**.
+
+**Ölçüm — komutun gerçekten iş yaptığının kanıtı.** İki gerçek markada
+`shipping.threshold_after_discount` eksikti (2A'da eklenmişti).
+⚠️ Sonucu bu sefer zararsızdı çünkü okuyan kod `?? true` yazmış — yani
+**şans eseri** doğruyduk. 1E.4'te aynı boşluk `fake_secret`'ta çıkmış ve
+iki kiracıda gerçek HTTP koşusunu durdurmuştu.
+
+**Özel durumlar:**
+- `fake_secret` eksikse **rastgele** üretiliyor, marka başına ayrı — sabit
+  olsaydı bir markanın ürettiği bildirim diğerinde de geçerli olurdu (1E.1)
+- `is_published` eksikse **kapalı** yazılıyor — açık yazılsaydı hazırlık
+  denetiminden geçmemiş mağaza kendiliğinden satışa açılırdı
+- `store.name` eksikse **merkez kayıttaki** marka adıyla dolduruluyor;
+  yer tutucu yazılsaydı marka onu vitrininde görürdü
+
+**Kuru çalışma ayrı bayrak.** Geri dönüşü olmayan ve *bütün markalara*
+dokunan bir işte önce göstermek, sonra yapmak.
+
+**Doğrulandı (iki kiracıda gerçek koşu):** öncesi/sonrası karşılaştırıldı —
+yayın durumu, vergi oranı, marka adı, imza anahtarı ve yasal taslaklar
+**bit bit aynı** kaldı; yalnızca eksik ayar eklendi. İkinci koşu sessiz.
+
+**Yol boyunca çıkan iki düzeltme:**
+- `Setting` modelinde `@property SettingGroup $group` notu eksikti; statik
+  analiz `casts()`'tan enum'u çıkaramıyor (Product'ta aynı not aynı sebeple
+  var — CLAUDE.md'de yazılı tuzağın üçüncü örneği)
+- `tenants:run "komut --bayrak"` çalışmıyor ("komut tanımlı değil");
+  doğrusu `tenants:run komut --option="bayrak=1"` — kurala eklendi
 
 ---
 

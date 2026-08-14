@@ -987,4 +987,27 @@ FAZ 3 AÇIK — 9 karar plana yazıldı, hepsi araştırmayla
         tenants.data json (jsonb değil)
         ⚠️ abonelik alanları data json'a KONMAYACAK, gerçek kolon:
           "denemesi bugün biten markalar" sorgusu yazılamazdı
+
+  3A  ✅ BİTTİ — eksik varsayılanları tamamlama (Faz 1'den devredilen borç)
+      tenants:run marka:eksikleri-tamamla [--option="kuru=1"]
+      ★ NAİF ÇÖZÜM FELAKET OLURDU: "mevcut markada DefaultSettings::kur()
+        çalıştır" — o metot var olanı EZİYOR. Kırma denemesi tek satırla
+        DÖRT testi düşürdü:
+          is_published→false : AÇIK MAĞAZA KAPANIR, bütün markalarda
+          fake_secret yenilenir: yoldaki bildirimlerin imzası geçersiz
+          yasal taslak      : markanın yazdığı sözleşme metni silinir
+          vergi/kargo       : değiştirilmiş değerler varsayılana döner
+      → komut eksiği EKLER, var olana HİÇ dokunmaz
+      ölçüm: iki gerçek markada shipping.threshold_after_discount eksikti
+        (2A'da eklenmişti) — zararsızdı çünkü okuyan kod `?? true` yazmış,
+        yani ŞANS ESERİ doğruyduk. 1E.4'te aynı boşluk fake_secret'ta
+        çıkıp gerçek koşuyu durdurmuştu
+      fake_secret eksikse RASTGELE üretilir (marka başına ayrı, 1E.1)
+      is_published eksikse KAPALI · store.name merkez kayıttan
+      kuru çalışma ayrı bayrak — geri dönüşü olmayan, TÜM markalara
+        dokunan iş; önce göster sonra yap
+      doğrulandı: öncesi/sonrası bit bit aynı, yalnızca eksik ayar eklendi
+      ⚠️ iki düzeltme: Setting'de @property notu eksikti (casts() enum'u
+        statik analize göstermiyor, 3. örnek) · tenants:run'a seçenek
+        "komut --bayrak" diye geçilmiyor, --option="bayrak=1" olacak
 ```

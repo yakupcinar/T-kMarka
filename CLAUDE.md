@@ -70,6 +70,9 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   kuyruk işçisi kodu belleğe alıyor, bayat kodla çalışmaya devam eder.
 - **Marka verisine dokunan zamanlanmış görev** `tenants:run <komut>` ile
   sarılır; doğrudan yazılan görev merkez bağlamda koşar ve hiçbir şey yapmaz.
+  ⚠️ Seçenek geçirirken **tırnak içine alma** — `tenants:run "komut --bayrak"`
+  "komut tanımlı değil" hatası verir. Doğrusu ayrı seçenek olarak:
+  `tenants:run komut --option="bayrak=1"` (argümanlar `--argument=`).
 - **Kolon varsayılanı modele ULAŞMAZ.** `->default(true)` yalnızca diske
   yazarken uygulanır; `create()`'ten dönen nesnede alan hiç yoktur ve `null`
   okunur. Üç kez ısırdı: `accepts_marketing` (1A.2) · `is_system` (1A.6) ·

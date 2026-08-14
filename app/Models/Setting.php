@@ -16,6 +16,13 @@ use RuntimeException;
  * White-label iskeletin kalbi: iki markayı ayıran şey kod değil, bu tablodaki
  * satırlar (M-1). Okuma/yazma için kullanılacak servis 1A.4'te yazılacak;
  * burada model seviyesinde şifreleme ve tip dönüşümü var.
+ *
+ * ⚠️ `@property` notu şart: statik analiz `casts()` metodundan enum'u
+ * çıkaramıyor, kolonu varchar gördüğü için `group`'u metin sanıyor ve
+ * `$ayar->group->value` erişimini "string üzerinde özellik" diye
+ * işaretliyor. Product'ta aynı not aynı sebeple var.
+ *
+ * @property SettingGroup $group
  */
 class Setting extends Model
 {
