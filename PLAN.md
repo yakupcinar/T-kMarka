@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ─────────────────────── şu an: 3C sırada  ───┐
+┌─ YOL HARİTASI ─────────────────────── şu an: 3D sırada  ───┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -23,7 +23,7 @@
 │                      bulunabiliyor, güven üretiyor             │
 │                                                                │
 │  3 · SATILABİLİRLİK ◀ AÇILDI — 9 karar, araştırmayla           │
-│              ✅ 3A backfill ✅ 3B merkez tablo → 3C kontrol   │
+│           ✅ 3A backfill ✅ 3B tablo ✅ 3C kontrol düzlemi    │
 │                    3D marka açma → 3E abonelik → 3F kota       │
 │                    3G yaşam döngüsü → 3H özel alan adı         │
 │  4 · ARAYÜZ        ← teknoloji burada seçilir (M-3)            │
@@ -3344,6 +3344,90 @@ durumunda açıyor" testi artık **gerçek komutu** çağırıyor, yardımcıyı
 - `tenants`'a kolon eklemek → `getCustomColumns()`'a da yazılır
 - jsonb `?` operatörü PDO'da yazılamaz (`syntax error at or near "$1"`);
   `jsonb_exists(data, 'name')` kullanılır
+
+---
+
+### 3C — BİTTİ ✅ (16 test)
+
+Kod: `app/Platform/Models/PlatformUser.php` · `app/Platform/TenantLifecycle.php` ·
+`app/Http/Platform/{AuthController,TenantController}.php` ·
+`app/Http/Middleware/RequireActiveTenant.php` ·
+`app/Console/Commands/CreatePlatformUser.php` · `routes/platform.php` ·
+`database/migrations/landlord/2026_08_14_140000_create_platform_users_table.php` ·
+`tests/Tenancy/KontrolDuzlemiTest.php`
+
+**★ ÜÇÜNCÜ KİMLİK ALANI.**
+
+```
+customer   markanın müşterisi    marka şeması    auth:customer
+staff      markanın personeli    marka şeması    auth:staff
+platform   BİZ                   MERKEZ şema     auth:platform   ← yeni
+```
+
+> ⚠️ Bu kimliğin yetkisi **bütün markalara** uzanıyor — sistemdeki en tehlikeli
+> yetki. Marka personeliyle aynı tabloda tutulsaydı bir markanın sahibi kendini
+> platform yöneticisi yapabilirdi. **Kayıt ucu yok**: yönetici yalnızca
+> `platform:kullanici` komutuyla, yani sunucuya erişebilen kişi tarafından
+> açılıyor (1A.2'nin panel kararıyla aynı).
+
+**⚠️ Token tablosu merkez şemada da açıldı.** `personal_access_tokens` yalnızca
+marka şemalarında vardı (1A.2); ölçüldü ve merkezde yoktu. Olmadan platform
+girişi "tablo yok" ile düşerdi. Aynı adlı iki tablo iki ayrı şemada — bilinçli:
+bir markanın token'ı merkez uçlarda denenemiyor.
+
+**3C-K1 · Durum geçişleri KAPALI LİSTE.**
+
+```
+provisioning ─▶ trial ─▶ active ⇄ past_due ─▶ suspended
+                  └────────┴──────────┴──▶ closed ──▶ active
+```
+
+> ⚠️ **Kapatılmış marka `trial`'a DÖNEMİYOR.** Dönebilseydi marka kapatıp
+> yeniden açarak sonsuz ücretsiz kullanım elde ederdi — hata vermeden, tamamen
+> meşru görünen iki işlemle.
+
+**3C-K2 · Durum ve tarih BİRLİKTE yazılıyor.**
+> Ayrı çağrılara bırakılsaydı biri unutulur ve "askıda ama askıya alma tarihi
+> yok" kaydı oluşurdu. Aynı duruma tekrar geçişte tarih **tazelenmiyor**:
+> tazelenseydi 1 yıllık silme sayacı her koşuda sıfırlanır ve hiç dolmazdı.
+
+**3C-K3 · Askıda PANEL kapalı, VİTRİN AÇIK.**
+> 4 numaralı kararın uygulaması (`marka-aktif` middleware). Vitrini de kapatmak
+> markayı değil markanın **müşterilerini** vururdu: siparişini takip edemeyen,
+> iade açamayan, parasını ödemiş insanlar — onların bizimle sözleşmesi yok.
+> Shopify donmuş mağazada ikisini de kapatıyor; bilerek ayrıldık.
+> ⚠️ `logout` ve `me` kapının **dışında**: askıdaki yönetici çıkış yapabilmeli
+> ve hesabının durumunu görebilmeli.
+
+**★ GERÇEK HTTP KOŞUSU BİR HATA YAKALADI — testlerin göremediği.**
+
+Rotalar önce `routes/web.php` içindeydi; **16 testin hepsi yeşildi** ama gerçek
+`curl` isteği `CSRF token mismatch` aldı. Sebep: `web` grubu CSRF koruması
+uyguluyor, testler ise `postJson` kullanıyor.
+
+⚠️ Bu karar **1A.2'de zaten verilmişti** ("api grubu, web değil") ve 3C'de
+tekrar unutuldu. Yani yorum yetmiyor — rotalar `routes/platform.php`'ye taşındı
+ve **middleware listesini ölçen bir test** eklendi.
+
+**Dört kırma denemesi + bir dürüstlük notu:**
+
+| kırılan | düşen |
+|---|---|
+| platform uçları `auth:staff`'a çevrildi | 4 test |
+| geçiş listesi serbest bırakıldı | 2 test |
+| `marka-aktif` vitrine de takıldı | 1 test |
+| aynı duruma geçişte tarih tazelendi | 1 test |
+
+⚠️ **Birinci kırma bir testin sınırını gösterdi:** "marka personeli merkeze
+giremiyor" testi `auth:staff`'a çevrildiğinde bile **yeşil kaldı**. Sebep ikinci
+katman — personel token'ları marka şemasında, merkez bağlamda o tablo başka.
+Koruma çift katmanlı ama test ikisini ayırt etmiyor; test yorumuna dürüstçe
+yazıldı.
+
+**Doğrulandı (gerçek HTTPS, iki kiracı):** yönetici açıldı, giriş yapıldı,
+marka listesi ve ada göre arama çalıştı, token'sız istek 401 aldı. B markası
+askıya alındı → **panel 403, vitrin 200, `panel/me` 200**; geçersiz geçiş 409;
+geri açma çalıştı.
 
 ---
 

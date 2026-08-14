@@ -184,6 +184,22 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
 - **PostgreSQL'in jsonb `?` operatörü PDO'da YAZILAMAZ.** `data ? 'name'`
   sorgusu `syntax error at or near "$1"` veriyor: PDO `?` işaretini parametre
   yer tutucusu sanıyor. Fonksiyon biçimi kullan: `jsonb_exists(data, 'name')`.
+- **Merkez (`routes/web.php`) rotaları `web` grubunda — CSRF var.** Panel/vitrin
+  `api` grubunda olduğu için bu tuzak Faz 1'de görünmedi; 3C'de kontrol düzlemi
+  `web.php`'ye yazıldı, **bütün testler yeşildi** ama gerçek `curl` isteği
+  `CSRF token mismatch` aldı. Sebep: testler `postJson` kullanıyor. Merkez API
+  rotaları ayrı dosyada (`routes/platform.php`) ve `api` grubuyla yükleniyor.
+  ⚠️ Karar 1A.2'de zaten verilmişti ve unutuldu — yorum yetmiyor, ölçen test
+  gerekiyor (`KontrolDuzlemiTest`, rotanın middleware listesine bakıyor).
+- **Test veritabanında ŞEMA silinip kiracı KAYDI kalırsa süit çöker.** Belirti:
+  `relation "roles" does not exist` ya da `schema … does not exist`. Genelde
+  yarıda kesilen bir koşudan kalıyor. Toparlamak için şemaları düşür **ve**
+  merkez tabloları boşalt:
+  ```
+  TRUNCATE tenants, domains, plans, platform_users, personal_access_tokens RESTART IDENTITY CASCADE;
+  ```
+  ⚠️ İki test süreci aynı test veritabanında paralel koşarsa da aynı belirti
+  çıkıyor — arka planda süit koşarken ikinci bir koşu başlatma.
 - **Yeni marka geliştirmede HTTPS'e çıkmaz.** `docker/caddy/Caddyfile`'da alan
   adları elle sayılı; `tenant:create` başarılı görünür ama site açılmaz.
   Alan adını ekleyip `docker compose restart caddy`. (Faz 3: on-demand TLS.)

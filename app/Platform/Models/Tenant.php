@@ -4,10 +4,12 @@ namespace App\Platform\Models;
 
 use App\Enums\TenantStatus;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Stancl\Tenancy\Contracts\TenantWithDatabase;
 use Stancl\Tenancy\Database\Concerns\HasDatabase;
 use Stancl\Tenancy\Database\Concerns\HasDomains;
+use Stancl\Tenancy\Database\Models\Domain;
 use Stancl\Tenancy\Database\Models\Tenant as BaseTenant;
 
 /**
@@ -26,6 +28,11 @@ use Stancl\Tenancy\Database\Models\Tenant as BaseTenant;
  * @property CarbonInterface|null $suspended_at
  * @property CarbonInterface|null $closed_at
  * @property string|null $subscription_ref
+ *
+ * ⚠️ `domains` ilişkisi `HasDomains` trait'inden geliyor ve statik analiz
+ * onu göremiyor (trait içindeki dönüş tipi jenerik değil). Notsuz
+ * `$marka->domains` "ilişki bulunamadı" hatası veriyor.
+ * @property Collection<int, Domain> $domains
  */
 class Tenant extends BaseTenant implements TenantWithDatabase
 {

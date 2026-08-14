@@ -2,6 +2,7 @@
 
 use App\Models\Customer;
 use App\Models\User;
+use App\Platform\Models\PlatformUser;
 
 return [
 
@@ -64,6 +65,21 @@ return [
             'driver' => 'sanctum',
             'provider' => 'staff',
         ],
+
+        /*
+        | ★ ÜÇÜNCÜ KİMLİK ALANI (3C) — kontrol düzlemi.
+        |
+        | ⚠️ TıkMarka'yı işleten kişi; yetkisi BÜTÜN MARKALARA uzanıyor,
+        | sistemdeki en tehlikeli yetki. Marka personeliyle aynı guard'da
+        | olsaydı bir markanın sahibi merkez uçlara girebilirdi.
+        |
+        | ⚠️ Kullanıcıları MERKEZ şemada (`platform_users`); marka
+        | şemasındaki `users` tablosuyla hiçbir ilişkisi yok.
+        */
+        'platform' => [
+            'driver' => 'sanctum',
+            'provider' => 'platform_users',
+        ],
     ],
 
     /*
@@ -94,6 +110,11 @@ return [
         'customers' => [
             'driver' => 'eloquent',
             'model' => Customer::class,
+        ],
+
+        'platform_users' => [
+            'driver' => 'eloquent',
+            'model' => PlatformUser::class,
         ],
 
         'staff' => [

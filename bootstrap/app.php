@@ -31,12 +31,15 @@ use App\Domain\Settings\StoreNotReadyException;
 use App\Domain\Stock\InsufficientStockException;
 use App\Domain\Stock\StockLockTimeoutException;
 use App\Http\Middleware\ForceJson;
+use App\Http\Middleware\RequireActiveTenant;
 use App\Http\Middleware\RequireOwner;
 use App\Http\Middleware\RequirePermission;
 use App\Http\Middleware\RequirePublishedStore;
+use App\Platform\InvalidTransitionException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Exceptions\TenantCouldNotBeIdentifiedOnDomainException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -44,6 +47,16 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+
+        /*
+        | ⚠️ Kontrol düzlemi `api` grubunda — `web` DEĞİL. Gerçek curl
+        | koşusu yakaladı: `web` grubundayken bütün testler yeşildi ama
+        | gerçek istemci `CSRF token mismatch` aldı (3C). Testler
+        | `postJson` kullandığı için hiç görünmedi.
+        */
+        then: function (): void {
+            Route::middleware('api')->group(base_path('routes/platform.php'));
+        },
     )
     /*
     | Laravel artisan komutlarını yalnızca app/Console/Commands klasöründe
@@ -107,6 +120,14 @@ return Application::configure(basePath: dirname(__DIR__))
             | Panele TAKILMAZ — mağazayı tekrar açmanın tek yolu panel.
             */
             'magaza-acik' => RequirePublishedStore::class,
+
+            /*
+            | ⚠️ Askıya alınmış markanın PANELİNİ kapatıyor; vitrin açık
+            | kalıyor (3C, 4 numaralı karar). İkisi AYRI soru soruyor:
+            |   `magaza-acik`  → marka mağazasını yayınladı mı  (vitrin)
+            |   `marka-aktif`  → markanın aboneliği yürüyor mu  (panel)
+            */
+            'marka-aktif' => RequireActiveTenant::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -339,6 +360,17 @@ return Application::configure(basePath: dirname(__DIR__))
         | ⚠️ 404 DEĞİL: ürün var ve görünüyor, eksik olan YETKİ.
         | ⚠️ 422 de değil: gönderilen veri geçerli.
         */
+        /*
+        | Geçersiz durum geçişi → 409. (3C)
+        |
+        | ⚠️ DURUM sorunu: veri geçerli ("closed" gerçek bir durum), yetki
+        | var; engelleyen şey markanın ŞU ANKİ durumu. 422 olsaydı panel
+        | "gönderdiğin değer bozuk" der ve yönetici yanlış yere bakardı.
+        */
+        $exceptions->render(function (InvalidTransitionException $e) {
+            return response()->json(['message' => $e->getMessage()], 409);
+        });
+
         $exceptions->render(function (NotPurchasedException $e) {
             return response()->json(['message' => $e->getMessage()], 403);
         });

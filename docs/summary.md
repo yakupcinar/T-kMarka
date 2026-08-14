@@ -1034,4 +1034,25 @@ FAZ 3 AÇIK — 9 karar plana yazıldı, hepsi araştırmayla
         merkez tabloda kalıntı bıraktı, sonraki koşular gerçek sebepten
         değil kalıntıdan kırmızı kaldı
       yeni iki kural: getCustomColumns · jsonb `?` PDO'da yazılamaz
+
+  3C  ✅ BİTTİ — kontrol düzlemi, ÜÇÜNCÜ kimlik alanı
+      customer(marka şeması) · staff(marka şeması) · platform(MERKEZ)
+      ⚠️ platform yetkisi BÜTÜN markalara uzanıyor — en tehlikeli yetki
+      KAYIT UCU YOK: yalnızca `platform:kullanici` komutuyla açılıyor
+      ⚠️ personal_access_tokens MERKEZ şemada da açıldı (yoktu, ölçüldü)
+      durum geçişleri KAPALI LİSTE — kapatılmış marka trial'a DÖNEMEZ
+        (dönebilseydi kapat-aç ile sonsuz ücretsiz kullanım)
+      durum ve tarih BİRLİKTE yazılıyor; aynı duruma geçişte TAZELENMİYOR
+        (tazelenseydi 1 yıllık silme sayacı hiç dolmazdı)
+      askıda PANEL kapalı VİTRİN AÇIK — logout/me kapının dışında
+      ★★ GERÇEK HTTP BİR HATA YAKALADI, 16 test yeşilken:
+        rotalar web.php'deydi → CSRF token mismatch
+        sebep: testler postJson kullanıyor, web grubu CSRF istiyor
+        ⚠️ karar 1A.2'de VERİLMİŞTİ ve unutuldu → yorum yetmiyor,
+          artık middleware listesini ÖLÇEN test var
+      4 kırma denemesi; biri bir testin SINIRINI gösterdi: "personel
+        merkeze giremiyor" testi yanlış guard'la bile yeşil kaldı
+        (koruma çift katmanlı: guard + ayrı şema) → dürüstçe yazıldı
+      doğrulandı (gerçek HTTPS): askıya al → panel 403, vitrin 200,
+        geçersiz geçiş 409, geri açma çalışıyor
 ```

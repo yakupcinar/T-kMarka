@@ -268,11 +268,29 @@ Route::middleware([
 
         Route::post('/login', [PanelAuth::class, 'login'])->middleware('throttle:giris');
 
-        // auth:staff → yalnızca STAFF token'ı geçer.
-        // Müşteri token'ı buraya giremez (1A.0'da kanıtlandı).
+        /*
+        | ★ ÇIKIŞ ve KİMLİK — askıda DA açık.
+        |
+        | ⚠️ Bilerek `marka-aktif`'in DIŞINDA: askıdaki markanın yöneticisi
+        | çıkış yapabilmeli (yoksa token'ı elinde kalırdı) ve hesabının
+        | durumunu görebilmeli.
+        */
         Route::middleware('auth:staff')->group(function () {
             Route::post('/logout', [PanelAuth::class, 'logout']);
             Route::get('/me', [PanelAuth::class, 'me']);
+        });
+
+        /*
+        | auth:staff  → yalnızca STAFF token'ı geçer.
+        |               Müşteri token'ı buraya giremez (1A.0'da kanıtlandı).
+        |
+        | marka-aktif → askıya alınmış markanın paneli KAPALI (3C).
+        |
+        | ⚠️ Vitrin AÇIK kalıyor: müşteri siparişini takip edebilsin, iade
+        | açabilsin. Askı markayı vurmalı, markanın müşterilerini değil
+        | (4 numaralı karar).
+        */
+        Route::middleware(['auth:staff', 'marka-aktif'])->group(function () {
 
             /*
             | PERSONEL YÖNETİMİ — `staff.manage` izni şart.
