@@ -2,27 +2,34 @@
 
 > **Bu dosya projenin tek yol haritasıdır.** Tüm geliştirme buna göre ilerler.
 > Kararların gerekçeleri `docs/pre-setup.md`'de, veri modeli `docs/domain-model.md`'de.
-> Son güncelleme: **2026-08-11**
+> Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ─────────────────────────────── şu an: 1C  ───┐
+┌─ YOL HARİTASI ──────────────────── şu an: FAZ 3 başlıyor ───┐
 │                                                                │
-│  0 · TEMEL         git → docker → test → KİRACILIK → ci        │
+│  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
 │                                                                │
-│  1 · ÇEKİRDEK      1A kimlik+yetki+ayarlar                     │
+│  1 · ÇEKİRDEK   ✅ 1A kimlik+yetki+ayarlar                     │
 │                    1B katalog → 1C sepet                       │
 │                    1D stok+sipariş+sevkiyat  ← en zor          │
 │                    1E ödeme → 1F olay kaydı                    │
 │                    ╰ çıktı: misafir müşteri sipariş verebiliyor│
 │                                                                │
-│  2 · OLGUNLAŞMA    bildirim · kvkk · iade · kupon · arama      │
-│  3 · SATILABİLİRLİK kontrol düzlemi · abonelik · gerçek TLS    │
+│  2 · OLGUNLAŞMA ✅ 2H bildirim → 2G kvkk → 2B iade             │
+│                    2A kupon → 2C arama → 2D koleksiyon         │
+│                    2E yorum → 2F terk edilmiş ödeme            │
+│                    ╰ çıktı: mağaza konuşuyor, geri veriyor,    │
+│                      bulunabiliyor, güven üretiyor             │
+│                                                                │
+│  3 · SATILABİLİRLİK ◀ SIRADA                                   │
+│                    kontrol düzlemi · abonelik · gerçek TLS     │
 │  4 · ARAYÜZ        ← teknoloji burada seçilir (M-3)            │
 │  5 · ENTEGRASYON   kargo · e-fatura                            │
 │  6 · DAĞITIM       yayın · yedekleme · izleme                  │
 │                                                                │
 │  Kural: bir blok bitmeden sonrakine geçilmez.                  │
+│  440 test · lint · analyse · CI hepsi yeşil                    │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -2819,6 +2826,136 @@ işaretlenirdi.
 > · **PostgreSQL** — [metin arama](https://www.postgresql.org/docs/current/textsearch-controls.html)
 >   (Türkçe sözlük hazır) · [pg_trgm](https://www.postgresql.org/docs/current/pgtrgm.html)
 >   (yazım hatası toleransı)
+
+---
+
+## ✅ FAZ 2 TAMAMLANDI
+
+**440 test · lint · analyse · CI hepsi yeşil** (Faz 1 sonu: 326 — **+114**)
+
+| blok | konu | durum |
+|---|---|---|
+| 2H | bildirim altyapısı | ✅ |
+| 2G | KVKK — anonimleştirme ve veri indirme | ✅ |
+| 2B | iade ve para iadesi | ✅ |
+| 2A | kupon ve indirim | ✅ |
+| 2C | arama | ✅ |
+| 2D | koleksiyon | ✅ |
+| 2E | yorum ve puan | ✅ |
+| 2F | terk edilmiş ödeme | ✅ |
+
+Mağaza artık yalnızca satmıyor: **konuşuyor** (mail) · yanlış giderse
+**geri veriyor** (iade) · **bulunabiliyor** (arama) · **kendini düzenliyor**
+(koleksiyon) · **güven üretiyor** (yorum) · **kaçanı geri çağırıyor**
+(hatırlatma) · ve müşterinin verisini **silmeden unutabiliyor** (KVKK).
+
+---
+
+### Faz 2'nin taşıyıcı dersi — Faz 1'inkinin ÜSTÜNE
+
+Faz 1'in dersi *"sessiz hata gürültülü hatadan tehlikelidir"* idi ve hâlâ
+geçerli. Faz 2 bunun üstüne **yöntem** koydu.
+
+#### ★ 1 · Kırma denemesi artık bir yöntem
+
+Faz 1'de bozuk testler tesadüfen fark ediliyordu. Faz 2'de her blokta
+sistematik olarak "kodu bozup testin kırıldığını görmek" yapıldı ve
+**üç kez** bir testin yalanını ortaya çıkardı:
+
+| blok | kırılan | olan |
+|---|---|---|
+| 2C | FTS kolu tamamen silindi | **hiçbir test kırılmadı** — trigram zaten buluyormuş |
+| 2E | onaysız yorum sayacı | sayaç zaten `0`'dı, test hiçbir şey ölçmüyordu |
+| 2F | işaretleme gönderimden sonraya alındı | `bekleyenler()` zaten eliyor, yarış hiç sınanmıyordu |
+
+> **2C'de bu, tasarımı değiştirdi.** FTS kolunun silinmesi hiçbir testi
+> kırmayınca ölçüldü: eşik 0,3'te trigram, FTS'in bulduğu her şeyi zaten
+> buluyor. FTS'in işi *bulmak* değil **sıralamak** olarak yeniden
+> tanımlandı ve `ts_rank` eklendi.
+
+**Kural:** yeşil bir testi de kırmayı dene; kırılmıyorsa test yalan söylüyor.
+
+#### ★ 2 · Gerçek HTTP, süitin göremediğini gösterdi — iki kez
+
+```
+2C   "tsiort" araması        testte ✓        gerçek markada 0 sonuç
+     sebep: test verisinde 1 varyant, gerçek üründe 9 → türetilmiş
+     metin uzadı, skor 0,33 → 0,286, ürün VARYANT SAYISI YÜZÜNDEN
+     aranamaz oldu
+
+2E   Accept başlığı yok      testte ✓        HER korumalı uçta 500
+     sebep: 425 testin hepsi postJson kullanıyor, o başlığı otomatik
+     ekliyor. Gerçek curl koşusu ortaya çıkardı.
+```
+
+**Kural:** iki kiracıda gerçek koşu süitin yerine geçmez, ama süitin
+**göremediği yeri** gösterir.
+
+#### ★ 3 · Sonradan eklenen kolon iki kez ısırdı
+
+```
+2C   geriye dönük doldurma unutuldu
+     → arama hiçbir ESKİ ürünü bulmuyordu          sessiz EKSİKLİK
+
+2F   geçmişteki TÜM pending siparişler "hatırlatılmamış" görünüyor
+     → üst sınır konmasaydı ilk koşu aylar öncesine kadar
+       herkese mail atardı                          sessiz SALDIRI
+```
+
+**Kural:** türetilmiş bir kolon eklerken iki soru sorulur — *kim
+dolduracak* ve *boş hâli ne yapar*.
+
+#### ★ 4 · Plan gerçekle çeliştiğinde plan güncellendi — üç kez
+
+| karar | ne oldu |
+|---|---|
+| **2B** kargo iadesi | araştırma **benim önerimi** yanlışladı: tam caymada teslim masrafları da geri veriliyor |
+| **2C** FTS'in rolü | bulmak → **sıralamak** (kırma denemesiyle ölçüldü) |
+| **2F-K2** olay tüketimi | "olayları ilk tüketen iş" — tüketmedi, gerekmiyordu |
+
+#### ★ 5 · Materyalleştirilmiş sayacın bedeli denetim — üç oldu
+
+```
+committed    (1D)    stok
+used_count   (2A)    kupon
+rating_avg   (2E)    puan
+```
+
+Üçü de gecelik denetleniyor ve **üçü de onarmıyor**: kendiliğinden
+düzeltilseydi sayacı bozan kod yolu hiç görünmez, her gece sessizce
+onarılır ve sorun kalıcı olurdu.
+
+#### ★ 6 · Ölü savunma da bir hatadır
+
+2F'de sorguda `whereNotNull('email')` vardı. Test `null` yazmayı denedi ve
+**veritabanı reddetti** — kolon zaten `NOT NULL`. Savunma hiçbir şey
+yapmıyormuş. Kaldırıldı, yerine gerçek risk kondu: boş metin geçebiliyor ve
+gönderim sessizce düşerken sipariş "hatırlatıldı" işaretlenirdi.
+
+---
+
+### Faz 2'de tekrarlayan eski tuzaklar
+
+Faz 1'in dersleri hâlâ iş görüyor; parantez içi **kaçıncı kez** ısırdığı:
+
+| tuzak | nerede | |
+|---|---|---|
+| uzantı `public`'te, marka görmüyor | citext · ltree · **pg_trgm** | (3.) |
+| Türkçe küçük harf tuzağı | e-posta · kupon kodu · **arama** | (3.) |
+| kolon varsayılanı modele ulaşmaz | **koleksiyon · yorum** | (5.) |
+| yarışı kontrol değil KİLİT çözer | **kupon · hatırlatma** | (3.) |
+| yerel yeşil ≠ CI yeşil | **pg_trgm CI'a eklenmemişti** | (2.) |
+
+---
+
+### Faz 2'de açılan ve Faz 3'e devredenler
+
+- **`tenants:backfill`** — genel amaçlı geriye dönük doldurma komutu.
+  2C'de `search:reindex` olarak *tek iş için* yazıldı; üçüncü kez
+  gerekince genelleştirilecek.
+- **Sahip varsayılan parolası `123`** — geliştirme kolaylığı, üretimde
+  olamaz.
+- **On-demand TLS** — yeni marka hâlâ `Caddyfile`'a elle yazılıyor.
 
 ---
 

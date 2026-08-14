@@ -763,10 +763,10 @@ FAZ 1'İN TAŞIYICI DERSİ, altı blokta da aynı çıktı:
     veritabanı tetiği > "yasal metni UPDATE etmeyi unutma"
     sabit kilit sırası > "deadlock'a dikkat et"
 
-FAZ 2 AÇIK — 32 karar plana yazıldı, hepsi araştırmayla
+FAZ 2 — 32 karar plana yazıldı, hepsi araştırmayla
 
   sıra: 2H bildirim → 2G kvkk → 2B iade → 2A kupon → 2C arama
-        → 2D koleksiyon · 2E yorum · 2F terk edilmiş ödeme
+        → 2D koleksiyon → 2E yorum → 2F terk edilmiş ödeme
 
   2H  ⚠️ FAZ 1'İN GÖRÜLMEMİŞ EKSİĞİ: sipariş onay maili bile yok.
       İade bildirimi, hatırlatma, veri indirme — hepsi buna bağlı.
@@ -860,4 +860,75 @@ FAZ 2 AÇIK — 32 karar plana yazıldı, hepsi araştırmayla
       ⚠️ ölü savunma bulundu: whereNotNull('email') — kolon zaten NOT
         NULL, test null yazmayı deneyince veritabanı reddetti
       ★ kırma denemesi ÜÇÜNCÜ kez bir testin yalanını ortaya çıkardı
+
+════════════ ✅ FAZ 2 TAMAMLANDI ════════════
+440 test · lint · analyse · CI hepsi yeşil     (Faz 1 sonu: 326)
+
+Mağaza artık yalnızca satmıyor:
+  konuşuyor (mail) · yanlış giderse geri veriyor (iade) ·
+  bulunabiliyor (arama) · kendini düzenliyor (koleksiyon) ·
+  güven üretiyor (yorum) · kaçanı geri çağırıyor (hatırlatma) ·
+  ve müşterinin verisini silmeden unutabiliyor (KVKK)
+
+FAZ 2'NİN TAŞIYICI DERSİ — Faz 1'inkinin ÜSTÜNE:
+
+  ★ KIRMA DENEMESİ ARTIK BİR YÖNTEM
+    Faz 1'de tesadüfen fark ediliyordu; Faz 2'de her blokta
+    sistematik yapıldı ve ÜÇ KEZ testin yalanını ortaya çıkardı:
+      2C  FTS kolu SİLİNDİ → hiçbir test kırılmadı
+          (trigram zaten buluyormuş → FTS'in rolü SIRALAMA
+           olarak yeniden tanımlandı; tasarımı ölçüm değiştirdi)
+      2E  onaysız yorum sayaç testi — sayaç zaten 0'dı,
+          test hiçbir şey ölçmüyordu
+      2F  yarış testi — bekleyenler() zaten işaretlileri eliyor,
+          koşullu güncelleme hiç sınanmıyordu
+    → yeşil testi de kırmayı dene; kırılmıyorsa test yalan söylüyor
+
+  ★ GERÇEK HTTP, TESTİN GÖRMEDİĞİNİ GÖSTERDİ — İKİ KEZ
+    2C  "tsiort" testte yeşil, GERÇEK markada 0 sonuç
+        (test verisinde 1 varyant, gerçekte 9 → metin uzadı,
+         skor 0,33'ten 0,286'ya düştü, ürün aranamaz oldu)
+    2E  Accept başlığı OLMAYAN istemci HER korumalı uçta 500
+        425 testin hiçbiri yakalamadı — postJson başlığı
+        otomatik ekliyor, gerçek curl ortaya çıkardı
+    → iki kiracıda gerçek koşu, süitin yerine geçmez ama
+      süitin göremediği yeri gösterir
+
+  ★ SONRADAN EKLENEN KOLON İKİ KEZ ISIRDI
+    2C  geriye dönük doldurma unutuldu → arama hiçbir eski ürünü
+        bulmuyordu                              sessiz EKSİKLİK
+    2F  geçmişteki TÜM pending siparişler "hatırlatılmamış"
+        görünüyor → üst sınır konmasaydı ilk koşu aylar
+        öncesine kadar herkese mail atardı       sessiz SALDIRI
+    → türetilmiş kolon eklendiğinde iki soru: kim dolduracak,
+      ve boş hâli ne yapar
+
+  ★ PLAN GERÇEKLE ÇELİŞTİ, PLAN GÜNCELLENDİ — ÜÇ KEZ
+    2B    kargo iadesi: araştırma BENİM ÖNERİMİ yanlışladı
+          (tam caymada teslim masrafları da geri veriliyor)
+    2C    FTS'in rolü: bulmak DEĞİL sıralamak
+    2F-K2 "olayları ilk tüketen iş" — tüketmedi, gerekmiyordu
+
+  ★ MATERYALLEŞTİRİLMİŞ SAYACIN BEDELİ DENETİM — ÜÇ OLDU
+    committed (1D) · used_count (2A) · rating_avg (2E)
+    üçü de gecelik denetleniyor, ÜÇÜ DE ONARMIYOR:
+    kendiliğinden düzeltilseydi sayacı bozan kod yolu hiç görünmezdi
+
+  ★ ÖLÜ SAVUNMA DA BİR HATA
+    2F  whereNotNull('email') — kolon zaten NOT NULL, test null
+        yazmayı deneyince veritabanı reddetti. Savunma hiçbir şey
+        yapmıyormuş; kaldırıldı, yerine gerçek risk (boş metin) kondu
+
+FAZ 2'DE TEKRARLAYAN ESKİ TUZAKLAR (Faz 1 dersleri hâlâ geçerli)
+
+  uzantı public'te, marka görmüyor    citext · ltree · pg_trgm  (3.)
+  Türkçe küçük harf tuzağı           e-posta · kupon · arama    (3.)
+  kolon varsayılanı modele ulaşmaz   koleksiyon · yorum         (5.)
+  yarışı kontrol değil KİLİT çözer   kupon · hatırlatma         (3.)
+  yerel yeşil ≠ CI yeşil             pg_trgm CI'a eklenmemişti  (2.)
+
+FAZ 3 SIRADA — satılabilirlik
+  kontrol düzlemi · abonelik ve planlar · marka açma akışının tamamı
+  gerçek on-demand TLS
+  devredilenler: tenants:backfill komutu · sahip varsayılan parolası
 ```
