@@ -143,6 +143,11 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   ikisi de denendi, **ikisi de çözmedi** — Laravel bu istisnayı kullanıcı geri
   çağırmalarından önce eşliyor. Test: `tests/Tenancy/JsonCevapTest.php`, ve o
   dosyada `postJson` KULLANILMAZ (kullanılırsa hiçbir şey ölçmez).
+- **Aynı kilit `.git` dosyalarında da oluyor — belirtisi FARKLI.**
+  `fatal: unable to access '.git/config': Operation not permitted` ve
+  `warning: unable to access '.git/info/exclude'`. Dosyanın izinleri normal,
+  `head` ile okunuyor, ama git erişemiyor. Çözüm aynı: **sil ve yeniden yaz**.
+  ⚠️ `.git/config` silinmeden önce içeriği okunmalı — remote adresi orada.
 - **Docker Desktop bir dosyayı konteynerde OKUNAMAZ hâle getirebiliyor.**
   Belirti: `hash_file(): … errno=35 Resource deadlock avoided` — phpstan
   başlamadan düşüyor, hangi dosya olduğunu söylemiyor. Host'ta dosya
