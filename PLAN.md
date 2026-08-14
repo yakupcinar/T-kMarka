@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ──────────────────── şu an: FAZ 3 başlıyor ───┐
+┌─ YOL HARİTASI ─────────────────────── şu an: 3A başlıyor ───┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -22,8 +22,10 @@
 │                    ╰ çıktı: mağaza konuşuyor, geri veriyor,    │
 │                      bulunabiliyor, güven üretiyor             │
 │                                                                │
-│  3 · SATILABİLİRLİK ◀ SIRADA                                   │
-│                    kontrol düzlemi · abonelik · gerçek TLS     │
+│  3 · SATILABİLİRLİK ◀ AÇILDI — 9 karar, araştırmayla           │
+│                    3A backfill → 3B merkez tablo → 3C kontrol  │
+│                    3D marka açma → 3E abonelik → 3F kota       │
+│                    3G yaşam döngüsü → 3H özel alan adı         │
 │  4 · ARAYÜZ        ← teknoloji burada seçilir (M-3)            │
 │  5 · ENTEGRASYON   kargo · e-fatura                            │
 │  6 · DAĞITIM       yayın · yedekleme · izleme                  │
@@ -2959,24 +2961,295 @@ Faz 1'in dersleri hâlâ iş görüyor; parantez içi **kaçıncı kez** ısırd
 
 ---
 
-## Faz 3 — Satılabilirlik  *(henüz açılmadı)*
+## Faz 3 — Satılabilirlik
 
-Kontrol düzlemi · abonelik ve planlar · marka açma akışının tamamı · **gerçek on-demand TLS**
+> TıkMarka'yı **satılabilir bir ürün** hâline getiren faz. Bugün marka açmak
+> terminalden `artisan tenant:create` çalıştırmak; sonunda bir ziyaretçi
+> kendi mağazasını kurup parasını ödeyecek.
 
-**1A'dan devredilen maddeler:**
+**Kararlar araştırmayla alındı** — İkas · Shopify · iyzico · Let's Encrypt ·
+KVKK/TTK. Kaynaklar bölümün sonunda.
 
-- **Varsayılan geri-doldurma komutu.** ⚠️ **1E.4'te ikinci kez ısırdı:**
-  0.5'te açılan dev markalarının ödeme imza anahtarı yoktu (`DefaultSettings`
-  1E.1'de genişledi) ve iki kiracıda gerçek HTTP koşusu `fake_secret anahtarı
-  ayarlarda yok` hatasıyla durdu. Elle dolduruldu. **Gürültülü istisna işe
-  yaradı** — 1E.1'de boş anahtarla imzalamayı yasaklamasaydık, imza sessizce
-  boş anahtarla üretilir ve doğrulama hiçbir şey korumazdı. `tenant:create` yeni markaya varsayılan ayarları
-  ve yasal taslakları kuruyor (1A.4), ama **önceden açılmış** markalara kimse gitmiyor.
-  1A.6'da ölçüldü: 0.5'te açılan B markası yasal taslaksızdı. Canlıda eski markalar
-  eksik doğar ve kimse fark etmez. Gereken: `tenants:backfill` gibi, eksik varsayılanı
-  olan markalara **var olanı ezmeden** ekleyen bir komut.
-- **Sahip parolası varsayılanı kaldırılacak.** `tenant:create --sahip-parola` şu an
-  `123`; kontrol düzlemi gelince marka kendi parolasını belirleyecek (1A.3).
+### Sıra ve gerekçesi
+
+```
+3A backfill      borç — ÖNCE gerekli: 3B'de kolon eklenince eski markalar
+                 boş doğacak ve bu HATA VERMEYECEK
+3B merkez tablo  timestamptz · jsonb · gerçek kolonlar
+3C kontrol düzl. platform yöneticisi API'si — 3. guard
+3D marka açma    self-servis kayıt · kartsız deneme
+3E abonelik      iyzico · plan · yenileme · başarısız ödeme
+3F kota          sınır UYGULANMAZSA plan anlamsız
+3G yaşam döngüsü askı → kapatma → 1 yıl → silme
+3H özel alan adı on-demand TLS — en sona, altyapısı %70 hazır
+```
+
+---
+
+### 3-K1 · SINIR KAPASİTEYE KONUR, İŞLEME DEĞİL
+
+```
+✗ "ayda 200 sipariş"        201. sipariş geldiğinde ne yapacaksın?
+                            reddedersen markanın SATIŞINI kestin
+                            geçirirsen sınır zaten yok
+
+✓ ürün sayısı · personel sayısı · özellik
+                            marka 501. ürünü ekleyemez ama satışı sürer
+```
+
+> **⚠️ ARAŞTIRMA ÖNERİMİ ELEDİ.** İlk tasarımda "aylık sipariş" seçeneği de
+> vardı. İkas ve Shopify'a bakıldı: **ikisinde de aylık sipariş limiti yok.**
+> İkas ürün + kullanıcı sayısıyla ayırıyor (Start 100 ürün/1 kullanıcı →
+> Scale sınırsız ürün/5 kullanıcı), Shopify personel sayısı + özellik
+> derinliğiyle (1 → 5 → 15 → sınırsız).
+>
+> Sebebi açık: sipariş sınırı markanın **en iyi gününde** sistemi ona
+> kapatır. Kampanyası tutan marka o gün seni bırakır.
+
+### 3-K2 · ABONELİK iyzico'NUN KENDİ SİSTEMİYLE
+
+```
+ÜRÜN ("TıkMarka Mağaza")
+  └── ÖDEME PLANI  price · paymentInterval · trialPeriodDays · recurrenceCount
+        └── ABONELİK  (markanın kaydı)
+
+durumlar : ACTIVE · PENDING · UNPAID · UPGRADED · CANCELED · EXPIRED
+uçlar    : iptal · yükseltme · KART GÜNCELLEME · retry · sorgu
+her tekrarlı ödemede WEBHOOK  → 1E'nin webhook disiplini burada tekrar
+⚠️ duraklatma ucu YOK · yalnızca kredi kartı
+```
+
+> **Kendimiz yazsaydık** markanın kartını saklamamız gerekirdi — en riskli
+> veri türü, en ağır yasal yükümlülük. Kart son kullanma tarihi, tekrar
+> deneme mantığı, kart güncelleme ekranı… hepsi bize kalırdı.
+>
+> ⚠️ Kart bizim sistemimize **hiç girmiyor**.
+
+### 3-K3 · DENEME BİZDE, ABONELİK SONRA — kartsız kayıt için
+
+```
+⚠️ TEKNİK KISIT: iyzico'da abonelik başlatmak bir ÖDEME İSTEĞİ.
+   Tutar 0 olsa bile KART ZORUNLU. Yani "kartsız deneme" iyzico'nun
+   içinde yapılamıyor.
+
+seçilen:  kayıt → kart YOK → tenants.trial_ends_at = +14 gün
+          14 gün her şey açık
+          deneme biterken "devam için kart girin"
+          kart girilince iyzico ABONELİĞİ BAŞLIYOR
+```
+
+> Alternatif, kayıtta kart isteyip `trialPeriodDays` kullanmaktı — daha az
+> kod ama kayıt sürtünmesi çok daha yüksek.
+>
+> ⚠️ **Sonradan değiştirmesi pahalı:** diğerine geçmek, kart girmiş
+> markaların aboneliklerini iyzico tarafında taşımak demek.
+
+### 3-K4 · BAŞARISIZ ÖDEME KADEMELİ — ve VİTRİN AÇIK KALIR
+
+```
+gün 0     ödeme başarısız → iyzico UNPAID → webhook
+gün 0-7   HER ŞEY AÇIK, yalnızca hatırlatma
+            ⚠️ başarısız ödemelerin çoğu KASITLI DEĞİL — kart yenilenmiştir
+gün 7-14  PANEL SALT-OKUNUR: marka görür, değiştiremez
+          VİTRİN AÇIK → müşteriler alışverişe devam
+gün 14+   ASKI
+```
+
+> **⚠️ SHOPIFY'DAN BİLİNÇLİ OLARAK AYRILIYORUZ.** Shopify donmuş mağazada
+> panel de vitrin de kapatıyor. Biz vitrini açık bırakıyoruz çünkü **vitrini
+> kapatmak markayı değil, markanın MÜŞTERİLERİNİ vuruyor:**
+>
+> - siparişini takip edemeyen müşteri
+> - iade açamayan müşteri → 2B'de yazdığımız her şey erişilemez
+> - parasını ödemiş, malı gelmemiş insan
+>
+> Bu insanların TıkMarka ile hiçbir sözleşmesi yok; faturayı ödemeyen marka.
+> Sektör pratiği de tam kapatma yerine **kademeli bozulmayı** öneriyor:
+> kapıyı tamamen kapatırsan marka geri dönmek için sebep bulamıyor.
+
+### 3-K5 · WILDCARD SERTİFİKA YOK — ama TAVAN SESSİZ OLMAYACAK
+
+```
+Let's Encrypt: haftada 50 sertifika / KAYITLI ALAN ADI
+  marka-a.tikmarka.com ┐
+  marka-b.tikmarka.com ├─ HEPSİ tikmarka.com kotasından yiyor
+  ...                  ┘
+  51. marka → sertifika YOK → sitesi açılmıyor, BİR HAFTA boyunca
+```
+
+> Wildcard (`*.tikmarka.com`) bunu tek sertifikaya indirir ama **bedeli var
+> ve ölçüldü:**
+>
+> | risk | wildcard | ayrı sertifika |
+> |---|---|---|
+> | DNS API anahtarı sunucuda | **gerekli** — çalınırsa tüm DNS ele geçer | gerekmiyor |
+> | anahtar çalınırsa | **tüm markalar** taklit edilebilir | yalnızca o marka |
+> | yenileme bozulursa | **hepsi birden** HTTPS'siz | biri etkilenir |
+> | kapsam | yalnızca bir seviye (`a.b.tikmarka.com` ✗) | sınır yok |
+>
+> **Karar: bugün 50/hafta yeterli** (ayda ~200 yeni marka; yenilemeler bu
+> kotadan sayılmıyor). Wildcard'ın güvenlik yoğunlaşmasını almaya gerek yok.
+>
+> ⚠️ **ŞART:** tavan sessiz olmayacak. Bugünkü tuzağımız tam bu — marka
+> açılır, kayıt başarılı görünür, site açılmaz.
+>
+> ```
+> merkez panel : "bu hafta açılan marka: 12 / 50"
+> 40'ta        : uyarı
+> 50'de        : yeni marka açma REDDEDİLİR
+>                (kırık marka üretmektense açıkça hayır demek)
+> ```
+>
+> Wildcard **ertelenmiş çözüm**; tetikleyicisi bu sayaç.
+
+### 3-K6 · ÖZEL ALAN ADI VAR — DNS'i MARKA ekler, BİZ kontrol ederiz
+
+```
+✓ HAZIR   domains tablosu çoklu alan adı destekliyor (0.5)
+✓ HAZIR   DomainCheckController — Caddy'nin "ask" ucu (0.5)
+✗ eksik   Caddyfile'da on-demand TLS
+✗ eksik   markanın "alan adımı bağla" ucu
+✗ eksik   DNS doğrulama kontrolü
+```
+
+Akış:
+
+```
+1  marka panelde yazar: markasitesi.com     → durum BEKLİYOR
+2  biz NET talimat veririz (CNAME/A kaydı, değerleriyle)
+   ⚠️ bu adımı MARKA yapıyor, kendi alan adı panelinde
+3  marka "Kontrol et"e basar → biz DNS'e sorarız
+   bizi gösteriyorsa DOĞRULANDI, değilse AÇIK mesaj
+4  ilk ziyarette Caddy bize sorar (ask) → "evet" → sertifika alınır
+```
+
+> **⚠️ "URL'de görünen değişsin, aslı aynı kalsın" YAPILAMAZ.** Tarayıcının
+> en temel sözü, adres çubuğunda yazanın gerçekten bağlanılan yer olması.
+> Bozulabilseydi tüm bankacılık çökerdi. Tek yakın yöntem iframe'e gömmek;
+> o da SEO'yu öldürüyor, 3DS ödemeyi engelliyor (1E'de görüldü), çerezleri
+> bozuyor ve zaten oltalama kalıbı.
+>
+> **Neden gerekli:** görüntüden ibaret değil — **Google bakıyor.** Marka
+> `marka-a.tikmarka.com`'da kalırsa itibar bizim alan adımıza yazılır;
+> marka ayrılırsa sıralamayı sıfırdan kurar. Kendi alan adı = markanın
+> **taşınabilirliği**.
+>
+> ⚠️ 3. adım **destek yükü**: marka DNS panelini bilmiyorsa takılır.
+> Kontrol sonucu açıkça gösterilmeli, sessizce beklememeli.
+>
+> ⚠️ Özel alan adları wildcard sorununa girmiyor — her biri **kendi** kayıtlı
+> alan adına sayılıyor, yani kotamızdan yemiyor.
+
+### 3-K7 · KAPANAN MARKA: 1 YIL DOKUNULMADAN, SONRA SİLİNİR
+
+```
+gün 0    mağaza kapandı
+         ★ marka VERİSİNİ İNDİRİR (2G'deki dışa aktarma — tam yerine oturdu)
+           10 yıllık yasal yükümlülüğünü kendi arşiviyle karşılar
+gün 0-1yıl  ŞEMA DURUYOR, dokunulmuyor
+            geri dönerse HER ŞEY yerinde — müşteri listesi dâhil
+1 yıl    ŞEMA SİLİNİR
+```
+
+> **Yasal araştırma iki kural buldu ve ikisi de bizi ilgilendiriyor:**
+>
+> **A — saklama ZORUNLU.** Sipariş, fatura, ödeme kayıtları TTK ve VUK
+> gereği **10 yıl** saklanmalı. Silmek yasak değil, tersine tutmak zorunlu.
+>
+> **B — ama yükümlülük KİMİN?**
+> ```
+> MARKA           veri SORUMLUSU    10 yıl saklama yükümlülüğü ONUN
+> TıkMarka        veri İŞLEYEN      onun adına tutuyoruz,
+>                                   kendi amacımızla kullanamayız
+> ```
+> ⚠️ Sözleşme bitince veri işleyenin veriyi sorumluya **iade edip silmesi**
+> gerekiyor. KVKK Kurulu'nun 2021/1258 kararında tam bu durumda ceza var.
+>
+> **Sonuç:** 1 yıl saklamak meşru, **ama şartı var** — süre sözleşmede
+> AÇIKÇA yazılı olacak ("mağaza kapatıldıktan sonra verileriniz 1 yıl
+> saklanır, süre sonunda kalıcı olarak silinir"). Süre belirsiz bırakılırsa
+> ya da "belki lazım olur" denirse risk doğuyor.
+>
+> Sözleşme metinlerini zaten sürümlüyoruz (1A.6, `legal_document_versions`)
+> — madde oraya girecek.
+>
+> ⚠️ Kapanma anında **veri indirme teklifi** şart: markanın 10 yıllık
+> yükümlülüğü ona devredilmiş olur ve 1 yıl sonra sildiğimizde kimse
+> "arşivim gitti" diyemez.
+
+### 3-K8 · PLATFORM YÖNETİCİSİ ÜÇÜNCÜ GUARD
+
+```
+customer   müşteri            (1A.2)
+staff      marka personeli    (1A.2)
+platform   BİZ                ← yeni
+```
+
+> ⚠️ Mevcut guard'lardan birine bindirilseydi bir marka personeli, kendi
+> markasının sınırlarını değiştirebilir hâle gelirdi. 1A.2'de müşteri
+> token'ının personel guard'ından reddedildiğini ölçmüştük; aynı kanıt
+> burada da gerekiyor.
+
+### 3-K9 · MERKEZ TABLO DÜZELTİLECEK — kendi kuralımızı ihlal ediyor
+
+```
+tenants.created_at   timestamp WITHOUT time zone   ← CLAUDE.md 2. kural
+tenants.data         json (jsonb DEĞİL)            ← indekslenemez
+```
+
+> ⚠️ İkisi de **paketin varsayılan migration'ından** geliyor. Marka
+> şemalarında `timestampsTz()` disiplinini uyguladık ama merkez tabloyu hiç
+> açmamışız.
+>
+> Abonelik alanları `data` json'ına **konmayacak**, gerçek kolon olacak:
+> `plan_id · status · trial_ends_at · suspended_at · closed_at`.
+> json'a konsaydı "ödemesi geçmiş markalar" ya da "denemesi bugün biten
+> markalar" sorgusu yazılamazdı — ve zamanlanmış görevlerin tamamı bu
+> sorgulara dayanıyor.
+
+---
+
+### Bitiş ölçütü
+
+Bir ziyaretçi siteye gelir, mağazasını **kendisi** kurar, 14 gün kartsız
+dener, kartını girer, aboneliği başlar, planının sınırına dayanır, üst plana
+geçer; ödemesi başarısız olursa kademeli olarak kısıtlanır; isterse kendi
+alan adını bağlar; ayrılırsa verisini indirir ve bir yıl sonra izi silinir.
+
+**Devredilen borçlar bu fazda kapanıyor:** `tenants:backfill` (3A) ·
+sahip varsayılan parolası `123` (3D) · Caddyfile'a elle alan adı (3H).
+
+---
+
+##### Bu kararların dayandığı kaynaklar
+
+> · **iyzico** — [Abonelik](https://docs.iyzico.com/urunler/abonelik/abonelik-entegrasyonu)
+>   (ürün → plan → abonelik, webhook) ·
+>   [Ödeme planı](https://docs.iyzico.com/urunler/abonelik/abonelik-entegrasyonu/odeme-plani)
+>   (`trialPeriodDays`, `paymentInterval`, `recurrenceCount`) ·
+>   [Abonelik işlemleri](https://docs.iyzico.com/on-hazirliklar/api-reference-beta/abonelik/abonelik/abonelik-islemleri)
+>   (durumlar, iptal/yükseltme/kart güncelleme)
+> · **ikas** — [e-ticaret paketleri](https://ikas.com/tr/e-ticaret-paketleri)
+>   (ürün + kullanıcı sınırı, sipariş sınırı YOK)
+> · **Shopify** — [plan limitleri](https://craftshift.com/shopify-limits-2026-complete-guide/) ·
+>   [donmuş mağaza](https://help.shopify.com/en/manual/your-account/manage-billing/billing-charges/frozen-store)
+>   (panel de vitrin de kapalı — biz ayrıldık) ·
+>   [veri saklama](https://help.shopify.com/en/manual/your-account/manage-orgs-and-stores/manage-pricing-plan/deactivate-store)
+>   (2 yıl)
+> · **Let's Encrypt** — [hız sınırları](https://letsencrypt.org/docs/rate-limits/)
+>   (50/kayıtlı alan adı/hafta; yenilemeler ayrı)
+> · **Caddy** — [on-demand TLS](https://caddyserver.com/on-demand-tls)
+>   (`ask` ucu hem kötüye kullanımı engelliyor hem Caddy'nin kendi
+>   sınırlarını devre dışı bırakıyor)
+> · **Dunning** — [SaaS pratiği](https://baremetrics.com/blog/ultimate-dunning-management-guide)
+>   (3-7 gün nezaket, 10-14 günde askı, tam kapatma yerine kademeli bozulma)
+> · **KVKK / TTK** — [saklama süreleri](https://nitelikliveri.com/kvkk-kavramlar/kanunlara-gore-kisisel-verilerin-saklanma-sureleri/)
+>   (sipariş/fatura 10 yıl) ·
+>   [veri sorumlusu ve veri işleyen](https://www.cottgroup.com/tr/blog/kvkk-gdpr/item/kvkk-ve-gdpr-kapsaminda-veri-sorumlusu-ve-veri-isleyen) ·
+>   [Kurul kararı 2021/1258](https://www.kvkk.gov.tr/Icerik/7286/2021-1258)
+>   (sözleşme bitince veri işleyen silmeli)
+
+---
 
 ## Faz 4 — Arayüz  *(henüz açılmadı)*
 

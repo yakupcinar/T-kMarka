@@ -931,4 +931,60 @@ FAZ 3 SIRADA — satılabilirlik
   kontrol düzlemi · abonelik ve planlar · marka açma akışının tamamı
   gerçek on-demand TLS
   devredilenler: tenants:backfill komutu · sahip varsayılan parolası
+
+FAZ 3 AÇIK — 9 karar plana yazıldı, hepsi araştırmayla
+  (iyzico · ikas · Shopify · Let's Encrypt · KVKK/TTK)
+
+  sıra: 3A backfill → 3B merkez tablo → 3C kontrol düzlemi
+        → 3D marka açma → 3E abonelik → 3F kota
+        → 3G yaşam döngüsü → 3H özel alan adı
+
+  3-K1  SINIR KAPASİTEYE: ürün + personel + özellik
+        ⚠️ ARAŞTIRMA ÖNERİMİ ELEDİ — "aylık sipariş" düşünülmüştü;
+          ikas da Shopify da kullanmıyor. Sipariş sınırı markanın EN
+          İYİ GÜNÜNDE sistemi ona kapatır.
+
+  3-K2  abonelik iyzico'nun kendi sistemiyle
+        ürün → ödeme planı → abonelik · her ödemede webhook
+        ⚠️ kart bizim sistemimize HİÇ girmiyor
+
+  3-K3  deneme BİZDE (14 gün, kartsız), abonelik SONRA
+        ⚠️ teknik kısıt: iyzico'da abonelik başlatmak kart istiyor,
+          tutar 0 olsa bile → kartsız deneme orada yapılamıyor
+        ⚠️ sonradan değiştirmesi pahalı
+
+  3-K4  başarısız ödeme KADEMELİ:
+        0-7 gün her şey açık → 7-14 panel salt-okunur → 14+ askı
+        ★ VİTRİN AÇIK KALIYOR — Shopify'dan bilinçli ayrılma:
+          vitrini kapatmak markayı değil MÜŞTERİLERİNİ vuruyor
+          (siparişini takip edemeyen, iade açamayan insan)
+
+  3-K5  WILDCARD YOK — 50/hafta yeterli
+        bedeli ölçüldü: DNS API anahtarı sunucuda · anahtar çalınırsa
+          TÜM markalar · yenileme bozulursa hepsi birden
+        ⚠️ ŞART: tavan SESSİZ olmayacak — sayaç + 50'de açmayı reddet
+          (kırık marka üretmektense açıkça hayır)
+
+  3-K6  özel alan adı VAR, Faz 3'ün sonunda
+        DNS'i MARKA ekler, BİZ kontrol ederiz
+        ⚠️ "URL'de görünen değişsin, aslı aynı kalsın" YAPILAMAZ —
+          tarayıcının en temel sözü; iframe SEO'yu ve 3DS'i öldürüyor
+        ⚠️ asıl sebep görüntü değil: Google bakıyor → taşınabilirlik
+        ✓ ask ucu + domains tablosu 0.5'te zaten yazılmış
+
+  3-K7  kapanan marka: 1 YIL dokunulmadan, sonra silinir
+        + kapanışta VERİ İNDİRME (2G'nin dışa aktarması yerine oturdu)
+        ⚠️ yasal iki kural: sipariş/fatura TTK+VUK 10 YIL saklanmalı,
+          AMA yükümlülük MARKANIN (veri sorumlusu), bizim değil
+          (veri işleyen) — sözleşme bitince işleyen SİLMELİ
+          KVKK Kurulu 2021/1258'de tam bu durumda ceza var
+        ⚠️ şartı: 1 yıl süresi SÖZLEŞMEDE AÇIKÇA yazılı olacak
+
+  3-K8  platform yöneticisi ÜÇÜNCÜ GUARD (customer · staff · platform)
+
+  3-K9  merkez tablo düzeltilecek — kendi kuralımızı ihlal ediyor:
+        tenants.created_at timestamp WITHOUT time zone (CLAUDE.md 2. kural)
+        tenants.data json (jsonb değil)
+        ⚠️ abonelik alanları data json'a KONMAYACAK, gerçek kolon:
+          "denemesi bugün biten markalar" sorgusu yazılamazdı
 ```
