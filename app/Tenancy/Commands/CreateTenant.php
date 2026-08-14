@@ -5,6 +5,7 @@ namespace App\Tenancy\Commands;
 use App\Domain\Identity\DefaultRoles;
 use App\Domain\Identity\EmailNormalizer;
 use App\Domain\Settings\DefaultSettings;
+use App\Enums\TenantStatus;
 use App\Models\User;
 use App\Platform\Models\Tenant;
 use Illuminate\Console\Command;
@@ -32,6 +33,15 @@ class CreateTenant extends Command
                             {--sahip-parola=123 : Sahip kullanıcının parolası}';
 
     protected $description = 'Yeni marka açar: şema oluşturur, tablolarını kurar, alan adını bağlar.';
+
+    /**
+     * Ücretsiz deneme süresi. (3B)
+     *
+     * ⚠️ KART İSTENMİYOR: iyzico aboneliği başlatmak kart gerektirdiği için
+     * deneme burada tutuluyor, abonelik ancak deneme bitip kart girilince
+     * başlıyor. Kart istenseydi kayıt sürtünmesi çok artardı.
+     */
+    public const DENEME_GUN = 14;
 
     /**
      * Komut çalıştırıldığında burası koşar.
@@ -63,7 +73,19 @@ class CreateTenant extends Command
         // devreye giriyor ve arkasından ŞEMA oluşturuluyor, marka
         // migration'ları çalıştırılıyor.
         // Zincir: app/Providers/TenancyServiceProvider.php → events()
-        $tenant = Tenant::create(['name' => $ad]);
+        /*
+        | ⚠️ `status` AÇIKÇA yazılıyor. Kolonun varsayılanı YOK (3B, bilinçli):
+        | varsayılan `active` olsaydı durum vermeyi unutan her yol sessizce
+        | "ödeyen müşteri" üretirdi.
+        |
+        | ⚠️ `trial` — deneme BİZDE tutuluyor, iyzico'da değil: abonelik
+        | başlatmak kart istiyor ve kartsız kayıt istiyoruz (3 numaralı karar).
+        */
+        $tenant = Tenant::create([
+            'name' => $ad,
+            'status' => TenantStatus::Trial,
+            'trial_ends_at' => now()->addDays(self::DENEME_GUN),
+        ]);
 
         // ⚠️ Buradan sonrası patlarsa ortada ÖKSÜZ kiracı kalır: satır ve şema
         // oluşmuş ama alan adı yok → marka hiçbir adresten erişilemez, üstelik
@@ -115,7 +137,6 @@ class CreateTenant extends Command
             app()->make(DefaultSettings::class)->kur($ad);
         });
 
-        // TODO(Faz 3): durum alanı (provisioning → active) ve abonelik kaydı
         // TODO(Faz 3): tenant:delete komutu — kiracı silinince şeması düşüyor
         //              ama storage/tenant<kimlik>/ klasörü diskte kalıyor.
 
@@ -124,6 +145,7 @@ class CreateTenant extends Command
         $this->line("  sahip    : {$sahipEposta}  (parola: {$sahipParola})");
         $this->line('  şema     : '.$tenant->database()->getName());
         $this->line("  adres    : https://{$alanAdi}");
+        $this->line('  durum    : '.$tenant->status?->value.'  (deneme bitişi: '.$tenant->trial_ends_at?->toDateString().')');
         $this->newLine();
         $this->warn('⚠ Sahip parolası komut satırında görünüyor — ilk girişte değiştirilmeli.');
         $this->warn('Mağaza KAPALI açıldı. Panelden şirket bilgilerini doldurup');

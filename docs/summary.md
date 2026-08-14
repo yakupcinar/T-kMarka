@@ -1010,4 +1010,28 @@ FAZ 3 AÇIK — 9 karar plana yazıldı, hepsi araştırmayla
       ⚠️ iki düzeltme: Setting'de @property notu eksikti (casts() enum'u
         statik analize göstermiyor, 3. örnek) · tenants:run'a seçenek
         "komut --bayrak" diye geçilmiyor, --option="bayrak=1" olacak
+
+  3B  ✅ BİTTİ — merkez tablo düzeltmesi + abonelik alanları
+      timestamps→timestamptz · json→jsonb · plans tablosu
+      ⚠️ ilk ikisi PAKETİN migration'ından geliyordu: marka şemalarında
+        timestampsTz disiplinini uyguladık, merkez tabloyu hiç açmamışız
+      ★★ EN ÖNEMLİ: KOLON EKLEMEK TEK BAŞINA İŞE YARAMIYOR
+        paketin getCustomColumns() varsayılanı ['id'], geri kalan her alan
+        data json'ına gidiyor. ÖLÇÜLDÜ:
+          kolon name=NULL       ← boş
+          data  {"name":"X"}    ← veri burada
+          $tenant->name → 'X'   ← model DOĞRU okuyor (!)
+        sinsi olan son satır: kod çalışıyor GİBİ görünüyor, kırılan tek
+        şey SORGU — "denemesi biten markalar" hep boş döner, hata vermez
+      ★ İKİNCİSİ: kopyalamak yetmiyor, data'dan SİLMEK gerek
+        iki yerde duran alanda MODEL DATA'YI OKUYOR → panel adı değiştirir,
+        model eskisini okumaya devam eder, hiçbir yerde hata yok
+      status varsayılanı YOK (bilinçli): default('active') olsaydı durum
+        vermeyi unutan her yol sessizce "ödeyen müşteri" üretirdi
+      test yardımcısı gerçek komutla HİZALANDI (1E.4'ün tekrarı olmasın)
+      4 kırma denemesi, 4'ü de yakalandı
+      ⚠️ kırma denemesi bir TEST KIRILGANLIĞI da buldu: hata veren test
+        merkez tabloda kalıntı bıraktı, sonraki koşular gerçek sebepten
+        değil kalıntıdan kırmızı kaldı
+      yeni iki kural: getCustomColumns · jsonb `?` PDO'da yazılamaz
 ```

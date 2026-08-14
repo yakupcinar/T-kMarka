@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ─────────────────────── şu an: 3B sırada  ───┐
+┌─ YOL HARİTASI ─────────────────────── şu an: 3C sırada  ───┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -23,7 +23,7 @@
 │                      bulunabiliyor, güven üretiyor             │
 │                                                                │
 │  3 · SATILABİLİRLİK ◀ AÇILDI — 9 karar, araştırmayla           │
-│                 ✅ 3A backfill → 3B merkez tablo → 3C kontrol  │
+│              ✅ 3A backfill ✅ 3B merkez tablo → 3C kontrol   │
 │                    3D marka açma → 3E abonelik → 3F kota       │
 │                    3G yaşam döngüsü → 3H özel alan adı         │
 │  4 · ARAYÜZ        ← teknoloji burada seçilir (M-3)            │
@@ -3261,6 +3261,89 @@ yayın durumu, vergi oranı, marka adı, imza anahtarı ve yasal taslaklar
   var — CLAUDE.md'de yazılı tuzağın üçüncü örneği)
 - `tenants:run "komut --bayrak"` çalışmıyor ("komut tanımlı değil");
   doğrusu `tenants:run komut --option="bayrak=1"` — kurala eklendi
+
+---
+
+### 3B — BİTTİ ✅ (9 test)
+
+Kod: `database/migrations/landlord/2026_08_14_090000_fix_and_extend_tenants_table.php` ·
+`app/Platform/Models/Tenant.php` · `app/Platform/Models/Plan.php` ·
+`app/Enums/TenantStatus.php` · `app/Tenancy/Commands/CreateTenant.php` ·
+`tests/Tenancy/MerkezTabloTest.php`
+
+**Üç iş bir arada:** `timestamps()`→`timestamptz` · `json`→`jsonb` ·
+abonelik/yaşam döngüsü kolonları.
+
+> ⚠️ İlk ikisi paketin kendi migration'ından geliyordu. Marka şemalarında
+> `timestampsTz()` disiplinini uyguladık ama **merkez tabloyu hiç açmamıştık** —
+> kendi kuralımız kendi evimizde ihlal ediliyordu.
+
+**★ EN ÖNEMLİ BULGU: kolon eklemek TEK BAŞINA hiçbir işe yaramıyor.**
+
+Paketin `getCustomColumns()` varsayılanı `['id']`; geri kalan her alan `data`
+json'ına gidiyor. Ölçüldü:
+
+```
+Tenant::create(['name' => 'X', 'status' => 'trial'])
+  kolon  name=NULL  status=NULL            ← BOŞ
+  data   {"name":"X","status":"trial"}     ← veri burada
+  $tenant->name → 'X'                      ← model DOĞRU okuyor (!)
+```
+
+⚠️ Sinsi olan son satır: kod çalışıyor *gibi görünüyor*. Kırılan tek şey
+**sorgu** — `where('trial_ends_at','<=',now())` hep boş döner, hata vermez.
+Faz 3'ün bütün zamanlanmış görevleri tam olarak buna bakacak.
+
+**★ İKİNCİ BULGU: kopyalamak yetmiyor, `data`'dan SİLMEK gerekiyor.**
+
+```
+kolon: 'KOLON DEGERI'         ← SQL sorgusunun gördüğü
+data : {"name":"A Markası"}
+$tenant->name → 'A Markası'   ← MODELİN gördüğü — data KAZANIYOR
+```
+
+Silinmeseydi iki kaynak sessizce ayrışırdı: panel adı değiştirir (kolona
+yazılır), model eski adı okumaya devam ederdi. Migration `data - 'name'` ile
+temizliyor.
+
+**Kararların koda dönüşmüş hâli:**
+
+| karar | kod |
+|---|---|
+| sınır ürün+personel, sipariş DEĞİL | `plans.max_products`, `max_staff` — sipariş kolonu yok |
+| `null` = sınırsız | `Plan::asildiMi()` tek kapı; `0` kullanılsaydı "sıfır ürün" ile karışırdı |
+| 14 gün **kartsız** deneme | `tenants.trial_ends_at` + `CreateTenant::DENEME_GUN` — deneme BİZDE, iyzico'da değil |
+| 7 gün nezaket → askı | `grace_ends_at`, `suspended_at` |
+| askıda vitrin AÇIK | `TenantStatus::panelAcikMi()` ≠ `satisAcikMi()` |
+| 1 yıl saklama | `closed_at` |
+
+**⚠️ `status` kolonunun VARSAYILANI YOK — bilinçli.** `default('active')`
+yazılsaydı durum vermeyi unutan her yol sessizce "ödeyen müşteri" üretirdi.
+`null` gürültülü: denetimde hemen görünür.
+
+**Test yardımcısı gerçek komutla HİZALANDI.** `kiraciOlustur` durum yazmıyordu;
+yani test markaları `status=NULL` doğuyordu ve panel kapısı kontrolleri testte
+hiç sınanmazdı — 1E.4'te aynı ayrışma yaşanmıştı. Ayrıca "tenant:create deneme
+durumunda açıyor" testi artık **gerçek komutu** çağırıyor, yardımcıyı değil.
+
+**Dört kırma denemesi, dördü de yakalandı:**
+
+| kırılan | düşen |
+|---|---|
+| `getCustomColumns()` override kaldırıldı | 3 test |
+| listeden yalnızca `name` çıkarıldı | 3 test |
+| `tenant:create` durum yazmadı | 1 test |
+| `Plan`'dan `CentralConnection` kaldırıldı | 1 test |
+
+⚠️ Kırma denemesi bir **test kırılganlığı** da ortaya çıkardı: hata veren test
+`delete()`'e ulaşamayıp merkez tabloda kalıntı bıraktı ve sonraki koşular
+*gerçek sebepten değil kalıntıdan* kırmızı kaldı (`tests/Tenancy/`'de
+`RefreshDatabase` yok). Test artık kendi kalıntısını başta temizliyor.
+
+**Yol boyunca çıkan iki kural** (CLAUDE.md'ye yazıldı):
+- `tenants`'a kolon eklemek → `getCustomColumns()`'a da yazılır
+- jsonb `?` operatörü PDO'da yazılamaz (`syntax error at or near "$1"`);
+  `jsonb_exists(data, 'name')` kullanılır
 
 ---
 

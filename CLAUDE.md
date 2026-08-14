@@ -174,6 +174,16 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   `citext` (1A) · `ltree` (1B) · `pg_trgm` (2C). Hepsi nitelikli yazılmalı —
   `public.similarity`, `public.gin_trgm_ops`, `OPERATOR(public.<%)`. (Türkçe FTS
   sözlüğü `pg_catalog`'ta olduğu için görünüyor, o istisna.)
+- **`tenants` tablosuna kolon eklemek YETMEZ — `getCustomColumns()`'a da yazılır.**
+  Paketin varsayılanı `['id']`; geri kalan HER alan `data` json'ına gidiyor.
+  3B'de ölçüldü: kolon `NULL`, veri json'da, ama `$tenant->name` **doğru**
+  değeri veriyor — yani kod çalışıyor gibi görünüyor. Kırılan tek şey SORGU:
+  `where('trial_ends_at', '<=', now())` hiçbir şey bulmaz, hata da vermez.
+  ⚠️ Alan iki yerde birden durursa **`data` kazanıyor** (ölçüldü) — bu yüzden
+  kolona taşırken `data`'dan `- 'anahtar'` ile SİLİNMELİ.
+- **PostgreSQL'in jsonb `?` operatörü PDO'da YAZILAMAZ.** `data ? 'name'`
+  sorgusu `syntax error at or near "$1"` veriyor: PDO `?` işaretini parametre
+  yer tutucusu sanıyor. Fonksiyon biçimi kullan: `jsonb_exists(data, 'name')`.
 - **Yeni marka geliştirmede HTTPS'e çıkmaz.** `docker/caddy/Caddyfile`'da alan
   adları elle sayılı; `tenant:create` başarılı görünür ama site açılmaz.
   Alan adını ekleyip `docker compose restart caddy`. (Faz 3: on-demand TLS.)

@@ -14,11 +14,13 @@ use App\Domain\Settings\StorePublication;
 use App\Enums\LegalDocumentType;
 use App\Enums\ProductStatus;
 use App\Enums\SettingGroup;
+use App\Enums\TenantStatus;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\User;
 use App\Platform\Models\Tenant;
+use App\Tenancy\Commands\CreateTenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
@@ -95,7 +97,20 @@ uses()->afterEach(function () {
  */
 function kiraciOlustur(string $alanAdi, string $ad = 'Test Markası'): Tenant
 {
-    $tenant = Tenant::create(['name' => $ad]);
+    /*
+    | ⚠️ GERÇEK MARKA NE ALIYORSA TEST MARKASI DA ONU ALMALI — bu satırlar
+    | `tenant:create` ile HİZALI tutulmak zorunda (1E.4'te ayrışmışlardı:
+    | `markaKur` DefaultSettings'i çalıştırmıyordu ve testler gerçekte
+    | olmayan bir markayı ölçüyordu).
+    |
+    | Durum ve deneme bitişi olmadan açılsaydı test markaları `status`
+    | NULL doğar, panel kapısı kontrolleri testte hiç sınanmazdı.
+    */
+    $tenant = Tenant::create([
+        'name' => $ad,
+        'status' => TenantStatus::Trial,
+        'trial_ends_at' => now()->addDays(CreateTenant::DENEME_GUN),
+    ]);
     $tenant->domains()->create(['domain' => $alanAdi]);
 
     return $tenant;
