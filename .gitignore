@@ -11,6 +11,13 @@
 # Laravel çalışma zamanı
 # ⚠ Kiracı klasörleri: her markanın yüklediği dosyalar buraya düşüyor
 #   (storage/tenant<kimlik>/app/...). Ürün görselleri dahil — asla depoya girmez.
+# Derlenmiş Blade önbelleği — DERLEME ÇIKTISI, kaynak değil.
+#
+# ⚠️ 4A'da fark edildi: 7 dosya depoya kaçmıştı ve her Blade değişikliğinde
+# anlamsız fark üretiyorlardı. Laravel bu klasörü kendi .gitignore'uyla
+# korur; bizde yoktu.
+/storage/framework/views/*.php
+
 /storage/tenant*
 /storage/*.key
 /storage/pail
