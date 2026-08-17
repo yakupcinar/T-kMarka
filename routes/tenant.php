@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Panel\AuthController as PanelAuth;
 use App\Http\Panel\CategoryController;
 use App\Http\Panel\CollectionController;
+use App\Http\Panel\DomainController;
 use App\Http\Panel\LegalController;
 use App\Http\Panel\OptionController;
 use App\Http\Panel\OrderController;
@@ -467,6 +468,23 @@ Route::middleware([
             });
 
             Route::middleware('izin:settings.write')->group(function () {
+
+                /*
+                | ★ ÖZEL ALAN ADI (3H).
+                |
+                | ⚠️ `settings.write` arkasında: alan adı mağazanın kimliği,
+                | katalog değil. Yanlış bağlanan bir alan adı mağazayı
+                | erişilemez yapabilir.
+                |
+                | ⚠️ `{domain}` düz metin, MODEL DEĞİL: örtük rota bağlaması
+                | kullanılsaydı başka markanın alan adı belleğe gelirdi
+                | (adres defterinde aynı karar var, 1A.5).
+                */
+                Route::get('/domains', [DomainController::class, 'index']);
+                Route::post('/domains', [DomainController::class, 'store']);
+                Route::post('/domains/{domain}/verify', [DomainController::class, 'verify']);
+                Route::delete('/domains/{domain}', [DomainController::class, 'destroy']);
+
                 /*
                 | ÖDEME SAĞLAYICI AYARLARI (1E-K11) — genel ayar ucundan AYRI.
                 |

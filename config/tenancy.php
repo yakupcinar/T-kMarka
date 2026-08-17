@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Platform\Models\Domain;
 use App\Platform\Models\Tenant;
 use Database\Seeders\TenantDemoSeeder;
 use Stancl\Tenancy\Bootstrappers\CacheTenancyBootstrapper;
 use Stancl\Tenancy\Bootstrappers\DatabaseTenancyBootstrapper;
 use Stancl\Tenancy\Bootstrappers\FilesystemTenancyBootstrapper;
 use Stancl\Tenancy\Bootstrappers\QueueTenancyBootstrapper;
-use Stancl\Tenancy\Database\Models\Domain;
 use Stancl\Tenancy\TenantDatabaseManagers\MySQLDatabaseManager;
 use Stancl\Tenancy\TenantDatabaseManagers\PostgreSQLSchemaManager;
 use Stancl\Tenancy\TenantDatabaseManagers\SQLiteDatabaseManager;
@@ -20,6 +20,11 @@ return [
     'tenant_model' => Tenant::class,
     'id_generator' => UUIDGenerator::class,
 
+    /*
+    | ⚠️ KENDİ modelimiz — paketinki DEĞİL. 3H'de eklenen `verified_at`
+    | kolonu paketin modelinde cast'lenmiyor ve tarih METİN olarak
+    | geliyordu; testler yakaladı.
+    */
     'domain_model' => Domain::class,
 
     /**
@@ -43,6 +48,19 @@ return [
      * değere bağlansaydı ikisini ayırmak sonradan imkânsız olurdu.
      */
     'signup_root_domain' => env('TENANCY_SIGNUP_ROOT_DOMAIN', 'localhost'),
+
+    /**
+     * ★ ÖZEL ALAN ADI HEDEFLERİ (3H).
+     *
+     * Marka kendi DNS panelinde bu değerlerden birini gösteriyor; biz
+     * kontrol ediyoruz.
+     *
+     * ⚠️ İkisi de tanımlı: bazı sağlayıcılar kök alan adında CNAME'e izin
+     * vermiyor, o zaman A kaydı tek yol. Yalnızca biri desteklenseydi
+     * markaların bir kısmı alan adını hiç bağlayamazdı.
+     */
+    'custom_domain_cname' => env('TENANCY_CUSTOM_DOMAIN_CNAME', 'baglanti.localhost'),
+    'custom_domain_ip' => env('TENANCY_CUSTOM_DOMAIN_IP', '127.0.0.1'),
 
     /**
      * Tenancy bootstrappers are executed when tenancy is initialized.

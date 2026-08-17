@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ─────────────────────── şu an: 3H sırada  ───┐
+┌─ YOL HARİTASI ────────────────── şu an: FAZ 3 kapanıyor ───┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -3765,6 +3765,96 @@ yerinde. İki vitrin 200.
 kararın "kapanışta veri indirme" parçası). 2G'deki `DataExporter` müşteri
 verisi için; marka geneline genişletmek ayrı bir iş ve Faz 3'ün kalanına
 bakılarak karar verilecek.
+
+---
+
+### 3H — BİTTİ ✅ (12 test)
+
+Kod: `app/Platform/Domains/` (`DnsChecker`, `SystemDnsChecker`,
+`FakeDnsChecker`, `CustomDomainService`) · `app/Platform/Models/Domain.php` ·
+`app/Http/Panel/DomainController.php` · `DomainCheckController` (kapatıldı) ·
+`docker/Caddyfile` · `tests/Tenancy/OzelAlanAdiTest.php`
+
+**★ AKIŞ — 6 numaralı kararın uygulaması:**
+
+```
+1  marka panelde alan adını yazar     → kayıt, verified_at = null
+2  biz TALİMAT veririz                → CNAME · A · TXT (üçünden biri)
+3  marka kendi DNS panelinde ekler    ← BİZİM erişimimiz YOK
+4  marka "kontrol et" der             → DNS sorgusu
+5  doğruysa verified_at dolar         → ask ucu artık 200 diyor
+6  ilk ziyarette Caddy sertifika alır (on-demand TLS)
+```
+
+**★★ ASIL İŞ: `ask` UCUNU KAPATMAK.**
+
+Uç 0.5'te yazılmıştı ama **doğrulanmamış alan adına da 200 diyordu**. On-demand
+TLS o hâlde açılsaydı, marka paneline `google.com` yazan biri yüzünden Caddy o
+alan adı için ACME doğrulaması dener, düşer ve **Let's Encrypt kotamız yanardı**
+— haftada 50 sertifikayla sınırlıyız (3-K5).
+
+> ⚠️ Uç TLS el sıkışmasının **kritik yolunda**: yalnızca veritabanına bakıyor,
+> DNS sorgusu yapmıyor. Yapsaydı her yeni bağlantı bir ağ turu kadar beklerdi.
+
+**3H-K1 · ÜÇ YOLDAN BİRİ yeterli: CNAME · A · TXT.**
+> Tek yol dayatılsaydı markaların bir kısmı alan adını hiç bağlayamazdı: bazı
+> sağlayıcılar kök alan adında CNAME'e izin vermiyor.
+
+**3H-K2 · Belirteç alan adı başına RASTGELE.**
+> Sabit olsaydı bir markanın belirtecini gören başkası kendi alan adını
+> doğrulatabilirdi.
+
+**3H-K3 · Başarısız kontrol 200 dönüyor, 4xx DEĞİL.**
+> En olağan durum bu — DNS değişikliği yayılmamış olabiliyor. 4xx dönseydi panel
+> "bir şeyler bozuk" gösterirdi. Talimat da cevapta tekrar dönüyor: 3. adım
+> **insan işi** ve destek yükünün tamamı orada.
+
+**3H-K4 · Merkez alan adlarımız ve ayrılmış adlar ALINAMIYOR.**
+> Alınabilseydi marka kendi paneline merkez adresimizi yazar, kapı görevlisi
+> merkez isteklerini o markaya yönlendirir ve **kontrol düzlemimizi
+> kaybederdik**. Kök alan adımızın altı da kapalı — 3D'deki ayrılmış adlar
+> listesinin arka kapısı olurdu.
+
+**3H-K5 · SON alan adı silinemiyor.**
+> Silinseydi marka hiçbir adresten erişilemez hâle gelir ve paneline girip
+> düzeltemezdi (1A.3'teki "sahip kendi rolünden `staff.manage`'i kaldıramaz"
+> ile aynı düşünce).
+
+**★ İKİ HATA TESTLERLE ORTAYA ÇIKTI:**
+
+**1 · Kolon eklemek yetmedi — cast yok.** `verified_at` bir **metin** olarak
+geliyordu ve `?->toIso8601String()` "Call to a member function on string" ile
+patlıyordu. Paketin `Domain` modeli bizim kolonumuzu bilmiyor; kendi modelimiz
+yazıldı ve `tenancy.domain_model` ona çevrildi. *(3B'de `tenants` tablosunda
+aynı ders `getCustomColumns()` ile çıkmıştı.)*
+
+**2 · Yeni açılan markaların alan adı doğrulanmamış doğuyordu.** Migration
+mevcut kayıtları doldurmuştu ama **ileriye dönük yolu düzeltmiyordu**: on-demand
+TLS açıldığı an yeni açılan her marka sertifika alamazdı. `TenantProvisioning`
+artık kendi alan adını doğrulanmış yazıyor (DNS'ini zaten biz yönetiyoruz), test
+yardımcısı da hizalandı.
+
+**Dört kırma denemesi — ikisi TESTİN zayıflığını gösterdi:**
+
+| kırılan | sonuç |
+|---|---|
+| ask ucu doğrulanmamışa 200 dedi | 1 test düştü ✓ |
+| belirteç sabitlendi | 1 test düştü ✓ |
+| merkez alan adı kontrolü kalktı | ⚠️ **hiçbiri** → test `localhost` kullanıyordu, o zaten "nokta yok" diye eleniyormuş; `127.0.0.1`'e çevrildi |
+| doğrulama tarihi her kontrolde tazelendi | ⚠️ **hiçbiri** → iki çağrı aynı saniyedeydi; tarih geriye çekilerek ölçülür oldu |
+
+**⚠️ GELİŞTİRMEDE SINANAMAYAN kısım dürüstçe kaydediliyor:** `.localhost`
+adreslerine Let's Encrypt sertifika veremiyor, Caddy kendi iç otoritesini
+kullanıyor. `on_demand_tls` bloğu yazıldı ve Caddy sorunsuz yükledi, ama
+**gerçek sertifika alma akışı ancak gerçek bir alan adında sınanabilir**.
+Bugün ölçülen: ask ucu doğru cevap veriyor (doğrulanmış 200, doğrulanmamış 404).
+
+⚠️ Caddyfile'da ilk denemede **ikinci bir global blok** açılmıştı; Caddy
+yapılandırmayı hiç yüklemezdi. Mevcut bloğa taşındı.
+
+**Doğrulandı (gerçek HTTPS):** `marka-a.localhost` → 200 · `hicyok.example` →
+404 · marka panelden `gercek-magaza.example` ekledi, talimat (CNAME/A/TXT)
+cevapta geldi, doğrulanmamışken ask ucu **404** verdi · kayıt silindi (204).
 
 ---
 

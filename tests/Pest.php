@@ -111,7 +111,12 @@ function kiraciOlustur(string $alanAdi, string $ad = 'Test Markası'): Tenant
         'status' => TenantStatus::Trial,
         'trial_ends_at' => now()->addDays(TenantProvisioning::DENEME_GUN),
     ]);
-    $tenant->domains()->create(['domain' => $alanAdi]);
+    /*
+    | ⚠️ `verified_at` DOLU — `TenantProvisioning` ile HİZALI. Boş
+    | bırakılsaydı test markaları gerçek markalardan farklı doğar ve
+    | `ask` ucu testleri yanlış şeyi ölçerdi (1E.4'ün dersi).
+    */
+    $tenant->domains()->create(['domain' => $alanAdi, 'verified_at' => now()]);
 
     return $tenant;
 }

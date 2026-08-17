@@ -2,9 +2,9 @@
 
 namespace App\Http\Platform;
 
+use App\Platform\Models\Domain;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Stancl\Tenancy\Database\Models\Domain;
 
 /**
  * Caddy'nin "bu alan adı sizin mi?" sorusunu cevaplar.
@@ -27,7 +27,22 @@ class DomainCheckController
     {
         $domain = strtolower(trim((string) $request->query('domain', '')));
 
-        if ($domain === '' || ! Domain::where('domain', $domain)->exists()) {
+        /*
+        | ⚠️ `whereNotNull('verified_at')` ŞART (3H). Olmadan doğrulanmamış
+        | her alan adı 200 alırdı: marka paneline `google.com` yazan biri
+        | yüzünden Caddy o alan adı için sertifika istemeye çalışır, ACME
+        | doğrulaması düşer ve Let's Encrypt kotamız yanardı — haftada 50
+        | sertifikayla sınırlıyız (3-K5).
+        |
+        | ⚠️ Bu uç TLS EL SIKIŞMASININ KRİTİK YOLUNDA: yalnızca veritabanına
+        | bakıyor, DNS sorgusu YAPMIYOR. Yapsaydı her yeni bağlantı ağ turu
+        | kadar beklerdi.
+        */
+        $kayitli = $domain !== '' && Domain::where('domain', $domain)
+            ->whereNotNull('verified_at')
+            ->exists();
+
+        if (! $kayitli) {
             return response('', 404);
         }
 

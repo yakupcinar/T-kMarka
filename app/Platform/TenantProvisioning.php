@@ -7,9 +7,9 @@ use App\Domain\Identity\EmailNormalizer;
 use App\Domain\Settings\DefaultSettings;
 use App\Enums\TenantStatus;
 use App\Models\User;
+use App\Platform\Models\Domain;
 use App\Platform\Models\Tenant;
 use Illuminate\Support\Str;
-use Stancl\Tenancy\Database\Models\Domain;
 use Throwable;
 
 /**
@@ -79,7 +79,23 @@ class TenantProvisioning
         ]);
 
         try {
-            $marka->domains()->create(['domain' => $alanAdi]);
+            /*
+            | ★ `verified_at` DOLU doğuyor (3H) — ve bunu bir test yakaladı.
+            |
+            | ⚠️ Boş doğsaydı `ask` ucu bu alan adına 404 der ve on-demand
+            | TLS açıldığı an YENİ AÇILAN HER MARKA sertifika alamazdı.
+            | Migration mevcut alan adlarını doldurmuştu ama yeni açılanlar
+            | kapsam dışıydı — geriye dönük doldurma İLERİYE dönük yolu
+            | düzeltmiyor.
+            |
+            | ⚠️ Doğrulama gerekmiyor çünkü bu alan adı BİZİM kök alan
+            | adımızın altında ve DNS'ini biz yönetiyoruz. Doğrulama
+            | markanın KENDİ alan adı için (3H).
+            */
+            $marka->domains()->create([
+                'domain' => $alanAdi,
+                'verified_at' => now(),
+            ]);
 
             $eposta = (string) EmailNormalizer::normallestir($sahipEposta);
 

@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Domain\Identity\EmailNormalizer;
 use App\Domain\Quota\QuotaGuard;
+use App\Platform\Domains\DnsChecker;
+use App\Platform\Domains\SystemDnsChecker;
 use App\Platform\PlanQuotaGuard;
 use App\Platform\Subscription\SubscriptionProvider;
 use App\Platform\Subscription\SubscriptionProviderFactory;
@@ -19,6 +21,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+
+        /*
+        | ★ DNS OKUYUCU (3H) — gerçek sorgu ağa çıkıyor ve testte
+        | çalıştırılamaz, bu yüzden arayüz üzerinden.
+        */
+        $this->app->bind(
+            DnsChecker::class,
+            SystemDnsChecker::class,
+        );
 
         /*
         | ★ KOTA KAPISI (3F) — arayüz Domain'de, uygulama Platform'da.

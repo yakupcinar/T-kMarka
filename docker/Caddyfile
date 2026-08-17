@@ -22,31 +22,40 @@
 	servers {
 		trusted_proxies static private_ranges
 	}
+
+	# ★ ON-DEMAND TLS (3H) — gerekçesi aşağıdaki blokta.
+	on_demand_tls {
+		ask http://app:9000/tenancy/domain-check
+	}
 }
 
 # Yerel geliştirme yapılandırması.
 #
 # Kiracı alan adları burada elle sayılıyor. Faz 3'te bunun yerine
-# on-demand TLS gelecek: Caddy tanımadığı alan adı için uygulamaya sorar,
-# 200 alırsa sertifikayı kendisi alır.
+# ─────────────────────────────────────────────────────────────────────
+# ON-DEMAND TLS (3H)
 #
-# Sorulacak uç 0.5/7'de YAZILDI ve çalışıyor:
+# Marka kendi alan adını bağlıyor; Caddy tanımadığı alan adı için önce
+# uygulamaya soruyor, 200 alırsa sertifikayı kendisi alıyor.
+#
 #     GET /tenancy/domain-check?domain=<alan-adi>   → 200 / 404
 #     (App\Http\Platform\DomainCheckController)
 #
-# Faz 3'te buraya eklenecek olan:
-#     {
-#         on_demand_tls {
-#             ask http://localhost/tenancy/domain-check
-#         }
-#     }
-#     https:// {
-#         tls { on_demand }
-#         ...
-#     }
-#
 # ⚠️ `ask` olmadan on_demand ASLA açılmaz — IP'mize yönlendirilen her alan
-#    adı için sertifika istenir ve Let's Encrypt kotamız yanar. (M-4.1/1)
+#    adı için sertifika istenir ve Let's Encrypt kotamız yanar (M-4.1/1).
+#    Uç 3H'de KAPATILDI: yalnızca DOĞRULANMIŞ alan adlarına 200 diyor.
+#
+# ⚠️ GELİŞTİRMEDE ETKİSİ YOK: `.localhost` adreslerine Let's Encrypt
+#    sertifika veremiyor, Caddy kendi iç otoritesini kullanıyor. Bu blok
+#    ancak gerçek bir alan adında sınanabilir — dürüstçe kaydediliyor.
+#
+# ⚠️ `ask` TLS EL SIKIŞMASININ KRİTİK YOLUNDA: yavaş cevap = yavaş açılan
+#    site. Uç yalnızca veritabanına bakıyor, DNS sorgusu yapmıyor.
+#
+# ⚠️ Ayar YUKARIDAKİ global bloğa yazıldı. İkinci bir global blok
+#    açılsaydı Caddy yapılandırmayı hiç yüklemezdi — ilk denemede tam bu
+#    oldu.
+# ─────────────────────────────────────────────────────────────────────
 
 marka-a.localhost, marka-b.localhost, localhost {
 

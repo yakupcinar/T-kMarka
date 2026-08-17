@@ -1149,4 +1149,29 @@ FAZ 3 AÇIK — 9 karar plana yazıldı, hepsi araştırmayla
           görsel kayıtları temizlendi · kural CLAUDE.md'ye yazıldı
       4 kırma denemesi (biri ölü savunmayı ortaya çıkardı)
       ⚠️ YAPILMAYAN: marka verisinin dışa aktarılması (7. kararın parçası)
+
+  3H  ✅ BİTTİ — özel alan adı + on-demand TLS
+      akış: marka yazar → biz TALİMAT veririz (CNAME/A/TXT) → marka kendi
+        DNS panelinde ekler → "kontrol et" → doğrulanınca ask ucu 200
+      ★★ ASIL İŞ: ask ucunu KAPATMAK. Uç 0.5'te yazılmıştı ama
+        DOĞRULANMAMIŞ alan adına da 200 diyordu — on-demand TLS o hâlde
+        açılsaydı panele google.com yazan biri yüzünden ACME denenir,
+        düşer ve LE kotamız yanardı (haftada 50)
+        ⚠️ uç TLS el sıkışmasının KRİTİK yolunda: yalnızca veritabanı,
+          DNS sorgusu YOK (yapsaydı her bağlantı ağ turu beklerdi)
+      üç yoldan biri yeterli (bazı sağlayıcılar kökte CNAME'e izin vermiyor)
+      belirteç alan adı başına RASTGELE · başarısız kontrol 200 döner
+      merkez alan adlarımız ve ayrılmış adlar ALINAMIYOR
+      son alan adı silinemiyor (marka kendini dışarıda bırakmasın)
+      ★★ İKİ HATA TESTLERLE ÇIKTI:
+        1) kolon eklemek yetmedi, CAST YOK → verified_at metin geliyordu
+           (3B'nin getCustomColumns dersinin kardeşi) → kendi Domain modeli
+        2) YENİ açılan markaların alan adı doğrulanmamış doğuyordu —
+           migration mevcutları doldurdu ama İLERİYE dönük yolu düzeltmedi
+      4 kırma denemesi; İKİSİ testin zayıflığını gösterdi:
+        merkez kontrolü testi 'localhost' kullanıyordu (nokta yok diye
+        zaten eleniyordu) · tarih tazeleme testi aynı saniyedeydi
+      ⚠️ GELİŞTİRMEDE SINANAMAZ: .localhost'a LE sertifika vermiyor;
+        on_demand_tls yazıldı ve Caddy yükledi ama gerçek sertifika akışı
+        ancak gerçek alan adında sınanabilir — dürüstçe kaydedildi
 ```
