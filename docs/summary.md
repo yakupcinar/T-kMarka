@@ -1077,4 +1077,31 @@ FAZ 3 AÇIK — 9 karar plana yazıldı, hepsi araştırmayla
         karakterlik ad kullanılıyor: satır+şema oluştuktan SONRA patlıyor
       doğrulandı (gerçek HTTPS): kayıt → sahip kendi parolasıyla panele
         girdi (200), eski 123 reddedildi (422), vitrin kapalı (503)
+
+  3E  ✅ BİTTİ — abonelik (plan · deneme · nezaket · iptal · denetim)
+      ⚠️⚠️ 1E İLE KARIŞTIRILMAMALI, ZIT YÖNLER:
+        1E marka → KENDİ müşterisinden tahsil · anahtar MARKA settings'de
+        3E BİZ  → MARKADAN tahsil          · anahtar MERKEZDE, tek
+        birleştirilseydi markanın parası bize, bizimki markaya giderdi
+      trial(14g kartsız) → kart → active ⇄ past_due(7g) → suspended
+      iptal SAĞLAYICIDA da yapılıyor — en pahalı sessiz hata olurdu:
+        marka ayrıldığını sanarken iyzico her ay çekmeye devam ederdi
+      tekrarlayan başarısızlık nezaket süresini UZATMIYOR
+      bilinmeyen referansta 200 (404 olsaydı webhook zinciri kırılırdı)
+      denetim: sağlayıcı ile kendi kaydımızı karşılaştırıyor (3. sayaç)
+      ★★ GERÇEK HTTP İKİ HATA YAKALADI, 18 test yeşilken:
+        ikinci abonelik 500 (409 olmalı) — istisna eşlenmemişti; testler
+          servisi doğrudan çağırıyordu, uçtan geçmiyordu
+        imzasız webhook 400 (401 olmalı) — imza anahtarı boş ve hata
+          "senin gönderdiğin bozuk" diyordu, oysa sorun BİZDE
+          → ayrı istisna + 500 + Log::critical
+      ★ İKİ ÖLÜ SAVUNMA bulundu (2F dersinin tekrarı):
+        serviste "zaten past_due ise dokunma" → kaldırıldı, asıl koruyan
+          TenantLifecycle::gecir(), test oraya taşındı
+        deneme denetiminde subscription_ref şartı → tutuldu ama artık
+          durumu elle tutarsız kuran gerçek test var
+      ⚠️ 3D'nin bir testi kırılgandı: tüm tenant_% şemalarını sayıyordu,
+        tek başına yeşil tam süitte kırmızı → önce/sonra farkına çevrildi
+      ⚠️ gerçek iyzico sağlayıcısı YAZILMADI — 1E deseni: sahte ile akış,
+        gerçek sağlayıcı + sandbox ayrı adım
 ```

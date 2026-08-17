@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Domain\Identity\EmailNormalizer;
+use App\Platform\Subscription\SubscriptionProvider;
+use App\Platform\Subscription\SubscriptionProviderFactory;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -15,6 +17,19 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+
+        /*
+        | ★ ABONELİK SAĞLAYICISI (3E) — MERKEZ yapılandırmadan.
+        |
+        | ⚠️ 1E'deki ödeme sağlayıcısı marka `settings`'inden geliyor ve her
+        | markada AYRI. Bu ise TEK: TıkMarka'nın kendi tahsilat hesabı.
+        | İkisi karışırsa markanın parası bize, bizim paramız markaya gider.
+        */
+        $this->app->bind(
+            SubscriptionProvider::class,
+            fn () => (new SubscriptionProviderFactory)->yap(),
+        );
+
         //
     }
 

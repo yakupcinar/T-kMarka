@@ -94,3 +94,20 @@ Schedule::command('tenants:run puan:sayac-denetle')
 Schedule::command('tenants:run siparis:terk-hatirlat')
     ->hourly()
     ->withoutOverlapping();
+
+/*
+| ABONELİK DENETİMLERİ — gecelik. (3E)
+|
+| ⚠️ `tenants:run` YOK — bu ikisi MERKEZ bağlamda çalışıyor. Diğer
+| görevlerimizin tersi: onlar marka verisine dokunuyordu, bunlar merkeze.
+|
+| ⚠️ 3B'nin gerçek kolonları olmasaydı bu sorgular hiçbir şey bulmazdı ve
+| hata da vermezdi: `trial_ends_at` `data` json'ının içindeydi.
+*/
+Schedule::command('abonelik:deneme-denetle')
+    ->dailyAt('04:00')
+    ->withoutOverlapping();
+
+Schedule::command('abonelik:nezaket-denetle')
+    ->dailyAt('04:15')
+    ->withoutOverlapping();

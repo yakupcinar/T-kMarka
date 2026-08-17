@@ -65,6 +65,13 @@
         <env name="DB_HOST" value="postgres"/>
         <env name="DB_PORT" value="5432"/>
         <env name="DB_DATABASE" value="tikmarka_test" force="true"/>
+
+        <!--
+            ABONELİK (3E) — imza anahtarı testte DOLU olmak zorunda.
+            ⚠️ Boş bırakılırsa sağlayıcı istisna fırlatıyor (1E.7'nin dersi:
+            boş anahtarla imzalama geçerli GÖRÜNEN bir imza üretiyordu).
+        -->
+        <env name="SUBSCRIPTION_WEBHOOK_SECRET" value="test-abonelik-imza-anahtari"/>
         <env name="DB_USERNAME" value="tikmarka" force="true"/>
         <env name="DB_PASSWORD" value="secret" force="true"/>
         <env name="DB_URL" value="" force="true"/>

@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ─────────────────────── şu an: 3E sırada  ───┐
+┌─ YOL HARİTASI ─────────────────────── şu an: 3F sırada  ───┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -23,7 +23,7 @@
 │                      bulunabiliyor, güven üretiyor             │
 │                                                                │
 │  3 · SATILABİLİRLİK ◀ AÇILDI — 9 karar, araştırmayla           │
-│        ✅ 3A ✅ 3B ✅ 3C ✅ 3D marka açma → 3E abonelik      │
+│     ✅ 3A ✅ 3B ✅ 3C ✅ 3D ✅ 3E abonelik → 3F kota         │
 │                    3D marka açma → 3E abonelik → 3F kota       │
 │                    3G yaşam döngüsü → 3H özel alan adı         │
 │  4 · ARAYÜZ        ← teknoloji burada seçilir (M-3)            │
@@ -3505,6 +3505,93 @@ ama `Işıl` ve `İsil` aynı slug'a düşüyor, o yüzden çakışma soneki **z
 kayıt `aysenin-butigi.localhost` üretti · sahip **kendi parolasıyla** panele
 girdi (200) · eski `123` parolası reddedildi (422) · vitrin kapalı doğdu (503) ·
 ayrılmış ad 422.
+
+---
+
+### 3E — BİTTİ ✅ (20 test)
+
+Kod: `app/Platform/Subscription/` (arayüz, `FakeSubscriptionProvider`,
+`SubscriptionService`, fabrika, DTO'lar) · `config/subscription.php` ·
+`app/Http/Platform/{SubscriptionController,SubscriptionWebhookController}.php` ·
+`app/Console/Commands/{SeedPlans,ExpireTrials,ExpireGracePeriods}.php` ·
+`tests/Tenancy/AbonelikTest.php`
+
+**⚠️ 1E İLE KARIŞTIRILMAMASI GEREKEN İKİ AYRI YÖN:**
+
+```
+1E  marka → kendi iyzico hesabıyla → KENDİ MÜŞTERİSİNDEN tahsil
+    anahtarlar MARKA settings'inde, her markada AYRI
+
+3E  BİZ  → kendi iyzico hesabımızla → MARKADAN tahsil
+    anahtar MERKEZDE (config/subscription.php), TEK
+```
+
+> Tek arayüzde birleştirilseydi hangi anahtarın kullanılacağı çağrı yerine
+> bağlı kalırdı; bir gün biri karıştırır ve **markanın parası bize, bizim
+> paramız markaya** giderdi. Ayrıca anahtarlar `settings`'e konmuyor: o tablo
+> marka şemasında ve marka personeli okuyabiliyor.
+
+**Zaman çizgisi:**
+```
+kayıt ──▶ trial (14 gün, KARTSIZ)
+            │ kart girilir
+            ▼
+          active ◀──────────┐
+            │ ödeme başarısız│ düzeldi
+            ▼                │
+          past_due (7 gün) ──┘
+            │ nezaket doldu
+            ▼
+          suspended    panel kapalı · VİTRİN AÇIK
+```
+
+**3E-K1 · İptal SAĞLAYICIDA da yapılıyor — en pahalı sessiz hata.**
+> Yalnızca kendi kaydımızı kapatsaydık iyzico **her ay çekmeye devam ederdi**:
+> marka ayrıldığını sanarken parası gitmeye devam ederdi. Test bunu sağlayıcıya
+> **sorarak** doğruluyor; kendi kaydımıza bakmak bu iddiayı hiç ölçmezdi.
+
+**3E-K2 · Tekrarlayan başarısızlık nezaket süresini UZATMIYOR.**
+> Uzatılsaydı her başarısız denemede sayaç sıfırlanır ve marka sonsuza kadar
+> askıya alınmazdı — ödemeden kullanmaya devam ederdi.
+
+**3E-K3 · Bilinmeyen referansta 200.**
+> 404 dönseydi sağlayıcı tekrar tekrar denerdi. 1E.6'da webhook zinciri tam
+> böyle kırılmış ve **tahsilat hiç kaydedilmemişti**.
+
+**3E-K4 · Denetim sağlayıcıyla kendi kaydımızı karşılaştırıyor.**
+> `committed` (1D) ve `rating_avg` (2E) denetimlerinin üçüncüsü.
+> ⚠️ `past_due` ile `suspended` fark sayılmıyor: nezaket süresi dolmuş marka
+> bizde askıda, sağlayıcıda hâlâ `unpaid` olabiliyor.
+
+**★ GERÇEK HTTP KOŞUSU İKİ HATA YAKALADI — 18 test yeşilken.**
+
+| bulgu | sebep |
+|---|---|
+| ikinci abonelik → **500** (409 olmalı) | `AlreadySubscribedException` eşlenmemişti; testler servisi *doğrudan* çağırıp istisnayı yakalıyordu, uçtan hiç geçmiyorlardı |
+| imzasız webhook → **400** (401 olmalı) | imza anahtarı boştu ve hata "senin gönderdiğin bozuk" diyordu — oysa sorun **bizde** |
+
+İkincisi daha sinsi: üretimde bütün bildirimler sessizce reddedilir ve kimse
+sebebini anlamazdı. Ayrı bir istisna açıldı (`MissingSubscriptionSecretException`)
+→ **500 + `Log::critical`**. İkisi için de test yazıldı.
+
+**★ İKİ ÖLÜ SAVUNMA BULUNDU ve kaldırıldı/ölçüldü** (2F'deki dersin tekrarı):
+
+| ölü kod | ölçüm |
+|---|---|
+| serviste "zaten `past_due` ise dokunma" | kaldırıldı, hiçbir test düşmedi — asıl koruyan `TenantLifecycle::gecir()`, test oraya taşındı |
+| `abonelik:deneme-denetle`'de `subscription_ref IS NULL` | kaldırıldı, hiçbir test düşmedi — **şart tutuldu** ama artık durumu elle tutarsız kuran gerçek bir test var |
+
+**Bir test kırılganlığı da düzeltildi:** 3D'nin "yarıda kalırsa temizlenir"
+testi *tüm* `tenant_%` şemalarını sayıyordu — tek başına yeşil, tam süitte
+kırmızı. Artık önce/sonra **sayı farkına** bakıyor.
+
+**Doğrulandı (gerçek HTTPS):** 3 plan kuruldu ve listelendi · B markası `buyume`
+planına abone edildi (`active`) · ikinci abonelik **409** · imzasız webhook
+**401** · iptal `closed` yaptı · marka geri açıldı ve vitrini 200.
+
+⚠️ **Gerçek iyzico abonelik sağlayıcısı bu blokta YAZILMADI** — 1E'nin deseni:
+önce sahte sağlayıcıyla tam akış, gerçek sağlayıcı ve sandbox doğrulaması ayrı
+adım (1E.7 gibi). Arayüz hazır, tek eksik `IyzicoSubscriptionProvider`.
 
 ---
 

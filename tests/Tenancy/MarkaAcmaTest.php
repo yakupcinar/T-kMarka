@@ -242,6 +242,17 @@ it('★ KURULUM YARIDA KALIRSA arkası TOPLANIYOR', function () {
     $cokUzun = str_repeat('a', 260).'.localhost';
 
     /*
+    | ⚠️ Şema SAYISI karşılaştırılıyor, "hiç şema yok" DEĞİL. İlk yazımda
+    | `count(...)->toBe(0)` yazılmıştı: tek başına koşarken geçiyor, TAM
+    | SÜİTTE kırılıyordu çünkü başka testlerin şemaları da duruyor.
+    */
+    $semaSayisi = fn (): int => count(DB::connection('pgsql')->select(
+        "SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'tenant_%'"
+    ));
+
+    $semaOnce = $semaSayisi();
+
+    /*
     | ⚠️ `toThrow(Throwable::class)` ÇALIŞMIYOR — Pest somut sınıf istiyor.
     | 2C'de aynı şeye takılmıştık.
     */
@@ -256,11 +267,7 @@ it('★ KURULUM YARIDA KALIRSA arkası TOPLANIYOR', function () {
     expect(Tenant::count())->toBe($once)
         ->and(Tenant::where('name', 'Yarım Kalan')->exists())->toBeFalse();
 
-    $kalanSema = DB::connection('pgsql')->select(
-        "SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'tenant_%'"
-    );
-
-    expect(count($kalanSema))->toBe(0);
+    expect($semaSayisi())->toBe($semaOnce);
 });
 
 it('★ ALT ALAN ADI MÜSAİT Mİ ucu sebebi de söylüyor', function () {

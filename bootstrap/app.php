@@ -37,10 +37,13 @@ use App\Http\Middleware\RequirePermission;
 use App\Http\Middleware\RequirePublishedStore;
 use App\Platform\DomainUnavailableException;
 use App\Platform\InvalidTransitionException;
+use App\Platform\Subscription\AlreadySubscribedException;
+use App\Platform\Subscription\MissingSubscriptionSecretException;
 use App\Platform\WeeklyLimitReachedException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Exceptions\TenantCouldNotBeIdentifiedOnDomainException;
 
@@ -376,6 +379,34 @@ return Application::configure(basePath: dirname(__DIR__))
         | başkasını seçmeli. 409 olsaydı "şu an olmuyor, sonra dene"
         | anlamına gelirdi — oysa bu ad hiçbir zaman açılmayacak.
         */
+        /*
+        | Markanın zaten aboneliği var → 409. (3E)
+        |
+        | ⚠️ GERÇEK HTTP KOŞUSU YAKALADI: eşleme yokken 500 dönüyordu ve
+        | 18 testin hiçbiri görmedi — testler servisi doğrudan çağırıp
+        | istisnayı yakalıyordu, uçtan geçmiyordu.
+        |
+        | ⚠️ DURUM sorunu: veri geçerli, yetki var; engelleyen şey markanın
+        | mevcut aboneliği.
+        */
+        $exceptions->render(function (AlreadySubscribedException $e) {
+            return response()->json(['message' => $e->getMessage()], 409);
+        });
+
+        /*
+        | Abonelik imza anahtarı yapılandırılmamış → 500 + günlük. (3E)
+        |
+        | ⚠️ GERÇEK HTTP KOŞUSU YAKALADI: anahtar boşken webhook 400
+        | dönüyordu, yani "senin gönderdiğin bozuk" diyordu. Oysa sorun
+        | BİZDE. Üretimde bütün bildirimler sessizce reddedilir ve kimse
+        | sebebini anlamazdı.
+        */
+        $exceptions->render(function (MissingSubscriptionSecretException $e) {
+            Log::critical('Abonelik imza anahtarı yapılandırılmamış — bildirimler işlenemiyor.');
+
+            return response()->json(['message' => 'Abonelik yapılandırması eksik.'], 500);
+        });
+
         $exceptions->render(function (DomainUnavailableException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         });

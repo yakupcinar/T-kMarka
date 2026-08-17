@@ -2,6 +2,8 @@
 
 use App\Http\Platform\AuthController as PlatformAuth;
 use App\Http\Platform\SignupController as PlatformSignup;
+use App\Http\Platform\SubscriptionController as PlatformSubscription;
+use App\Http\Platform\SubscriptionWebhookController as SubscriptionWebhook;
 use App\Http\Platform\TenantController as PlatformTenants;
 use Illuminate\Support\Facades\Route;
 
@@ -57,6 +59,14 @@ foreach (config('tenancy.central_domains') as $centralDomain) {
         | buraya giremez; girebilseydi bir markanın sahibi bütün markaları
         | görürdü.
         */
+        /*
+        | ★ ABONELİK BİLDİRİMİ (3E) — sağlayıcının SUNUCUSU çağırıyor.
+        |
+        | ⚠️ `auth:platform` DIŞINDA ve olmak zorunda: çağıran iyzico'nun
+        | sunucusu, bizim token'ımız onda yok. Koruma İMZA (1E.4'ün aynısı).
+        */
+        Route::post('/platform/subscription/webhook', SubscriptionWebhook::class);
+
         Route::middleware('auth:platform')->group(function () {
             Route::post('/platform/logout', [PlatformAuth::class, 'logout']);
             Route::get('/platform/me', [PlatformAuth::class, 'me']);
@@ -71,6 +81,17 @@ foreach (config('tenancy.central_domains') as $centralDomain) {
             */
             Route::post('/platform/tenants/{tenant}/status', [PlatformTenants::class, 'status']);
             Route::post('/platform/tenants/{tenant}/plan', [PlatformTenants::class, 'assignPlan']);
+
+            /*
+            | ABONELİK (3E).
+            |
+            | ⚠️ Kart verisi bu uçtan geçiyor ama HİÇBİR YERE yazılmıyor —
+            | ne veritabanına ne günlüğe. Saklamak bizi PCI kapsamına
+            | sokardı.
+            */
+            Route::get('/platform/plans', [PlatformSubscription::class, 'plans']);
+            Route::post('/platform/tenants/{tenant}/subscription', [PlatformSubscription::class, 'subscribe']);
+            Route::delete('/platform/tenants/{tenant}/subscription', [PlatformSubscription::class, 'cancel']);
         });
 
     });
