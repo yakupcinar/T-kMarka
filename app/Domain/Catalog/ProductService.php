@@ -2,6 +2,7 @@
 
 namespace App\Domain\Catalog;
 
+use App\Domain\Quota\QuotaGuard;
 use App\Domain\Search\ProductSearch;
 use App\Domain\Settings\SettingsService;
 use App\Enums\ProductStatus;
@@ -28,6 +29,7 @@ class ProductService
     public function __construct(
         private readonly SettingsService $ayarlar,
         private readonly ProductSearch $arama,
+        private readonly QuotaGuard $kota,
     ) {}
 
     /**
@@ -37,6 +39,19 @@ class ProductService
      */
     public function olustur(array $veri, ?Category $kategori = null): Product
     {
+        /*
+        | ★ PLAN SINIRI (3F) — BURADA, controller'da DEĞİL.
+        |
+        | ⚠️ Controller'a yazılsaydı tohumlayıcı, artisan komutu ve içe
+        | aktarma yolları sınırı ATLARDI: plan satmanın anlamı kalmazdı ve
+        | bu hiçbir yerde görünmezdi (CLAUDE.md — iş kuralı controller'a
+        | yazılmaz).
+        |
+        | ⚠️ Sayım SİLİNMİŞLERİ İÇERMİYOR: arşive kaldırılan ürün kotadan
+        | yer kaplamamalı, yoksa marka temizlik yapamaz hâle gelirdi.
+        */
+        $this->kota->urunEklenebilirMi(Product::count());
+
         $urun = new Product($veri);
 
         $urun->slug = $this->benzersizSlug((string) ($veri['title'] ?? ''));

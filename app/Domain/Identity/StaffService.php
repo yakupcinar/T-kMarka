@@ -2,6 +2,7 @@
 
 namespace App\Domain\Identity;
 
+use App\Domain\Quota\QuotaGuard;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
@@ -17,6 +18,8 @@ use Illuminate\Validation\ValidationException;
  */
 class StaffService
 {
+    public function __construct(private readonly QuotaGuard $kota) {}
+
     /** @return Collection<int, User> */
     public function listele(): Collection
     {
@@ -34,6 +37,15 @@ class StaffService
      */
     public function olustur(array $veri, array $rolAdlari): User
     {
+        /*
+        | ★ PLAN SINIRI (3F) — serviste, controller'da DEĞİL.
+        |
+        | ⚠️ Sayım SAHİBİ DE İÇERİYOR: plan "5 personel" diyorsa sahip
+        | dâhil 5 kişi. Sahip hariç tutulsaydı her plan sessizce bir kişi
+        | fazla verirdi ve bu asla fark edilmezdi.
+        */
+        $this->kota->personelEklenebilirMi(User::count());
+
         $personel = User::create($veri);
 
         $this->rolleriAta($personel, $rolAdlari);

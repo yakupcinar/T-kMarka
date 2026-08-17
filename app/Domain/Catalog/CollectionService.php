@@ -2,6 +2,7 @@
 
 namespace App\Domain\Catalog;
 
+use App\Domain\Quota\QuotaGuard;
 use App\Enums\CollectionType;
 use App\Models\Product;
 use App\Models\ProductCollection;
@@ -18,6 +19,8 @@ use Illuminate\Support\Str;
  */
 class CollectionService
 {
+    public function __construct(private readonly QuotaGuard $kota) {}
+
     /** @return EloquentCollection<int, ProductCollection> */
     public function listele(): EloquentCollection
     {
@@ -32,6 +35,16 @@ class CollectionService
      */
     public function olustur(array $veri, CollectionType $tip, ?array $kural = null): ProductCollection
     {
+        /*
+        | ★ ÖZELLİK BAYRAĞI (3F). Plan koleksiyonu kapsamıyorsa YENİ
+        | koleksiyon açılamıyor.
+        |
+        | ⚠️ VAR OLAN koleksiyonlar SİLİNMİYOR ve listelenmeye devam
+        | ediyor: plan düşüren marka verisini kaybetmemeli. Kota yeni
+        | işlemi engelliyor, geçmişi değil.
+        */
+        $this->kota->ozelligiDogrula('collections');
+
         $koleksiyon = new ProductCollection;
         $koleksiyon->fill($veri);
         $koleksiyon->slug = $this->benzersizSlug((string) ($veri['title'] ?? ''));

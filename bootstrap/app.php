@@ -21,6 +21,7 @@ use App\Domain\Payment\UnknownPaymentReferenceException;
 use App\Domain\Privacy\InvalidDataRequestException;
 use App\Domain\Privacy\UnknownDataSubjectException;
 use App\Domain\Promotion\InvalidCouponException;
+use App\Domain\Quota\QuotaExceededException;
 use App\Domain\Returns\OverReturnException;
 use App\Domain\Returns\ReturnNotRefundableException;
 use App\Domain\Returns\ReturnWindowClosedException;
@@ -389,6 +390,23 @@ return Application::configure(basePath: dirname(__DIR__))
         | ⚠️ DURUM sorunu: veri geçerli, yetki var; engelleyen şey markanın
         | mevcut aboneliği.
         */
+        /*
+        | Plan sınırı aşıldı → 402 Payment Required. (3F)
+        |
+        | ⚠️ 403 DEĞİL: yetki sorunu yok, marka bu işlemi yapabilir —
+        | eksik olan PLAN. 402 tam bu durum için tanımlı ve panel
+        | "yükselt" ekranını buna göre gösterebilir.
+        |
+        | ⚠️ 422 de değil: gönderilen veri geçerli.
+        */
+        $exceptions->render(function (QuotaExceededException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'quota' => $e->tur,
+                'limit' => $e->limit,
+            ], 402);
+        });
+
         $exceptions->render(function (AlreadySubscribedException $e) {
             return response()->json(['message' => $e->getMessage()], 409);
         });

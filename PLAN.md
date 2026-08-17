@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ─────────────────────── şu an: 3F sırada  ───┐
+┌─ YOL HARİTASI ─────────────────────── şu an: 3G sırada  ───┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -23,7 +23,7 @@
 │                      bulunabiliyor, güven üretiyor             │
 │                                                                │
 │  3 · SATILABİLİRLİK ◀ AÇILDI — 9 karar, araştırmayla           │
-│     ✅ 3A ✅ 3B ✅ 3C ✅ 3D ✅ 3E abonelik → 3F kota         │
+│     ✅ 3A ✅ 3B ✅ 3C ✅ 3D ✅ 3E abonelik → 3F kota             │
 │                    3D marka açma → 3E abonelik → 3F kota       │
 │                    3G yaşam döngüsü → 3H özel alan adı         │
 │  4 · ARAYÜZ        ← teknoloji burada seçilir (M-3)            │
@@ -3592,6 +3592,84 @@ planına abone edildi (`active`) · ikinci abonelik **409** · imzasız webhook
 ⚠️ **Gerçek iyzico abonelik sağlayıcısı bu blokta YAZILMADI** — 1E'nin deseni:
 önce sahte sağlayıcıyla tam akış, gerçek sağlayıcı ve sandbox doğrulaması ayrı
 adım (1E.7 gibi). Arayüz hazır, tek eksik `IyzicoSubscriptionProvider`.
+
+---
+
+### 3F — BİTTİ ✅ (12 test)
+
+Kod: `app/Domain/Quota/{QuotaGuard,QuotaExceededException}.php` ·
+`app/Platform/PlanQuotaGuard.php` · `ProductService` · `StaffService` ·
+`CollectionService` · `ReviewService` · `tests/Tenancy/KotaTest.php`
+
+**★ BAĞIMLILIK TERS ÇEVRİLDİ — M-2.7 korunuyor.**
+
+```
+app/Domain/Quota/QuotaGuard.php     arayüz    ← iş mantığı bunu çağırıyor
+app/Platform/PlanQuotaGuard.php     uygulama  ← planı merkezden okuyor
+```
+
+> Kota markanın planına bakıyor ve plan MERKEZ kayıtta; ama `app/Domain/`
+> kiracıdan habersiz olmak zorunda. Ölçüm hâlâ **sıfır**: iş mantığı "kotam
+> var mı" diye soruyor, planın nereden geldiğini bilmiyor.
+>
+> ⚠️ Ölçüm bir kez kirlendi ve bu da öğreticiydi: `QuotaGuard`'ın **yorumunda**
+> kiracılık yardımcılarının adı geçiyordu ve tarama onları da saydı. Kendi
+> belgemiz ölçümü bozarsa bir sonraki koşu yanlış alarm verir — yorum
+> yeniden yazıldı.
+
+**3F-K1 · Kontrol SERVİSTE, controller'da DEĞİL.**
+> Controller'a yazılsaydı tohumlayıcı, artisan komutu ve içe aktarma yolları
+> sınırı **atlardı** — plan satmanın anlamı kalmazdı ve bu hiçbir yerde
+> görünmezdi. Bir test HTTP'den hiç geçmeden doğrudan servisi çağırarak
+> bunu ölçüyor.
+
+**3F-K2 · Kota YENİ eklemeyi engelliyor, VAR OLANI silmiyor.**
+> Plan düşüren marka verisini kaybetmemeli. Koleksiyon özelliği kapanınca
+> mevcut koleksiyonlar listelenmeye devam ediyor, yalnızca yenisi açılamıyor.
+
+**3F-K3 · Tanımsız özellik KAPALI sayılıyor.**
+> Açık sayılsaydı plana yeni bir özellik eklendiğinde **eski planlar onu
+> sessizce kazanırdı** — hiçbir yerde görünmeden.
+
+**3F-K4 · Denemede plan ATANMIŞ OLSA BİLE deneme sınırları geçerli.**
+> Plan okunsaydı, kontrol düzleminden plan atanan bir deneme markası
+> **ödemeden** o planın sınırlarını kullanırdı.
+
+**★ İKİ HATA TESTLERLE ORTAYA ÇIKTI:**
+
+**1 · İki farklı `null` aynı değere binmişti.** "Kiracı yok" (merkez bağlam)
+ile "plan yok" (deneme) ikisi de `plan() === null` idi. Sonuç: merkez bağlamda
+çalışan bakım komutları **deneme sınırına takılıyordu** — `tenants:run` ile
+koşan her komut, tohumlayıcı ve veri taşıma 100 üründen sonra kırılırdı.
+Ayrı bir `kotaDisi()` metodu açıldı. *(`null` = sınırsız tuzağının kardeşi.)*
+
+**2 · `DENEME_PERSONEL = 1` deneme markasını felç ediyordu.** En düşük planla
+aynı yapılmıştı; `IzinTest`'teki "sahip personel davet edebiliyor" testi
+kırıldı. Marka, satın alma kararını vereceği 14 gün boyunca personel
+yönetimini **hiç deneyemezdi** — tam da satın alma sebebi olan özelliği.
+3'e çıkarıldı ve kendi testi yazıldı.
+
+**Deneme sınırları:** 100 ürün · 3 personel · tüm özellikler açık.
+> Sınırsız olsaydı biri deneme hesabıyla yüz binlerce ürün yükleyip terk
+> ederdi; şemayı ve yedeklemeyi biz taşırdık.
+
+**Dört kırma denemesi, dördü de yakalandı:**
+
+| kırılan | düşen |
+|---|---|
+| ürün kotası kontrolü kalktı | 5 test |
+| `null` sınırsız değil sıfır sayıldı | 1 test |
+| tanımsız özellik açık sayıldı | 1 test |
+| denemede plan okundu | 1 test |
+
+**Bir test kalıntısı da düzeltildi:** `planliMarka` yardımcısı `firstOrCreate`
+kullanıyordu; plan düşürme senaryosu planı değiştirip bırakınca sonraki koşu
+*gerçek sebepten değil kalıntıdan* kırmızı kalıyordu. `updateOrCreate` oldu.
+*(3B'deki kalıntı sorununun ikincisi.)*
+
+**Doğrulandı (gerçek HTTPS):** A markasına `baslangic` planı atandı, sınır
+geçici olarak 5'e çekildi → yeni ürün **402** ve cevapta `quota: products`,
+`limit: 5`. Sınır 100'e geri alındı, test ürünü temizlendi.
 
 ---
 

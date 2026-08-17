@@ -1104,4 +1104,25 @@ FAZ 3 AÇIK — 9 karar plana yazıldı, hepsi araştırmayla
         tek başına yeşil tam süitte kırmızı → önce/sonra farkına çevrildi
       ⚠️ gerçek iyzico sağlayıcısı YAZILMADI — 1E deseni: sahte ile akış,
         gerçek sağlayıcı + sandbox ayrı adım
+
+  3F  ✅ BİTTİ — plan kotaları (sınır UYGULANMAZSA plan anlamsız)
+      ★ BAĞIMLILIK TERS ÇEVRİLDİ: arayüz app/Domain/Quota'da, uygulama
+        app/Platform'da → M-2.7 ölçümü hâlâ SIFIR
+        ⚠️ ölçüm bir kez KENDİ YORUMUMDAN kirlendi (tarama yorumları da
+          sayıyor) → belge ölçümü bozmamalı
+      kontrol SERVİSTE: controller'da olsaydı tohumlayıcı/artisan atlardı
+      kota YENİ eklemeyi engelliyor, VAR OLANI silmiyor
+        (plan düşürmek veri kaybı olmamalı)
+      tanımsız özellik KAPALI (açık olsaydı eski planlar sessizce kazanırdı)
+      denemede plan atanmış olsa bile DENEME sınırları geçerli
+      ★★ İKİ HATA TESTLERLE ÇIKTI:
+        1) "kiracı yok" ile "plan yok" AYNI null'a biniyordu → merkez
+           bağlamdaki bakım komutları deneme sınırına takılıyordu
+        2) DENEME_PERSONEL=1 deneme markasını felç ediyordu: marka 14 gün
+           boyunca personel davetini HİÇ deneyemezdi → 3 oldu
+      deneme sınırları: 100 ürün · 3 personel · tüm özellikler açık
+      4 kırma denemesi, 4'ü de yakalandı
+      ⚠️ test kalıntısı düzeltildi: firstOrCreate → updateOrCreate (3B'nin
+        kalıntı sorununun ikincisi)
+      doğrulandı (gerçek HTTPS): sınır 5'e çekildi → 402 + quota/limit
 ```

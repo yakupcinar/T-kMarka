@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Domain\Identity\EmailNormalizer;
+use App\Domain\Quota\QuotaGuard;
+use App\Platform\PlanQuotaGuard;
 use App\Platform\Subscription\SubscriptionProvider;
 use App\Platform\Subscription\SubscriptionProviderFactory;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -17,6 +19,19 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+
+        /*
+        | ★ KOTA KAPISI (3F) — arayüz Domain'de, uygulama Platform'da.
+        |
+        | ⚠️ Bağımlılık BİLEREK ters çevrildi: kota markanın planına bakıyor
+        | ve plan MERKEZ kayıtta, ama `app/Domain/` kiracıdan habersiz olmak
+        | zorunda (M-2.7, ölçülüyor). İş mantığı "kotam var mı" diye
+        | soruyor, planın nereden geldiğini bilmiyor.
+        */
+        $this->app->bind(
+            QuotaGuard::class,
+            PlanQuotaGuard::class,
+        );
 
         /*
         | ★ ABONELİK SAĞLAYICISI (3E) — MERKEZ yapılandırmadan.

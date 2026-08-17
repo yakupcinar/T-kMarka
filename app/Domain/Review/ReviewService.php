@@ -2,6 +2,7 @@
 
 namespace App\Domain\Review;
 
+use App\Domain\Quota\QuotaGuard;
 use App\Enums\ReviewStatus;
 use App\Models\Customer;
 use App\Models\Product;
@@ -26,6 +27,7 @@ class ReviewService
     public function __construct(
         private readonly PurchaseProof $kanit,
         private readonly RatingCounter $sayac,
+        private readonly QuotaGuard $kota,
     ) {}
 
     /**
@@ -37,7 +39,19 @@ class ReviewService
      */
     public function yaz(Customer $musteri, Product $urun, array $veri): Review
     {
-        // Satın alma kanıtı ÖNCE — yoksa hiçbir kayıt oluşmuyor.
+        /*
+        | ★ ÖZELLİK BAYRAĞI (3F). Plan yorumu kapsamıyorsa müşteri yorum
+        | yazamıyor.
+        |
+        | ⚠️ Kontrol EN BAŞTA: satın alma kanıtı sorgusu pahalı ve plan
+        | kapalıysa hiç çalıştırmaya gerek yok.
+        |
+        | ⚠️ VAR OLAN yorumlar vitrinde KALMAYA devam ediyor — plan
+        | düşüren markanın müşteri yorumları silinmemeli.
+        */
+        $this->kota->ozelligiDogrula('reviews');
+
+        // Satın alma kanıtı — yoksa hiçbir kayıt oluşmuyor.
         $satir = $this->kanit->bul($musteri, $urun);
 
         /*
