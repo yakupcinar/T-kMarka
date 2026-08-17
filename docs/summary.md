@@ -1175,3 +1175,118 @@ FAZ 3 AÇIK — 9 karar plana yazıldı, hepsi araştırmayla
         on_demand_tls yazıldı ve Caddy yükledi ama gerçek sertifika akışı
         ancak gerçek alan adında sınanabilir — dürüstçe kaydedildi
 ```
+
+════════════ ✅ FAZ 3 TAMAMLANDI ════════════
+549 test · lint · analyse · CI hepsi yeşil     (Faz 2 sonu: 440 → +109)
+
+Faz 2'de mağaza satabiliyordu ama ÜRÜNÜ BİZ AÇIYORDUK (elle
+tenant:create). Faz 3'ten sonra ürün KENDİ KENDİNİ satıyor:
+
+  ziyaretçi gelir → mağazasını kendi kurar (3D)
+  14 gün kartsız dener                      (3E)
+  kartını girer, aboneliği başlar           (3E)
+  planının sınırına dayanır, üst plana geçer (3F)
+  ödemesi düşerse KADEMELİ kısıtlanır       (3C + 3E)
+  isterse kendi alan adını bağlar           (3H)
+  ayrılırsa bir yıl sonra izi silinir       (3G)
+
+FAZ 3'ÜN TAŞIYICI DERSİ — "yeşil test" yetmiyor, "yeşil kod" da yetmiyor:
+
+  ★ KOD ÇALIŞIYOR GİBİ GÖRÜNÜR, KIRILAN ŞEY SORGUDUR
+    Faz 3'ün en sinsi hatası. 3B'de ölçüldü:
+      $tenant->name          → DOĞRU değeri veriyor    ✅
+      kolon veritabanında    → NULL                     ⚠️
+      veri nerede            → data json'ında
+      where('trial_ends_at') → hiçbir şey bulmuyor, HATA DA VERMİYOR
+    Okuma yolu sağlam olduğu için hiçbir belirti yok; kırılan tek
+    şey SORGU — yani "denemesi bitenleri bul" sessizce boş dönerdi.
+    → paketin varsayılanını (getCustomColumns = ['id']) ezmek gerekti
+    ⚠️ alan iki yerde birden durursa `data` KAZANIYOR (ölçüldü)
+
+  ★ KIRMA DENEMESİ ARTIK RUTİN — ve verimi ARTTI
+    Faz 2'de 3 blokta yalan test buldu; Faz 3'te ALTI blokta:
+      3B  kolon/data ayrımı                3E  iki ölü savunma
+      3D  temizlik testi hiçbir şey ölçmüyordu (boş alan adı zaten
+          doğrulamadan dönüyordu → 260 karakterle gerçek hata)
+      3F  test artığı: firstOrCreate eski satırı buluyordu
+      3G  whereNotNull ölü — ama BİLEREK bırakıldı (aşağıda)
+      3H  merkez kontrolü testi aslında BİÇİM kontrolünü ölçüyordu
+    → yeşil testi kırmayı dene; kırılmıyorsa test yalan söylüyor
+
+  ★ TESTİN KENDİSİ GERÇEK HASAR VERDİ — YENİ DERS SINIFI
+    3G'de test `--onayla` ile komutu çalıştırdı ve GELİŞTİRME
+    ortamındaki gerçek marka klasörlerini SİLDİ (3 ürün görseli) —
+    üstelik storage/framework de gitti, süit "valid cache path" ile
+    tamamen çöktü. Sebep: test ile uygulama AYNI storage/ klasörünü
+    paylaşıyor; RefreshDatabase veritabanını izole eder, DİSKİ ETMEZ.
+    → geri alınamaz işlem yapan koda kök dizin PARAMETRE olarak girer
+
+  ★ ÖLÜ SAVUNMANIN İSTİSNASI YAZILDI
+    2F'de ölü savunma kaldırılmıştı; 3G'de ölçüldü, ölü çıktı ve
+    yine de BIRAKILDI. Fark gerekçeye yazıldı:
+      2F  kolon NOT NULL     → senaryo İMKÂNSIZ        → kaldır
+      3E  başka yer koruyor  → gerçek koruma orada     → kaldır
+      3G  senaryo MÜMKÜN, koruma DOLAYLI (SQL'in NULL
+          semantiğine bağlı) ve işlem GERİ ALINAMAZ    → BIRAK
+    → "ölü savunma kaldırılır" mutlak değil; ölçüt senaryonun
+      mümkün olup olmadığı ve hatanın geri alınabilirliği
+
+  ★ `null` İKİ FARKLI ŞEY DEMEK OLABİLİR
+    3F'de kota kontrolü "kiracı yok" ile "planı yok" durumlarının
+    ikisini de null görüyordu → merkez bakım komutları deneme
+    sınırına takılıyordu. kotaDisi() ile ayrıldı.
+
+  ★ GERÇEK HTTP YİNE SÜİTİN GÖRMEDİĞİNİ GÖSTERDİ
+    3C  merkez rotalar web.php'deydi → CSRF; BÜTÜN testler yeşildi
+        çünkü postJson kullanıyorlar. Gerçek curl "token mismatch".
+        ⚠️ karar 1A.2'de ZATEN VERİLMİŞTİ ve unutuldu
+        → yorum yetmiyor; middleware listesine bakan test yazıldı
+    3E  ikinci abonelik 500 (istisna eşlenmemiş) → 409
+        imzasız webhook 401 yerine 400 (gizli anahtar boş)
+
+  ★ PLAN GERÇEKLE ÇELİŞTİ, PLAN GÜNCELLENDİ
+    3F  DENEME_PERSONEL 1 → 3: sınır 1 iken IzinTest kırıldı, yani
+        deneme markası personel davetini HİÇ deneyemiyordu — satın
+        almaya ikna edecek özelliği göremezdi
+    3H  verified_at cast'ı: paketin Domain modeli bizim kolonumuzu
+        bilmiyor → kendi modelimiz yazıldı
+
+FAZ 3'TE TEKRARLAYAN ESKİ TUZAKLAR
+
+  sonradan eklenen kolon geriye doldurulmalı  3B · 3H       (4. ve 5.)
+  kırma denemesi testin yalanını gösterir     6 blokta      (9.…14.)
+  gerçek HTTP süitin göremediğini görür       3C · 3E       (5. ve 6.)
+  test artığı sonraki koşuyu kırar            3C · 3F       (2. ve 3.)
+
+⚠️ FAZ 3 BİTİŞ ÖLÇÜTÜ — TAM KARŞILANMADI (dürüst kayıt)
+
+  Ölçüt şöyleydi: "…ayrılırsa VERİSİNİ İNDİRİR ve bir yıl sonra
+  izi silinir." İkinci yarı 3G'de yapıldı, BİRİNCİSİ YAPILMADI.
+  Marka geneli veri dışa aktarma yok. 2G'deki DataExporter MÜŞTERİ
+  verisi için; marka geneline genişletmek ayrı bir iş.
+  → KVKK açısından bugün eksik değil (silme yükümlülüğü karşılanıyor)
+    ama SÖZ VERİLEN ölçüt bu; Faz 4 planına borç olarak giriyor
+
+DEVREDİLEN BORÇLARIN DURUMU (ölçüldü, varsayılmadı)
+
+  ✅ tenants:backfill komutu (3A'dan)          → kapandı
+  ⚠️ sahip varsayılan parolası `123`           → DARALDI, kapanmadı
+       gerçek internet akışı (3D) min:8 gerçek parola istiyor;
+       kalan yalnızca tenant:create artisan komutunun varsayılanı
+       — geliştirme aracı, internetten erişilmiyor
+  ⚠️ Caddyfile'a elle alan adı                 → ÜRETİMDE kapandı
+       on_demand_tls + ask ucu çalışıyor; geliştirmede .localhost
+       zorunlu olarak elle kalıyor (LE .localhost'a sertifika vermez)
+
+AÇIK BORÇLAR — FAZ 4'E GİDİYOR
+
+  IyzicoSubscriptionProvider   gerçek sağlayıcı + sandbox doğrulaması
+                               (1E → 1E.7 deseni: önce sahte, sonra gerçek)
+  marka geneli veri dışa aktarma   bitiş ölçütünün eksik parçası
+  wildcard sertifika               haftalık kayıt sayacı tetikleyince
+  declare(strict_types=1)          tek Pint kuralı, 0.3'ten devrediyor
+
+FAZ 4 SIRADA — arayüz
+  üç panel: müşteri (vitrin) · marka · yönetim
+  ayrım rota/URL ile, kimlik ayrımı Sanctum guard'larıyla ZATEN hazır
+  (customer · staff · platform — 3C'de üçüncüsü eklendi)

@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ────────────────── şu an: FAZ 3 kapanıyor ───┐
+┌─ YOL HARİTASI ─────────── şu an: FAZ 3 BİTTİ, FAZ 4 SIRADA ┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -22,16 +22,19 @@
 │                    ╰ çıktı: mağaza konuşuyor, geri veriyor,    │
 │                      bulunabiliyor, güven üretiyor             │
 │                                                                │
-│  3 · SATILABİLİRLİK ◀ AÇILDI — 9 karar, araştırmayla           │
-│     ✅ 3A ✅ 3B ✅ 3C ✅ 3D ✅ 3E abonelik → 3F kota             │
-│                    3D marka açma → 3E abonelik → 3F kota       │
-│                    3G yaşam döngüsü → 3H özel alan adı         │
-│  4 · ARAYÜZ        ← teknoloji burada seçilir (M-3)            │
+│  3 · SATILABİLİRLİK ✅ 3A varsayılan → 3B merkez tablo         │
+│                    3C kontrol düzlemi → 3D marka açma          │
+│                    3E abonelik → 3F kota → 3G kalıcı silme     │
+│                    3H özel alan adı + on-demand TLS            │
+│                    ╰ çıktı: ürün kendi kendini satıyor         │
+│                      ⚠️ eksik: marka geneli veri dışa aktarma  │
+│                                                                │
+│  4 · ARAYÜZ  ◀ SIRADA — teknoloji burada seçilir (M-3)         │
 │  5 · ENTEGRASYON   kargo · e-fatura                            │
 │  6 · DAĞITIM       yayın · yedekleme · izleme                  │
 │                                                                │
 │  Kural: bir blok bitmeden sonrakine geçilmez.                  │
-│  440 test · lint · analyse · CI hepsi yeşil                    │
+│  549 test · lint · analyse · CI hepsi yeşil                    │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -3897,6 +3900,142 @@ sahip varsayılan parolası `123` (3D) · Caddyfile'a elle alan adı (3H).
 >   [veri sorumlusu ve veri işleyen](https://www.cottgroup.com/tr/blog/kvkk-gdpr/item/kvkk-ve-gdpr-kapsaminda-veri-sorumlusu-ve-veri-isleyen) ·
 >   [Kurul kararı 2021/1258](https://www.kvkk.gov.tr/Icerik/7286/2021-1258)
 >   (sözleşme bitince veri işleyen silmeli)
+
+---
+
+## ✅ FAZ 3 KAPANIŞ — satılabilirlik
+
+**549 test · lint · analyse · CI hepsi yeşil.** (Faz 2 sonu 440 → **+109**)
+
+| blok | ne getirdi | test |
+|---|---|---|
+| 3A | eksik varsayılanları tamamlama — var olanı ezmeden | 15 |
+| 3B | merkez tablo: timestamptz · jsonb · abonelik alanları | 9 |
+| 3C | kontrol düzlemi: üçüncü kimlik alanı, marka yaşam döngüsü | 16 |
+| 3D | self-servis marka açma: komut ve kayıt ucu tek yoldan | 13 |
+| 3E | abonelik: plan, deneme, nezaket, iptal, denetim | 20 |
+| 3F | plan kotaları — alan adı bilmeyen bir kapı görevlisi | 12 |
+| 3G | kapatılan markanın kalıcı silinmesi | 12 |
+| 3H | özel alan adı: doğrulama ve on-demand TLS | 12 |
+
+Faz 2'de mağaza satabiliyordu ama **ürünü biz açıyorduk** (elle `tenant:create`).
+Faz 3'ten sonra ürün kendi kendini satıyor: ziyaretçi gelir → mağazasını kendi
+kurar → 14 gün kartsız dener → kartını girer → sınıra dayanır, yükseltir →
+ödemesi düşerse kademeli kısıtlanır → isterse kendi alan adını bağlar →
+ayrılırsa bir yıl sonra izi silinir.
+
+---
+
+### ★ FAZ 3'ÜN TAŞIYICI DERSİ
+
+**"Yeşil test" yetmiyordu; Faz 3 "yeşil kod"un da yetmediğini gösterdi.**
+
+#### 1 · Kod çalışıyor gibi görünür, kırılan şey SORGUDUR
+
+Fazın en sinsi hatası. 3B'de ölçüldü:
+
+```
+$tenant->name            →  DOĞRU değeri veriyor          ✅
+kolon veritabanında      →  NULL                          ⚠️
+veri nerede              →  data json'ında
+where('trial_ends_at')   →  hiçbir şey bulmuyor, HATA DA VERMİYOR
+```
+
+Okuma yolu sağlam olduğu için **hiçbir belirti yok**. Kırılan tek şey sorgu —
+yani "denemesi bitenleri bul" sessizce boş dönerdi ve hiçbir markanın deneme
+süresi hiç bitmezdi. Paketin varsayılanı (`getCustomColumns()` → `['id']`)
+ezildi; alan iki yerde birden durursa **`data` kazanıyor** (ölçüldü), bu yüzden
+taşırken `data - 'anahtar'` ile silinmesi gerekti.
+
+#### 2 · Kırma denemesi rutin oldu — ve verimi ARTTI
+
+Faz 2'de üç blokta yalan test bulmuştu; Faz 3'te **altı blokta**:
+
+| blok | ne çıktı |
+|---|---|
+| 3B | kolon/`data` ayrımı — test kolonu değil okuma yolunu ölçüyordu |
+| 3D | temizlik testi hiçbir şey ölçmüyordu (boş alan adı zaten doğrulamadan dönüyordu) → 260 karakterle gerçek hata |
+| 3E | iki ölü savunma; biri kaldırıldı, biri gerçek testle korundu |
+| 3F | test artığı — `firstOrCreate` eski satırı buluyordu → `updateOrCreate` |
+| 3G | `whereNotNull` ölü çıktı — **ama bilerek bırakıldı** (aşağıda) |
+| 3H | merkez kontrolü testi aslında BİÇİM kontrolünü ölçüyordu (`localhost`'ta nokta yok, zaten eleniyordu) |
+
+#### 3 · ⚠️ TESTİN KENDİSİ GERÇEK HASAR VERDİ — yeni ders sınıfı
+
+3G'de test `--onayla` ile komutu çalıştırdı ve **geliştirme ortamındaki gerçek
+marka klasörlerini sildi** (3 ürün görseli). `storage/framework` de gitti; süit
+`Please provide a valid cache path` ile tamamen çöktü.
+
+> Sebep: test ile uygulama **aynı `storage/` klasörünü paylaşıyor**.
+> `RefreshDatabase` veritabanını izole eder, **diski etmez**.
+> → geri alınamaz işlem yapan koda kök dizin **parametre olarak** girer.
+
+#### 4 · "Ölü savunma kaldırılır" kuralının istisnası yazıldı
+
+2F'de ölü savunma kaldırılmıştı. 3G'de yine ölçüldü, yine ölü çıktı — ve
+**bırakıldı**. Fark gerekçeye yazıldı:
+
+```
+2F   kolon NOT NULL      → senaryo İMKÂNSIZ                    → kaldır
+3E   başka yer koruyor   → gerçek koruma orada                 → kaldır
+3G   senaryo MÜMKÜN, koruma DOLAYLI (SQL'in NULL semantiğine
+     bağlı) ve işlem GERİ ALINAMAZ                             → BIRAK
+```
+
+Ölçüt "ölü mü" değil; **senaryo mümkün mü** ve **hata geri alınabilir mi**.
+
+#### 5 · `null` iki farklı şey demek olabilir
+
+3F'de kota kontrolü "kiracı yok" ile "planı yok" durumlarının ikisini de `null`
+görüyordu → merkez bakım komutları deneme sınırına takılıyordu. `kotaDisi()`
+ile ayrıldı.
+
+#### 6 · Gerçek HTTP yine süitin göremediğini gösterdi
+
+- **3C** — merkez rotalar `web.php`'deydi, yani CSRF'liydi. **Bütün testler
+  yeşildi** çünkü `postJson` kullanıyorlar; gerçek `curl` "token mismatch" aldı.
+  ⚠️ Karar 1A.2'de **zaten verilmişti ve unutuldu** → yorum yetmiyor, middleware
+  listesine bakan yapısal test yazıldı.
+- **3E** — ikinci abonelik 500 (istisna eşlenmemiş) → 409; imzasız webhook 401
+  yerine 400 (gizli anahtar boş) → ayrı istisna + `Log::critical`.
+
+#### 7 · Plan gerçekle çelişti, plan güncellendi
+
+- **3F** `DENEME_PERSONEL` 1 → 3. Sınır 1 iken `IzinTest` kırıldı: deneme
+  markası personel davetini **hiç deneyemiyordu** — satın almaya ikna edecek
+  özelliği göremezdi.
+- **3H** `verified_at` cast'ı: paketin `Domain` modeli bizim kolonumuzu
+  bilmiyor, tarih metin olarak geliyordu → kendi modelimiz yazıldı.
+
+---
+
+### ⚠️ Bitiş ölçütü TAM KARŞILANMADI — dürüst kayıt
+
+Ölçüt şuydu: *"…ayrılırsa **verisini indirir** ve bir yıl sonra izi silinir."*
+
+**İkinci yarı 3G'de yapıldı, birincisi YAPILMADI.** Marka geneli veri dışa
+aktarma yok. 2G'deki `DataExporter` **müşteri** verisi için; marka geneline
+genişletmek ayrı bir iş.
+
+> KVKK açısından bugün eksik değil — silme yükümlülüğü karşılanıyor. Ama
+> **söz verilen ölçüt bu**; Faz 4 planına borç olarak giriyor.
+
+### Devredilen borçların durumu — ölçüldü, varsayılmadı
+
+| borç | durum |
+|---|---|
+| `tenants:backfill` komutu (3A'dan) | ✅ **kapandı** |
+| sahip varsayılan parolası `123` (3D) | ⚠️ **daraldı, kapanmadı** — gerçek internet akışı `min:8` gerçek parola istiyor; kalan yalnızca `tenant:create` artisan komutunun varsayılanı, internetten erişilmiyor |
+| Caddyfile'a elle alan adı (3H) | ⚠️ **üretimde kapandı** — `on_demand_tls` + `ask` ucu çalışıyor; geliştirmede `.localhost` zorunlu olarak elle kalıyor (LE `.localhost`'a sertifika vermez) |
+
+### Açık borçlar — Faz 4'e gidiyor
+
+| borç | not |
+|---|---|
+| `IyzicoSubscriptionProvider` | gerçek sağlayıcı + sandbox doğrulaması (1E → 1E.7 deseni: önce sahte, sonra gerçek) |
+| marka geneli veri dışa aktarma | bitiş ölçütünün eksik parçası |
+| wildcard sertifika | haftalık kayıt sayacı tetikleyince (3-K5) |
+| `declare(strict_types=1)` | tek Pint kuralı, 0.3'ten devrediyor |
 
 ---
 
