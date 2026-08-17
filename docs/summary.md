@@ -1055,4 +1055,26 @@ FAZ 3 AÇIK — 9 karar plana yazıldı, hepsi araştırmayla
         (koruma çift katmanlı: guard + ayrı şema) → dürüstçe yazıldı
       doğrulandı (gerçek HTTPS): askıya al → panel 403, vitrin 200,
         geçersiz geçiş 409, geri açma çalışıyor
+
+  3D  ✅ BİTTİ — self-servis marka açma
+      ⚠️ PLANIN TAHMİNİ ÖLÇÜMLE YANLIŞLANDI: "şema açma uzun, kuyruğa al"
+        deniyordu. ölçüldü → şema+28 migration 240ms, varsayılanlar 39ms
+        → SENKRON. kuyrukta olsaydı kayıt biter, mağaza henüz olmazdı
+      komut ve kayıt ucu AYNI YOLU kullanıyor (TenantProvisioning)
+        ⚠️ ayrışsalardı sessiz olurdu — 1E.4'te tam bu yaşanmıştı
+        yapısal test: komut kaynağında DefaultRoles/DefaultSettings YOK
+      ayrılmış alt alan adları: panel/admin/api (adresimizi kaybetmeyelim)
+        + www/mail/secure/odeme (oltalama zemini olmasın)
+        ⚠️ adı gerçekten "Panel" olan marka REDDEDİLMİYOR, sonek alıyor
+      sahip KENDİ parolasını belirliyor — 123 varsayılanı self-serviste YOK
+      haftalık tavan 45 (LE sınırı 50) → 503 + Retry-After
+        ⚠️ olmasaydı marka açılır, panel çalışır, SİTE AÇILMAZDI
+      türkçe slug ölçüldü: Ayşe'nin Butiği → aysenin-butigi ✓
+        ama Işıl ve İsil aynı slug'a düşüyor → çakışma soneki ZORUNLU
+      ★ kırma denemesi BEŞİNCİ kez bir testin yalanını ortaya çıkardı:
+        "yarıda kalırsa temizlenir" testi boş alan adıyla yazılmıştı,
+        doğrulamada yakalanıyordu → marka HİÇ oluşmuyordu. artık 260
+        karakterlik ad kullanılıyor: satır+şema oluştuktan SONRA patlıyor
+      doğrulandı (gerçek HTTPS): kayıt → sahip kendi parolasıyla panele
+        girdi (200), eski 123 reddedildi (422), vitrin kapalı (503)
 ```

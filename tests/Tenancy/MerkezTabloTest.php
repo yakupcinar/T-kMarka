@@ -3,7 +3,7 @@
 use App\Enums\TenantStatus;
 use App\Platform\Models\Plan;
 use App\Platform\Models\Tenant;
-use App\Tenancy\Commands\CreateTenant;
+use App\Platform\TenantProvisioning;
 use Illuminate\Support\Facades\DB;
 
 /*
@@ -131,7 +131,7 @@ it('★ tenant:create markayı DENEME durumunda açıyor — GERÇEK KOMUTLA', f
 
     // ⚠️ 14 gün — kartsız deneme (3 numaralı karar).
     expect((int) round((float) now()->diffInDays($kayit?->trial_ends_at)))
-        ->toBe(CreateTenant::DENEME_GUN);
+        ->toBe(TenantProvisioning::DENEME_GUN);
 
     expect($kayit?->trial_ends_at?->isFuture())->toBeTrue();
 

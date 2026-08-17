@@ -35,7 +35,9 @@ use App\Http\Middleware\RequireActiveTenant;
 use App\Http\Middleware\RequireOwner;
 use App\Http\Middleware\RequirePermission;
 use App\Http\Middleware\RequirePublishedStore;
+use App\Platform\DomainUnavailableException;
 use App\Platform\InvalidTransitionException;
+use App\Platform\WeeklyLimitReachedException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -367,6 +369,32 @@ return Application::configure(basePath: dirname(__DIR__))
         | var; engelleyen şey markanın ŞU ANKİ durumu. 422 olsaydı panel
         | "gönderdiğin değer bozuk" der ve yönetici yanlış yere bakardı.
         */
+        /*
+        | Alan adı dolu ya da ayrılmış → 422. (3D)
+        |
+        | ⚠️ VERİ sorunu: gönderilen alt alan adı kullanılamaz, kullanıcı
+        | başkasını seçmeli. 409 olsaydı "şu an olmuyor, sonra dene"
+        | anlamına gelirdi — oysa bu ad hiçbir zaman açılmayacak.
+        */
+        $exceptions->render(function (DomainUnavailableException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        });
+
+        /*
+        | Haftalık marka tavanı doldu → 503 + Retry-After. (3D / 3-K5)
+        |
+        | ⚠️ 422 DEĞİL: kullanıcının gönderdiği veride sorun yok, sorun
+        | BİZDE (sertifika kotası). 503 doğru sinyal ve `Retry-After` ile
+        | ne zaman deneyeceği söyleniyor.
+        |
+        | ⚠️ Sessizce marka açmak felaket olurdu: kayıt başarılı görünür,
+        | panel çalışır, SİTE AÇILMAZDI.
+        */
+        $exceptions->render(function (WeeklyLimitReachedException $e) {
+            return response()->json(['message' => $e->getMessage()], 503)
+                ->header('Retry-After', (string) (7 * 24 * 3600));
+        });
+
         $exceptions->render(function (InvalidTransitionException $e) {
             return response()->json(['message' => $e->getMessage()], 409);
         });

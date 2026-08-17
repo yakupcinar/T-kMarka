@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ─────────────────────── şu an: 3D sırada  ───┐
+┌─ YOL HARİTASI ─────────────────────── şu an: 3E sırada  ───┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -23,7 +23,7 @@
 │                      bulunabiliyor, güven üretiyor             │
 │                                                                │
 │  3 · SATILABİLİRLİK ◀ AÇILDI — 9 karar, araştırmayla           │
-│           ✅ 3A backfill ✅ 3B tablo ✅ 3C kontrol düzlemi    │
+│        ✅ 3A ✅ 3B ✅ 3C ✅ 3D marka açma → 3E abonelik      │
 │                    3D marka açma → 3E abonelik → 3F kota       │
 │                    3G yaşam döngüsü → 3H özel alan adı         │
 │  4 · ARAYÜZ        ← teknoloji burada seçilir (M-3)            │
@@ -3428,6 +3428,83 @@ yazıldı.
 marka listesi ve ada göre arama çalıştı, token'sız istek 401 aldı. B markası
 askıya alındı → **panel 403, vitrin 200, `panel/me` 200**; geçersiz geçiş 409;
 geri açma çalıştı.
+
+---
+
+### 3D — BİTTİ ✅ (13 test)
+
+Kod: `app/Platform/TenantProvisioning.php` · `app/Platform/ReservedSubdomains.php` ·
+`app/Http/Platform/SignupController.php` · `routes/platform.php` ·
+`app/Tenancy/Commands/CreateTenant.php` (servise devredildi) ·
+`tests/Tenancy/MarkaAcmaTest.php`
+
+**⚠️ PLANIN TAHMİNİ ÖLÇÜMLE YANLIŞLANDI — kuyruk GEREKMİYOR.**
+
+Plan "şema açma + migration UZUN → kuyruk" diyordu. Ölçüldü:
+
+```
+şema + 28 migration : 240 ms
+varsayılanlar       :  39 ms
+```
+
+Senkron akış hem daha basit hem de kullanıcıya "hazır" diyebilmenin tek dürüst
+yolu — kuyrukta olsaydı kayıt biter, mağaza henüz olmazdı. Karar: **senkron**.
+(`provisioning` durumu yine de kullanılıyor: saniyenin altında yaşıyor ama
+kurulum patlarsa kalıcı iz bırakıyor.)
+
+**3D-K1 · KOMUT ve KAYIT UCU aynı yolu kullanıyor.**
+> `tenant:create` artık kendi kurulumunu yazmıyor, `TenantProvisioning`'i
+> çağırıyor. ⚠️ İki yol ayrışsaydı bu **sessiz** olurdu — 1E.4'te `markaKur`
+> ile `tenant:create` tam böyle ayrışmış ve testler gerçekte var olmayan bir
+> markayı ölçmüştü. Bir test bunu **yapısal olarak** ölçüyor (komut kaynağında
+> `DefaultRoles`/`DefaultSettings` geçmiyor).
+
+**3D-K2 · AYRILMIŞ alt alan adları — iki ayrı tehlike.**
+```
+panel, platform, admin, api    → kendi adresimizi kaybederiz
+www, mail, secure, odeme       → "resmi TıkMarka sayfası" hissi = oltalama
+```
+> ⚠️ Karşılaştırma **slug üzerinden**: `PANEL` de yakalanıyor.
+> ⚠️ Adı gerçekten "Panel" olan marka **reddedilmiyor**, sonek alıyor
+> (`panel-magaza`) — meşru müşteriyi kapıda çevirmek olurdu.
+
+**3D-K3 · Sahip KENDİ parolasını belirliyor.**
+> `tenant:create`'teki `123` varsayılanı self-servis akışta **yok** (en az 8
+> karakter). Olsaydı internetten açılan her marka aynı bilinen parolayla
+> doğardı. Komuttaki varsayılan geliştirme kolaylığı olarak duruyor.
+
+**3D-K4 · HAFTALIK TAVAN gürültülü — 3-K5'in uygulaması.**
+> `HAFTALIK_TAVAN = 45` (Let's Encrypt sınırı 50; elle açılanlar ve tekrar
+> denemeler için pay). Aşılınca **503 + `Retry-After`**.
+> ⚠️ Tavan olmasaydı marka açılır, panel çalışır ama **site açılmazdı** —
+> bugünkü Caddyfile tuzağının ölçekli ve tamamen sessiz hâli.
+> ⚠️ 422 değil 503: kullanıcının verisinde sorun yok, sorun bizde.
+
+**Türkçe slug ölçüldü:** `Ayşe'nin Butiği` → `aysenin-butigi`,
+`ÇİÇEK Dünyası` → `cicek-dunyasi`, `Işıl Takı` → `isil-taki`. Doğru çalışıyor —
+ama `Işıl` ve `İsil` aynı slug'a düşüyor, o yüzden çakışma soneki **zorunlu**.
+
+**Dört kırma denemesi — biri yine bir testin yalanını ortaya çıkardı:**
+
+| kırılan | düşen |
+|---|---|
+| ayrılmış ad kontrolü kalktı | 1 test |
+| haftalık tavan kalktı | 1 test |
+| durum kurulum öncesi `trial` yazıldı | 13 test |
+| **temizlik bloğu silindi** | ⚠️ **hiçbiri** → test düzeltildi |
+
+> ★ "Kurulum yarıda kalırsa arkası toplanıyor" testi boş alan adıyla
+> yazılmıştı ve hiçbir şey ölçmüyordu: boş ad **doğrulamada** yakalanıyor,
+> yani marka hiç oluşmuyor. Test "arkası toplandı"yı değil "hiç başlamadı"yı
+> ölçüyordu. Şimdi 260 karakterlik alan adı kullanılıyor — doğrulamadan geçiyor
+> ama veritabanına yazılamıyor, yani marka satırı ve şeması oluştuktan **sonra**
+> patlıyor. Test artık şema kalıntısını da kontrol ediyor.
+> **2C · 2E · 2F · 3B'den sonra beşinci kez.**
+
+**Doğrulandı (gerçek HTTPS):** `panel` müsaitlik kontrolü `reserved` döndü ·
+kayıt `aysenin-butigi.localhost` üretti · sahip **kendi parolasıyla** panele
+girdi (200) · eski `123` parolası reddedildi (422) · vitrin kapalı doğdu (503) ·
+ayrılmış ad 422.
 
 ---
 

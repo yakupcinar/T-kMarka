@@ -2,14 +2,11 @@
 
 namespace App\Tenancy\Commands;
 
-use App\Domain\Identity\DefaultRoles;
 use App\Domain\Identity\EmailNormalizer;
-use App\Domain\Settings\DefaultSettings;
-use App\Enums\TenantStatus;
-use App\Models\User;
-use App\Platform\Models\Tenant;
+use App\Platform\DomainUnavailableException;
+use App\Platform\TenantProvisioning;
+use App\Platform\WeeklyLimitReachedException;
 use Illuminate\Console\Command;
-use Stancl\Tenancy\Database\Models\Domain;
 
 /**
  * Yeni bir marka (kiracı) açar.
@@ -35,19 +32,10 @@ class CreateTenant extends Command
     protected $description = 'Yeni marka açar: şema oluşturur, tablolarını kurar, alan adını bağlar.';
 
     /**
-     * Ücretsiz deneme süresi. (3B)
-     *
-     * ⚠️ KART İSTENMİYOR: iyzico aboneliği başlatmak kart gerektirdiği için
-     * deneme burada tutuluyor, abonelik ancak deneme bitip kart girilince
-     * başlıyor. Kart istenseydi kayıt sürtünmesi çok artardı.
-     */
-    public const DENEME_GUN = 14;
-
-    /**
      * Komut çalıştırıldığında burası koşar.
      * Dönüş değeri kabuk için: 0 başarılı, 1 hatalı.
      */
-    public function handle(): int
+    public function handle(TenantProvisioning $kurulum): int
     {
         $ad = trim((string) $this->argument('ad'));
         $alanAdi = strtolower(trim((string) $this->argument('alan-adi')));
@@ -58,87 +46,33 @@ class CreateTenant extends Command
             return self::FAILURE;
         }
 
-        // Aynı alan adı iki markaya bağlanamaz: kapı görevlisi (middleware)
-        // hangisine gideceğini bilemez. Veritabanında da unique kısıtı var,
-        // ama hatayı burada yakalayıp anlaşılır mesaj veriyoruz.
-        if (Domain::where('domain', $alanAdi)->exists()) {
-            $this->error("Bu alan adı zaten başka bir markaya kayıtlı: {$alanAdi}");
-
-            return self::FAILURE;
-        }
-
-        $this->info("Marka oluşturuluyor: {$ad}");
-
-        // Tenant::create() sadece bir satır eklemiyor — paketin olay zinciri
-        // devreye giriyor ve arkasından ŞEMA oluşturuluyor, marka
-        // migration'ları çalıştırılıyor.
-        // Zincir: app/Providers/TenancyServiceProvider.php → events()
-        /*
-        | ⚠️ `status` AÇIKÇA yazılıyor. Kolonun varsayılanı YOK (3B, bilinçli):
-        | varsayılan `active` olsaydı durum vermeyi unutan her yol sessizce
-        | "ödeyen müşteri" üretirdi.
-        |
-        | ⚠️ `trial` — deneme BİZDE tutuluyor, iyzico'da değil: abonelik
-        | başlatmak kart istiyor ve kartsız kayıt istiyoruz (3 numaralı karar).
-        */
-        $tenant = Tenant::create([
-            'name' => $ad,
-            'status' => TenantStatus::Trial,
-            'trial_ends_at' => now()->addDays(self::DENEME_GUN),
-        ]);
-
-        // ⚠️ Buradan sonrası patlarsa ortada ÖKSÜZ kiracı kalır: satır ve şema
-        // oluşmuş ama alan adı yok → marka hiçbir adresten erişilemez, üstelik
-        // sorun HTTP denenene kadar fark edilmez. (1A.1'de bu gerçekten yaşandı:
-        // migration hata verdi, alan adı satırına hiç sıra gelmedi.)
-        // Bu yüzden hata olursa yarım kalan kiracıyı temizliyoruz.
-        try {
-            $tenant->domains()->create(['domain' => $alanAdi]);
-        } catch (\Throwable $e) {
-            $tenant->delete();   // şemayı da düşürür
-            $this->error('Marka oluşturulamadı, yarım kalan kayıt temizlendi:');
-            $this->error($e->getMessage());
-
-            return self::FAILURE;
-        }
-
-        /*
-        | Roller ve sahip kullanıcı MARKA ŞEMASINDA oluşturulmalı.
-        | `run()` kiracı bağlamını açıp kapatıyor; olmasaydı bu kayıtlar
-        | merkez şemaya gitmeye çalışır ve "tablo yok" hatası alınırdı.
-        */
         $sahipEposta = (string) EmailNormalizer::normallestir(
             (string) ($this->option('sahip-eposta') ?: "sahip@{$alanAdi}")
         );
         $sahipParola = (string) $this->option('sahip-parola');
 
-        $tenant->run(function () use ($ad, $sahipEposta, $sahipParola) {
-            (new DefaultRoles)->kur();
+        $this->info("Marka oluşturuluyor: {$ad}");
 
-            User::create([
-                'name' => $ad.' Sahibi',
-                'email' => $sahipEposta,
-                'password' => $sahipParola,
-            ])->forceFill(['is_owner' => true])->save();
-            // ⚠️ `is_owner` $fillable dışında (istekle sahiplik alınamasın diye),
-            // bu yüzden forceFill ile atanıyor — güvenilir yerden.
+        /*
+        | ★ KURULUM TEK YOLDAN — [App\Platform\TenantProvisioning].
+        |
+        | ⚠️ Komut kendi kurulumunu yazsaydı self-servis kayıt ucuyla
+        | (3D) ayrışırdı ve bu SESSİZ olurdu: 1E.4'te `markaKur` ile
+        | `tenant:create` tam böyle ayrışmış, testler gerçekte var
+        | olmayan bir markayı ölçmüştü.
+        */
+        try {
+            $tenant = $kurulum->ac($ad, $alanAdi, $sahipEposta, $sahipParola);
+        } catch (DomainUnavailableException|WeeklyLimitReachedException $e) {
+            $this->error($e->getMessage());
 
-            /*
-            | Varsayılan ayarlar + yasal metin iskeletleri.
-            |
-            | ⚠️ Mağaza KAPALI doğuyor ve zorunlu alanlar BOŞ bırakılıyor.
-            | Marka bunları doldurup üç yasal metni yayınlamadan satışa
-            | başlayamıyor (StoreReadiness).
-            |
-            | `app()->make()` kullanılıyor çünkü servislerin kendi
-            | bağımlılıkları var; elle kurmak zinciri burada tekrar etmek
-            | olurdu.
-            */
-            app()->make(DefaultSettings::class)->kur($ad);
-        });
+            return self::FAILURE;
+        } catch (\Throwable $e) {
+            $this->error('Marka oluşturulamadı, yarım kalan kayıt temizlendi:');
+            $this->error($e->getMessage());
 
-        // TODO(Faz 3): tenant:delete komutu — kiracı silinince şeması düşüyor
-        //              ama storage/tenant<kimlik>/ klasörü diskte kalıyor.
+            return self::FAILURE;
+        }
 
         $this->newLine();
         $this->line("  kimlik   : {$tenant->id}");

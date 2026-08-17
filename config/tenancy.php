@@ -33,6 +33,18 @@ return [
     ],
 
     /**
+     * ★ Self-servis kayıtta açılan markaların KÖK alan adı. (3D)
+     *
+     * `aysenin-butigi` + bu değer → `aysenin-butigi.localhost`
+     *
+     * ⚠️ Merkez alan adlarından AYRI tutuluyor: merkez `localhost`, marka
+     * alt alan adları da bugün `*.localhost` — ama üretimde merkez
+     * `tikmarka.com`, markalar `*.magaza.tikmarka.com` olabilir. Tek
+     * değere bağlansaydı ikisini ayırmak sonradan imkânsız olurdu.
+     */
+    'signup_root_domain' => env('TENANCY_SIGNUP_ROOT_DOMAIN', 'localhost'),
+
+    /**
      * Tenancy bootstrappers are executed when tenancy is initialized.
      * Their responsibility is making Laravel features tenant-aware.
      *

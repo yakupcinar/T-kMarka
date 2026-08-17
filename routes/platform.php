@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Platform\AuthController as PlatformAuth;
+use App\Http\Platform\SignupController as PlatformSignup;
 use App\Http\Platform\TenantController as PlatformTenants;
 use Illuminate\Support\Facades\Route;
 
@@ -31,6 +32,25 @@ foreach (config('tenancy.central_domains') as $centralDomain) {
         */
         Route::post('/platform/login', [PlatformAuth::class, 'login'])
             ->middleware('throttle:giris');
+
+        /*
+        | ★ SELF-SERVİS MARKA KAYDI (3D) — KİMLİKSİZ.
+        |
+        | ⚠️ Kimlik doğrulaması yok ve olmamalı: henüz hesabı olmayan biri
+        | kaydoluyor. Korumalar başka katmanlarda —
+        |   · hız sınırı (burada)
+        |   · haftalık tavan: sertifika kotası (TenantProvisioning, 3-K5)
+        |   · ayrılmış alt alan adları (ReservedSubdomains)
+        |
+        | ⚠️ `throttle:kayit` — vitrindeki müşteri kaydıyla aynı sınıf
+        | (1A.2'de tanımlandı, saatte 10/IP). Marka açmak müşteri kaydından
+        | çok daha pahalı bir işlem: şema + 28 migration.
+        */
+        Route::post('/platform/signup', [PlatformSignup::class, 'store'])
+            ->middleware('throttle:kayit');
+
+        Route::get('/platform/signup/check', [PlatformSignup::class, 'checkSubdomain'])
+            ->middleware('throttle:kayit');
 
         /*
         | ⚠️ `auth:platform` — ÜÇÜNCÜ kimlik alanı. Marka personeli token'ı

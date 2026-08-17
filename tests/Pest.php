@@ -20,7 +20,7 @@ use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\User;
 use App\Platform\Models\Tenant;
-use App\Tenancy\Commands\CreateTenant;
+use App\Platform\TenantProvisioning;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
@@ -109,7 +109,7 @@ function kiraciOlustur(string $alanAdi, string $ad = 'Test Markası'): Tenant
     $tenant = Tenant::create([
         'name' => $ad,
         'status' => TenantStatus::Trial,
-        'trial_ends_at' => now()->addDays(CreateTenant::DENEME_GUN),
+        'trial_ends_at' => now()->addDays(TenantProvisioning::DENEME_GUN),
     ]);
     $tenant->domains()->create(['domain' => $alanAdi]);
 
