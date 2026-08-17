@@ -1,6 +1,6 @@
 # TıkMarka
 
-[![CI](https://github.com/yakupcinar/T-kMarka/actions/workflows/ci.yml/badge.svg)](https://github.com/yakupcinar/T-kMarka/actions/workflows/ci.yml)
+[![CI](https://github.com/yakupcinar/TikMarka/actions/workflows/ci.yml/badge.svg)](https://github.com/yakupcinar/TikMarka/actions/workflows/ci.yml)
 
 Tek markanın kendi müşterisine sattığı e-ticaret uygulaması (D2C) — **çok kiracılı**
 kurulmuş: aynı kod tabanı N markaya hizmet eder, her marka kendi alan adında, kendi
@@ -49,7 +49,7 @@ Tek sayfalık özet: [`docs/summary.md`](docs/summary.md)
 Gereken tek şey **Docker**. Yerel PHP, Composer veya PostgreSQL kurulumu gerekmiyor.
 
 ```bash
-git clone https://github.com/yakupcinar/T-kMarka.git
+git clone https://github.com/yakupcinar/TikMarka.git
 cd T-kMarka
 cp .env.example .env
 docker compose up -d

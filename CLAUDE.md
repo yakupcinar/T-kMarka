@@ -87,7 +87,7 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   boyunca fark edilmedi. Sebep kesinleşmedi — muhtemelen Pint'in geçici
   klasördeki önbelleğinde bayat kayıt. Gönderimden sonra durumu gör:
   ```
-  curl -s "https://api.github.com/repos/yakupcinar/T-kMarka/commits/main/check-runs" \
+  curl -s "https://api.github.com/repos/yakupcinar/TikMarka/commits/main/check-runs" \
     | python3 -c "import sys,json;[print(c['name'],c['conclusion']) for c in json.load(sys.stdin)['check_runs']]"
   ```
   Hata ayrıntısı **anotasyonlarda** (günlükler yönetici yetkisi ister);
