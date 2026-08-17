@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ─────────────────────── şu an: 3G sırada  ───┐
+┌─ YOL HARİTASI ─────────────────────── şu an: 3H sırada  ───┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -3670,6 +3670,101 @@ kullanıyordu; plan düşürme senaryosu planı değiştirip bırakınca sonraki
 **Doğrulandı (gerçek HTTPS):** A markasına `baslangic` planı atandı, sınır
 geçici olarak 5'e çekildi → yeni ürün **402** ve cevapta `quota: products`,
 `limit: 5`. Sınır 100'e geri alındı, test ürünü temizlendi.
+
+---
+
+### 3G — BİTTİ ✅ (12 test)
+
+Kod: `app/Platform/TenantPurge.php` ·
+`app/Console/Commands/{PurgeClosedTenants,PurgeOrphanStorage}.php` ·
+`app/Tenancy/Commands/DeleteTenant.php` · `routes/console.php` ·
+`tests/Tenancy/YasamDonguTest.php`
+
+**★ BU BLOKTAKİ HER İŞLEM GERİ ALINAMAZ.** Projedeki diğer bütün "tehlikeli"
+işlemler geri alınabilirdi; bu değil. Bu yüzden **varsayılan hiçbir şey
+yapmamak**:
+
+```
+marka:silinecekleri-temizle              → yalnızca GÖSTERİR
+marka:silinecekleri-temizle --onayla     → siler
+tenant:delete <alan-adı>                 → yalnızca GÖSTERİR
+tenant:delete <alan-adı> --onayla        → siler
+```
+
+> ⚠️ 3A'da kuru çalışma **ayrı bir bayraktı** (`--kuru`) çünkü o komut yazma
+> yapıyordu ve geri alınabilirdi. Burada tersine çevrildi.
+
+**3G-K1 · Üç şart da zorunlu, üçü de ayrı bir felaketi engelliyor.**
+```
+status = closed        askıdaki ya da ödeyen marka silinmesin
+closed_at NOT NULL     ⚠️ aşağıda
+closed_at <= sınır     süresi dolmamış marka silinmesin
+```
+
+**3G-K2 · Silme = şema + dosyalar + merkez kayıt, TEK yoldan.**
+> `tenant:delete` ve zamanlanmış temizlik aynı servisi çağırıyor. İki ayrı yol
+> yazılsaydı biri dosyaları unuturdu — **bugün diskte tam bundan 38 öksüz
+> klasör vardı** (ölçüldü: 40 klasör, 2 gerçek marka). 1A'dan devredilen borç.
+
+**3G-K3 · Marka silme ZAMANLANMIYOR.**
+> Öksüz dosya temizliği haftalık koşuyor, ama marka silme **elle**. Geri
+> alınamaz bir işlem gece kendiliğinden koşmamalı.
+
+**⚠️ `whereNotNull('closed_at')` BUGÜN ÖLÜ — ölçüldü, ve yine de duruyor.**
+
+Kırma denemesinde kaldırıldı, hiçbir test düşmedi. Sebep PostgreSQL:
+`SELECT (NULL::timestamptz <= now())` → `NULL`, satır zaten `WHERE`'den düşüyor.
+
+Bu, 2F ve 3E'deki "ölü savunmayı kaldır" kararından **bilinçli bir sapma**:
+
+| blok | durum | karar |
+|---|---|---|
+| 2F | kolon `NOT NULL` → senaryo **imkânsız** | kaldırıldı |
+| 3E | başka bir yer zaten koruyor | kaldırıldı |
+| 3G | senaryo **mümkün**, koruma **dolaylı** (SQL semantiği) | **tutuldu** |
+
+Fark: burada koruma "SQL'in NULL davranışını bilmene" bağlı ve işlem geri
+alınamaz. Açık yazmak hem okunabilirlik hem ikinci kapı.
+
+---
+
+**★★ BU BLOK GERÇEK HASAR VERDİ — ve ders bundan çıktı.**
+
+Test `--onayla` ile öksüz temizliği çalıştırdı ve **geliştirme ortamındaki
+gerçek marka klasörlerini sildi**: 3 ürün görseli gitti (veritabanı kaydı
+kaldı), `storage/framework` de silinip test süiti çöktü
+(`Please provide a valid cache path`).
+
+```
+veritabanı testte AYRI   tikmarka_test
+disk testte AYRI DEĞİL   aynı storage/
+```
+
+**Düzeltme:** dosya silen servis artık **kök parametresi** alıyor; test kendi
+geçici klasöründe çalışıyor. **Onarım:** `storage/framework` yeniden kuruldu,
+dosyasız kalan görsel kayıtları temizlendi (vitrin `null` görsel döndürüyor,
+kırık bağlantı yok). **Kural** CLAUDE.md'ye yazıldı.
+
+⚠️ Ayrıca `dosyalariSil()` artık boş kimliği reddediyor — boş olsaydı yol
+`storage/tenant` olur ve yanlış klasör silinebilirdi.
+
+**Dört kırma denemesi:**
+
+| kırılan | düşen |
+|---|---|
+| durum şartı kalktı | 1 test |
+| dosya silme kalktı | 1 test |
+| `tenant` ön ek kontrolü kalktı (sistem klasörleri!) | 1 test |
+| `whereNotNull` kalktı | ⚠️ **hiçbiri** → ölü olduğu ölçüldü, gerekçesi yazıldı |
+
+**Doğrulandı (gerçek koşu):** sahte öksüz klasör oluşturuldu → onaysız komut
+gösterdi ve silmedi → `--onayla` sildi → `storage/app`, `framework`, `logs`
+yerinde. İki vitrin 200.
+
+**⚠️ Bu blokta YAPILMAYAN:** marka verisinin dışa aktarılması (7 numaralı
+kararın "kapanışta veri indirme" parçası). 2G'deki `DataExporter` müşteri
+verisi için; marka geneline genişletmek ayrı bir iş ve Faz 3'ün kalanına
+bakılarak karar verilecek.
 
 ---
 

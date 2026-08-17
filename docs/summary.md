@@ -1125,4 +1125,28 @@ FAZ 3 AÇIK — 9 karar plana yazıldı, hepsi araştırmayla
       ⚠️ test kalıntısı düzeltildi: firstOrCreate → updateOrCreate (3B'nin
         kalıntı sorununun ikincisi)
       doğrulandı (gerçek HTTPS): sınır 5'e çekildi → 402 + quota/limit
+
+  3G  ✅ BİTTİ — yaşam döngüsünün sonu: askı → kapatma → 1 yıl → silme
+      ★ HER İŞLEM GERİ ALINAMAZ → varsayılan HİÇBİR ŞEY YAPMAMAK
+        komut onaysız yalnızca GÖSTERİR, --onayla ile siler
+        ⚠️ 3A'da kuru çalışma ayrı bayraktı (yazma geri alınabilirdi);
+          burada tersine çevrildi
+      üç şart: status=closed · closed_at NOT NULL · closed_at <= sınır
+      silme = şema + dosyalar + merkez kayıt, TEK yoldan
+        ⚠️ iki ayrı yol olsaydı biri dosyaları unuturdu — ÖLÇÜLDÜ:
+          diskte 40 klasör, 2 gerçek marka = 38 ÖKSÜZ (1A'nın borcu)
+      marka silme ZAMANLANMIYOR (geri alınamaz iş gece koşmamalı);
+        yalnızca öksüz dosya temizliği haftalık
+      ⚠️ whereNotNull('closed_at') BUGÜN ÖLÜ (SQL: NULL<=tarih → NULL) ama
+        TUTULDU — 2F/3E'den bilinçli sapma: orada senaryo imkânsızdı ya da
+        başka yer koruyordu; burada senaryo mümkün, koruma dolaylı
+      ★★ BU BLOK GERÇEK HASAR VERDİ:
+        test --onayla ile koştu ve GELİŞTİRME ortamındaki gerçek marka
+        klasörlerini sildi (3 ürün görseli), storage/framework de gitti
+        ve süit çöktü. veritabanı testte ayrı ama DİSK AYRI DEĞİL
+        → dosya silen servis artık KÖK PARAMETRESİ alıyor, test kendi
+          geçici klasöründe çalışıyor · framework onarıldı · dosyasız
+          görsel kayıtları temizlendi · kural CLAUDE.md'ye yazıldı
+      4 kırma denemesi (biri ölü savunmayı ortaya çıkardı)
+      ⚠️ YAPILMAYAN: marka verisinin dışa aktarılması (7. kararın parçası)
 ```

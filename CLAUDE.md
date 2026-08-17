@@ -200,6 +200,13 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   ```
   ⚠️ İki test süreci aynı test veritabanında paralel koşarsa da aynı belirti
   çıkıyor — arka planda süit koşarken ikinci bir koşu başlatma.
+- **Test GERÇEK dosya sistemini siler — `storage/` paylaşılıyor.** 3G'de
+  yaşandı: öksüz klasör temizliği testi `--onayla` ile koştu ve geliştirme
+  ortamındaki **gerçek marka klasörlerini** sildi (3 ürün görseli gitti, kayıt
+  kaldı); `storage/framework` de silinip test süiti çöktü (`Please provide a
+  valid cache path`). Veritabanı testte ayrı (`tikmarka_test`) ama **disk
+  ayrı değil**. Kural: dosya silen her servis **kök parametresi** almalı ve
+  test kendi geçici klasöründe çalışmalı.
 - **Yeni marka geliştirmede HTTPS'e çıkmaz.** `docker/caddy/Caddyfile`'da alan
   adları elle sayılı; `tenant:create` başarılı görünür ama site açılmaz.
   Alan adını ekleyip `docker compose restart caddy`. (Faz 3: on-demand TLS.)

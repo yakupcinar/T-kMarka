@@ -111,3 +111,18 @@ Schedule::command('abonelik:deneme-denetle')
 Schedule::command('abonelik:nezaket-denetle')
     ->dailyAt('04:15')
     ->withoutOverlapping();
+
+/*
+| ÖKSÜZ DOSYA TEMİZLİĞİ — haftalık. (3G)
+|
+| ⚠️ `--onayla` VERİLİYOR çünkü zamanlanmış görev elle onaylanamaz; ama
+| yalnızca ÖKSÜZ klasörleri siliyor — veritabanında karşılığı olan hiçbir
+| klasöre dokunmuyor.
+|
+| ⚠️ Marka SİLME görevi zamanlanmıyor, bilerek: geri alınamaz bir işlem
+| gece kendiliğinden koşmamalı. `marka:silinecekleri-temizle` elle
+| çalıştırılıyor ve önce ne yapacağını gösteriyor.
+*/
+Schedule::command('marka:oksuz-dosyalari-temizle --onayla')
+    ->weeklyOn(1, '04:30')
+    ->withoutOverlapping();
