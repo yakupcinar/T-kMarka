@@ -207,6 +207,20 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   valid cache path`). Veritabanı testte ayrı (`tikmarka_test`) ama **disk
   ayrı değil**. Kural: dosya silen her servis **kök parametresi** almalı ve
   test kendi geçici klasöründe çalışmalı.
+- **Kullanıcının yazdığı Blade RENDER EDİLMEZ — bu RCE'dir.** Blade PHP'dir ve
+  kum havuzu yoktur (Twig'in aksine); `Blade::render()`'a dışarıdan gelen metin
+  vermek doğrudan uzaktan kod çalıştırmadır. Cachet'te (#4621) tam bu yaşandı.
+  ⚠️ **Bizde bedeli tek marka değil:** şema bazlı kiracılıkta sunucuda kod
+  çalıştıran biri `search_path`'i değiştirip **bütün markaların** verisine
+  ulaşır. Tema bu yüzden **ayar**, şablon değil (4-K5). Marka şablon yazacaksa
+  yol Liquid benzeri **kum havuzlu** bir motordur.
+- **Inertia SSR AÇILMAZ (4-K2).** Ayrı Node süreci uzun ömürlü ve tüm markalar
+  için ortaktır; modül seviyesindeki durum istekler arasında paylaşılır
+  (*cross-request state pollution*) — yani **marka sızması**. M-2.4'te
+  pgBouncer'ı reddetme gerekçesinin aynısı. ⚠️ Yerelde görünmez: geliştirme
+  sunucusu aynı anda tek istek işliyor. Ayrıca SSR bozulunca **sessizce**
+  istemci render'ına düşüyor: sayfa çalışır, testler yeşil kalır, **SEO
+  sessizce gider**.
 - **Yeni marka geliştirmede HTTPS'e çıkmaz.** `docker/caddy/Caddyfile`'da alan
   adları elle sayılı; `tenant:create` başarılı görünür ama site açılmaz.
   Alan adını ekleyip `docker compose restart caddy`. (Faz 3: on-demand TLS.)

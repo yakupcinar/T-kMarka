@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ─────────── şu an: FAZ 3 BİTTİ, FAZ 4 SIRADA ┐
+┌─ YOL HARİTASI ──────────────── şu an: FAZ 4 · M-3 verildi ─┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -29,7 +29,10 @@
 │                    ╰ çıktı: ürün kendi kendini satıyor         │
 │                      ⚠️ eksik: marka geneli veri dışa aktarma  │
 │                                                                │
-│  4 · ARAYÜZ  ◀ SIRADA — teknoloji burada seçilir (M-3)         │
+│  4 · ARAYÜZ  ◀ AÇILDI — M-3 verildi: yüzeye göre bölünmüş     │
+│     vitrin Blade · panel+yönetim Inertia+Vue · SSR YOK         │
+│     4A vitrin → 4B akış → 4C panel → 4D katalog                │
+│     4E sipariş → 4F yönetim → 4G tema → 4H kapanış             │
 │  5 · ENTEGRASYON   kargo · e-fatura                            │
 │  6 · DAĞITIM       yayın · yedekleme · izleme                  │
 │                                                                │
@@ -4039,9 +4042,229 @@ genişletmek ayrı bir iş.
 
 ---
 
-## Faz 4 — Arayüz  *(henüz açılmadı)*
+## Faz 4 — Arayüz  ◀ **AÇILDI**
 
-M-3 — teknoloji kararı bu fazın başında verilecek. Vitrin + yönetim paneli.
+Üç fazdır sistemin **yüzü yok**. M-3 "arayüz sonra" demişti; sonra geldi.
+
+> ⚠️ Bu faz açılmadan önce diskte commit edilmemiş bir keşif duruyordu
+> (3 Blade dosyası + `routes/web.php`, 120 satır). Karar netleşince
+> **atıldı** — yığın seçimi onu kısmen geçersiz kılıyordu ve yarım bir
+> başlangıcı taşımak, kararı ona uydurma baskısı yaratırdı.
+
+### M-3 — arayüz teknolojisi *(karar burada veriliyor)*
+
+Değerlendirilen öneri şuydu: **Inertia.js + Vue/React + Vite SSR, tek Laravel
+projesi, harici API katmanı olmadan.** Öneri ana akım ve sağlam; Laravel'in
+resmî başlangıç seti bu. Ama üç ölçüm onu **olduğu gibi** almayı engelledi.
+
+---
+
+#### 4-K1 · Yığın **yüzeye göre** bölünüyor — tek yığın değil
+
+```
+marka alan adı    /            VİTRİN            Blade (sunucu render)
+                  /yonetim     MARKA PANELİ      Inertia + Vue
+                  /api/*       vitrin API        (Faz 1-2'den, değişmiyor)
+                  /panel/*     panel API         (Faz 1-2'den, değişmiyor)
+
+merkez alan adı   /yonetim     KONTROL DÜZLEMİ   Inertia + Vue
+                  /platform/*  merkez API        (Faz 3'ten, değişmiyor)
+```
+
+> ★ **"Üç paneli neyle ayıracağız" sorusunun cevabı burada:** *alan adı* bizi
+> markadan ayırıyor, *yol* vitrini yönetimden ayırıyor. `/yonetim` her iki
+> alan adında da "bu alan adının sahibinin yönetim yeri" demek — marka alan
+> adında markanın, merkezde bizim. Ayrımı zaten kurulu olan kiracılık yapıyor,
+> yeni bir mekanizma icat edilmiyor.
+
+**Gerekçe — üç yüzeyin ihtiyaçları ZIT:**
+
+| | halka açık | SEO | marka başına görünüm | etkileşim |
+|---|---|---|---|---|
+| vitrin | ✅ | **hayati** | **zorunlu** | orta |
+| panel | ❌ | yok | yok — herkese aynı | **yoğun** |
+| yönetim | ❌ | yok | yok | orta |
+
+Tek yığın dayatmak, bir yüzeyin ihtiyacını diğerine ödetmek olurdu. Rakiplerin
+hepsi de aynı yerden ayrılmış: **Shopify** vitrinde Liquid şablonları, yönetimde
+React kullanıyor; **Spree** kiracı başına tema + ayrı yönetim; **Saleor/Medusa**
+headless vitrin + ayrı yönetim.
+
+> ⚠️ **Bedeli dürüstçe:** iki yığın öğrenilecek. Bilerek kabul edildi — çünkü
+> alternatifin bedeli (aşağıdaki K2 ve K5) daha ağır.
+
+---
+
+#### 4-K2 · **SSR AÇILMIYOR** — ve bu M-2.4'ün aynısı
+
+Önerinin en riskli parçası buydu. Inertia SSR ayrı bir **Node süreci**
+çalıştırıyor (`:13714`); süreç uzun ömürlü ve **bütün markalar için ortak**.
+
+```
+tarayıcı → Laravel → props (marka A'nın verisi)
+                        ↓
+              Node süreci :13714   ← UZUN ÖMÜRLÜ · TÜM MARKALAR ORTAK
+                        ↓
+                    HTML → tarayıcı
+```
+
+Vue'nun kendi belgesi buna **cross-request state pollution** diyor: modül
+seviyesinde tanımlanan durum bütün istekler arasında paylaşılıyor, bir
+kullanıcıya ait veriyle değiştirilirse **başka bir isteğe sızıyor**. Bizde bu
+"kullanıcı" değil **MARKA** sızması demek.
+
+> ★ **Bu, M-2.4'te pgBouncer'ı reddetme gerekçemizin birebir aynısı.** Orada
+> da paylaşılan uzun ömürlü bir şey (fiziksel bağlantı) kiracı durumunu
+> (`search_path`) taşıyordu ve A markasının şeması B'ye geçiyordu. Aynı şekil,
+> farklı katman.
+
+Ve şu satır bu projenin tam merkezine denk geliyor:
+
+> *"Yerelde yakalayamazsın, çünkü geliştirme sunucun aynı anda tek istek
+> işliyor."* — yani **eşzamanlı yük olmadan görünmüyor.**
+
+**İkinci gerekçe: SSR SESSİZ bozuluyor.** Inertia belgesinde yazılı — SSR
+başarısız olursa *zarifçe istemci tarafı render'a düşüyor*:
+
+```
+SSR bozuldu  →  sayfa ÇALIŞIYOR          ✅
+             →  testler YEŞİL             ✅
+             →  Google boş sayfa görüyor  ⚠️  SEO sessizce gitti
+```
+
+Belge bunu açıkça uyarıyor: *"SSR hataları testlerde fark edilmeyebilir —
+istemci render'ı başarılı olur ama kullanıcılar sunucu render'lı HTML'i hiç
+almaz."* `throw_on_error` seçeneği tam bunun için var. Vitrin için SEO ürünün
+kendisi; sessizce kaybolamaz.
+
+**Peki SEO'dan vazgeçiyor muyuz? Hayır — vitrin zaten Blade, yani zaten
+sunucuda render ediliyor.** SSR'ın çözdüğü sorun bizde K1 sayesinde hiç
+doğmuyor. Panelde ve yönetimde SEO gerekmiyor, orada SSR'a zaten gerek yok.
+
+> **Kazanç:** Node süreci hiç yok → sızma riski yok, sessiz düşüş yok, Faz
+> 6'da bir dağıtım parçası eksik. Ayrıca `inertia-laravel#730` (tek projede
+> çoklu Inertia örneği) sorunu da doğmuyor: panel ile yönetim **ayrı alan
+> adlarında**.
+
+---
+
+#### 4-K3 · API **kalıyor** — arayüz onu değil `Domain`'i çağırır
+
+Önerideki "harici API katmanına ihtiyaç duymadan" cümlesi bizde tersine dönüyor:
+biz sıfırdan başlamıyoruz. **Ölçüldü:** 119 + 15 rota, 36 controller, 3.932
+satır, token tabanlı Sanctum (K-12), 549 test bu uçlara vuruyor.
+
+Inertia bu API'yi *kullanmaz* — kendi controller'ı prop döndürür, kimliği
+oturum tabanlıdır. Yani Inertia bir katmanı kaldırmıyor, **var olanın yanına
+ikinci bir sunum katmanı** koyuyor.
+
+**Bu kabul edilebilir, çünkü şansımız yaver gitti:** iş mantığı `app/Domain/`'de
+ve controller yalnızca çeviriyor. Kural bu yüzden şöyle yazılıyor:
+
+```
+Inertia controller  →  app/Domain/ servisi        ✅
+Inertia controller  →  API controller'ı çağırmak  ❌ ASLA
+```
+
+> ⚠️ İkincisi yapılırsa HTTP üstünden kendi kendimize istek atmış oluruz:
+> yavaş, kimlik bağlamı kayıp, hata ayıklaması cehennem.
+
+**API atılamaz** — mobil uygulama, marka entegrasyonları ve Faz 5 onu
+gerektiriyor. Araştırmada da yazılı: Inertia mobil API için uygun değil,
+sonradan REST gerekirse controller mantığı çoğaltılır. Biz o tuzağa `Domain`
+katmanı sayesinde düşmüyoruz.
+
+---
+
+#### 4-K4 · İki kapı, aynı yetkiler: panel **oturum**, API **token**
+
+Inertia oturum tabanlı çalışır, mevcut API token tabanlı. İkisi de aynı
+kullanıcı tablolarına ve aynı `izin:` kontrolüne bağlanacak.
+
+> ⚠️ Bu, 3C'de CSRF dersini yeniden gündeme getiriyor — ama bu kez **doğru
+> tarafında**: oturum tabanlı panel `web` grubunda olacak ve CSRF **isteniyor**.
+> API `api` grubunda kalıyor. 3C'deki hata rotayı yanlış gruba koymaktı; burada
+> grup bilinçli seçiliyor.
+
+---
+
+#### 4-K5 · Tema = **AYAR**, şablon değil. Marka Blade YAZAMAZ.
+
+Vitrin markanın sitesi; iki marka aynı görünüyorsa satamayız. Ama "marka kendi
+şablonunu yazsın" **yapılamaz** — ve bu bir tercih değil, güvenlik sınırı:
+
+> ⚠️ **Blade PHP'dir ve kum havuzu YOKTUR.** Kullanıcının yazdığı Blade'i
+> render etmek doğrudan **uzaktan kod çalıştırma**dır. Laravel'in kendi
+> belgesi uyarıyor; Cachet'te (#4621) tam bu yaşandı: kimliği doğrulanmış
+> kullanıcı şablon oluşturup sunucuda kod çalıştırabiliyordu.
+>
+> **Bizde bunun bedeli tek marka değil:** şema bazlı kiracılıkta sunucuda kod
+> çalıştıran biri `search_path`'i değiştirip **bütün markaların verisine**
+> ulaşır. Yani tek markanın teması, tüm platformun sonu olurdu.
+
+Shopify'ın Liquid'i tam bu yüzden var: *"Kullanıcıların düzenleyebilmesi için
+yapıldı, ve kullanıcının yazdığı kodu sunucunda çalıştırmak istemezsin."*
+Keyfi kod yok, dosya sistemi yok, sınırsız döngü yok.
+
+**Kararımız:** marka **ayar seçer**, şablon yazmaz.
+
+```
+settings.theme  →  renkler · logo · yazı tipi · ana sayfa blok sırası
+                   · seçilebilir düzen çeşitleri
+şablon          →  BİZDE, sürümlü, markaya kapalı
+```
+
+`SettingGroup::Theme` **Faz 1'den beri duruyor** ve yorumunda "(Faz 4)" yazıyor
+— yeni bir yer açmaya gerek yok, ayar altyapısı hazır.
+
+> **İleriye açık kapı:** yeterince marka "kendi şablonumu yazayım" derse yol
+> Liquid benzeri **kum havuzlu** bir motor, Blade değil. Ölçüm olmadan
+> eklenmez (K-6 / M-2.0).
+
+---
+
+### Bloklar
+
+| | konu |
+|---|---|
+| **4A** | vitrin iskeleti — Blade düzeni, tema ayarlarının okunması, `/` JSON'dan HTML'e |
+| **4B** | vitrin akışı — katalog · ürün · sepet · ödeme, uçtan uca gerçek satın alma |
+| **4C** | panel iskeleti — Inertia + Vue kurulumu, oturum kimliği, yetki köprüsü |
+| **4D** | panel — katalog yönetimi (**ürün ekleme buradan görünür hâle geliyor**) |
+| **4E** | panel — sipariş, kargo, iade ekranları |
+| **4F** | kontrol düzlemi arayüzü — merkez alan adında |
+| **4G** | tema — ayar seti, marka başına görünüm, önizleme |
+| **4H** | blok kapanışı — iki markada gerçek tarayıcı koşusu |
+
+### Bitiş ölçütü
+
+Bir marka **hiç `curl` kullanmadan** mağazasını kurar: giriş yapar, ürün ekler,
+temasını seçer, mağazasını yayına alır; bir müşteri tarayıcıdan girip ürünü
+bulur, sepete atar, öder; marka siparişi panelden görür ve kargolar. Üçü de
+kendi yüzeyinden, kimse diğerinin ekranını göremeden.
+
+> ⚠️ **Faz 3'ten devredilen borç bu faza giriyor:** marka geneli veri dışa
+> aktarma (kapanışta "verini indir"). Arayüzü olan bir işlev olduğu için
+> doğal yeri burası — 4F'de kontrol düzlemine bağlanacak.
+
+##### Bu kararların dayandığı kaynaklar
+
+> · **Inertia** — [SSR belgeleri](https://inertiajs.com/docs/v3/advanced/server-side-rendering)
+>   (ayrı Node süreci, `:13714`, sessiz düşüş ve `throw_on_error`) ·
+>   [Inertia 2.0](https://laravel.com/blog/announcing-inertia-20-redefining-frontend-development-for-laravel)
+>   (ertelenmiş prop, ön yükleme, yoklama) ·
+>   [#730 çoklu örnek](https://github.com/inertiajs/inertia-laravel/issues/730) (açık)
+> · **Vue** — [SSR: cross-request state pollution](https://vuejs.org/guide/scaling-up/ssr.html)
+> · **Blade güvenliği** — [Laravel Blade belgeleri](https://laravel.com/docs/12.x/blade)
+>   (kullanıcı verisi şablona gömülmez) ·
+>   [Cachet #4621](https://github.com/cachethq/cachet/issues/4621) (kum havuzsuz şablon → RCE)
+> · **Shopify Liquid** — [neden kum havuzlu](https://github.com/Shopify/liquid)
+>   ("kullanıcının yazdığı kodu sunucunda çalıştırmak istemezsin")
+> · **Karşılaştırma** — [Livewire vs Inertia 2026](https://dev.to/hafiz619/livewire-4-vs-inertiajs-3-which-laravel-frontend-stack-should-you-use-in-2026-47p4) ·
+>   [Laravel arayüz mimarisi 2026](https://redberry.international/laravel-frontend-architecture/) ·
+>   [Spree çok kiracılı tema](https://spreecommerce.org/open-source-multi-tenant-alternative-to-shopify/)
+
+---
 
 ## Faz 5 — Entegrasyonlar  *(henüz açılmadı)*
 

@@ -1290,3 +1290,75 @@ FAZ 4 SIRADA — arayüz
   üç panel: müşteri (vitrin) · marka · yönetim
   ayrım rota/URL ile, kimlik ayrımı Sanctum guard'larıyla ZATEN hazır
   (customer · staff · platform — 3C'de üçüncüsü eklendi)
+
+════════════ FAZ 4 AÇILDI — M-3 KARARI VERİLDİ ════════════
+
+Değerlendirilen öneri: Inertia + Vue/React + Vite SSR, tek proje,
+"harici API katmanına ihtiyaç duymadan". Ana akım ve sağlam — ama
+üç ölçüm onu OLDUĞU GİBİ almayı engelledi.
+
+4-K1 ✅  YIĞIN YÜZEYE GÖRE BÖLÜNDÜ, tek yığın değil
+         marka alan adı  /         vitrin      Blade
+                         /yonetim  panel       Inertia+Vue
+         merkez alan adı /yonetim  kontrol     Inertia+Vue
+         ★ "üç paneli neyle ayıracağız": ALAN ADI bizi markadan,
+           YOL vitrini yönetimden ayırıyor — yeni mekanizma yok
+         gerekçe: üç yüzeyin ihtiyacı ZIT (SEO · tema · etkileşim)
+         Shopify · Spree · Saleor hepsi aynı yerden ayrılmış
+         ⚠️ bedeli: iki yığın öğrenilecek — bilerek kabul edildi
+
+4-K2 ⛔  SSR AÇILMIYOR — ve bu M-2.4'ün AYNISI
+         Inertia SSR ayrı Node süreci (:13714), UZUN ÖMÜRLÜ ve
+         TÜM MARKALAR İÇİN ORTAK. Vue'nun kendi belgesi buna
+         "cross-request state pollution" diyor: modül seviyesi
+         durum istekler arasında paylaşılıyor → MARKA SIZMASI
+         ★ pgBouncer'ı reddetme gerekçemizin birebir aynısı:
+           paylaşılan uzun ömürlü şey kiracı durumunu taşıyor
+         ⚠️ "yerelde yakalayamazsın, dev sunucu tek istek işliyor"
+         İKİNCİ GEREKÇE — SSR SESSİZ BOZULUYOR:
+           bozuldu → sayfa çalışıyor ✅ testler yeşil ✅
+                   → Google boş sayfa görüyor, SEO sessizce gitti
+         SEO'dan vazgeçmiyoruz: vitrin ZATEN Blade, zaten sunucuda
+         kazanç: Node yok · sızma yok · sessiz düşüş yok ·
+                 Faz 6'da bir dağıtım parçası eksik ·
+                 inertia-laravel#730 (çoklu örnek) hiç doğmuyor
+
+4-K3 ✅  API KALIYOR — arayüz onu değil Domain'i çağırır
+         öneri "API'ye gerek kalmaz" diyordu; bizde tersine dönüyor
+         ÖLÇÜLDÜ: 119+15 rota · 36 controller · 3.932 satır ·
+                  token Sanctum · 549 test bu uçlara vuruyor
+         Inertia bu API'yi KULLANMAZ (prop döndürür, oturum kimliği)
+         → katman kaldırmıyor, İKİNCİ sunum katmanı ekliyor
+         kabul edilebilir ÇÜNKÜ iş mantığı Domain'de, controller ince
+         kural: Inertia controller → Domain servisi  ✅
+                Inertia controller → API controller  ❌ ASLA
+         API atılamaz: mobil · marka entegrasyonları · Faz 5
+
+4-K4 ✅  İKİ KAPI: panel OTURUM, API TOKEN — aynı yetkiler
+         panel web grubunda, CSRF İSTENİYOR (3C'nin doğru tarafı)
+
+4-K5 ⛔  TEMA = AYAR, ŞABLON DEĞİL. Marka Blade YAZAMAZ.
+         ⚠️ Blade PHP'dir ve KUM HAVUZU YOKTUR — kullanıcının
+           yazdığı Blade'i render etmek doğrudan RCE'dir
+           (Laravel belgesi uyarıyor; Cachet #4621'de yaşandı)
+         ★ bizde bedeli TEK MARKA DEĞİL: şema bazlı kiracılıkta
+           sunucuda kod çalıştıran biri search_path'i değiştirip
+           BÜTÜN markaların verisine ulaşır
+         Shopify'ın Liquid'i tam bu yüzden kum havuzlu
+         karar: marka AYAR seçer (renk·logo·yazı tipi·blok sırası)
+                şablon BİZDE, sürümlü, markaya kapalı
+         SettingGroup::Theme FAZ 1'DEN BERİ VAR, yorumunda "(Faz 4)"
+         ileriye kapı: Liquid benzeri KUM HAVUZLU motor — Blade değil
+
+⚠️ Diskte duran commit edilmemiş keşif (3 Blade + web.php, 120 satır)
+   ATILDI: yığın kararı onu kısmen geçersiz kılıyordu ve yarım bir
+   başlangıcı taşımak kararı ona uydurma baskısı yaratırdı
+
+BLOKLAR  4A vitrin iskeleti → 4B vitrin akışı → 4C panel iskeleti
+         4D katalog yönetimi (ÜRÜN EKLEME buradan görünür oluyor)
+         4E sipariş ekranları → 4F kontrol düzlemi → 4G tema
+         4H kapanış (iki markada gerçek tarayıcı koşusu)
+
+BİTİŞ ÖLÇÜTÜ  marka HİÇ curl kullanmadan mağazasını kurar; müşteri
+              tarayıcıdan alışveriş yapar; marka siparişi panelden
+              görür — üçü de kendi yüzeyinden, kimse diğerini görmeden
