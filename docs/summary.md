@@ -1362,3 +1362,69 @@ BLOKLAR  4A vitrin iskeleti → 4B vitrin akışı → 4C panel iskeleti
 BİTİŞ ÖLÇÜTÜ  marka HİÇ curl kullanmadan mağazasını kurar; müşteri
               tarayıcıdan alışveriş yapar; marka siparişi panelden
               görür — üçü de kendi yüzeyinden, kimse diğerini görmeden
+
+4A ✅  VİTRİN İSKELETİ — 15 test (toplam 564)
+      `/` artık JSON değil HTML; Blade düzeni tema ayarını okuyor
+
+      ★ İŞİN ASLI ÜÇ ENGELİ KALDIRMAKTI — üçü de "arayüz yokken
+        verilmiş, şimdi vadesi gelen" karar:
+        1 ForceJson GLOBAL'di — kendi yorumu "arayüz olmadığı için
+          login rotası yok" diyordu; artık arayüz VAR. Global kalsaydı
+          her sayfa "JSON istiyorum" sayılır, form hataları 422 dönerdi
+          → `api` grubuna DARALTILDI (kaldırılmadı: 2E hatası gerçek)
+        2 sepet kimliği yalnızca X-Cart-Token BAŞLIĞINDA'ydı —
+          CartController yorumu "çerez değil, çünkü M-3 seçilmedi"
+          → tarayıcı düz gezinmede özel başlık GÖNDEREMEZ; çerez eklendi,
+            başlık KALDI (mobil/API için) ve başlık çerezi EZİYOR
+        3 `/` api grubundaydı → HTML sayfası `web` grubunda olmalı
+          (oturum · çerez · ilerde CSRF) — 3C dersinin TERS tarafı
+
+      4A-K1 ★★ TEMA AYARI DA BİR GİRİŞ KAPISI — 4-K5 tek başına yetmiyor
+        "marka şablon yazamaz" kapıyı kapatıyor, ayar PENCERE:
+        renk doğrudan <style> bloğuna giriyor. Marka şunu kaydetseydi
+          red; } body { background: url(https://baskasi.example/x)
+        sayfa markanın yazmadığı CSS'i çalıştırırdı
+        → okuma yolu BEYAZ LİSTE: renk #rrggbb kalıbı, yazı tipi ve
+          düzen sabit liste; uymayan VARSAYILANA düşüyor
+        ⚠️ doğrulama YAZMA'da değil OKUMA'da: ayar tohumlayıcı/artisan/
+          elle SQL ile de girebiliyor
+
+      4A-K2 ★★ ÇEREZ ŞİFRELENMİYOR — sinsi bir tuzağı kapatıyor
+        EncryptCookies YALNIZCA `web` grubunda çalışıyor:
+          sayfa (web) → çözülmüş token → sepet BULUNUR
+          uç    (api) → şifreli metin  → sepet BULUNMAZ
+        hata vermezdi: müşteri sepetini sayfada görür, eklemeye
+        çalışınca yeni boş sepet açılırdı
+
+      ★★ 4 KIRMA DENEMESİ — BİRİ TESTİN YALANINI GÖSTERDİ
+         renk beyaz listesi kalktı        → enjeksiyon testi düştü  ✅
+         çerez dalı kalktı                → iki sepet testi düştü   ✅
+         ForceJson tekrar global          → kapalı-mağaza testi düştü ✅
+         şifreleme istisnası kalktı       → ⚠️ test YEŞİL KALDI
+           sebep: test yalnızca `api` grubuna vuruyordu ve orada
+           EncryptCookies zaten yok — istisna o yolda rol oynamıyor
+           → yeniden yazıldı: TEK çerezle İKİ GRUBA birden vuruyor
+
+      ★ TEST YARDIMCISI ÖLÇÜLECEK ŞEYİ YOK EDİYORDU (2E'nin akrabası)
+        withCookie()            değeri ŞİFRELİYOR
+        withUnencryptedCookie() düz gönderiyor              ✓
+        getJson()               şifresiz çerezi SESSİZCE DÜŞÜRÜYOR
+        → çerez testi getJson ile yazılsaydı istek çerezsiz giderdi
+
+      ★ 3A'NIN BORCU KENDİLİĞİNDEN İŞLEDİ: tema ayarları sonradan
+        eklendiği için mevcut markalarda yoktu; araç üç markada da
+        4 eksiği buldu ve tamamladı. Vitrin ayarsız da çalışıyordu
+        (okuma yolu varsayılana düşüyor) — backfill onları panelden
+        DÜZENLENEBİLİR yapıyor
+
+      ★ AlanAdiTest yeniden yazıldı, ÖLÇTÜĞÜ ŞEY GÜÇLENDİ: eskiden
+        `/` hata ayıklama ucuydu ve tenant('id') basıyordu — test
+        şemadan tek satır okumuyordu. Artık markanın kendi ayarındaki
+        mağaza adı aranıyor, yani search_path gerçekten sınanıyor
+
+      DOĞRULANDI (iki markada gerçek HTTPS): ikisi de 200 + text/html
+        kendi adlarıyla · A'ya #0ea5e9 girdi · B'ye ENJEKSİYON yazıldı,
+        varsayılana düştü, kotu.example sayfada YOK · sepete ekleme
+        Set-Cookie (düz·httponly·lax) döndü, çerezle "Sepet 2",
+        çerezsiz boş · B kapatıldı → tarayıcı HTML 503, API JSON 503
+      ⚠️ YAPILMAYAN: ürün detay · sepet sayfası · ödeme akışı → 4B

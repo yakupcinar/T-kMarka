@@ -31,7 +31,7 @@ class CartController extends Controller
     {
         $sepet = $this->sepetiCoz($istek, olusturmaIzni: true);
 
-        return response()->json($this->goster($sepet));
+        return $this->cevap($sepet);
     }
 
     public function addItem(Request $istek): JsonResponse
@@ -48,7 +48,7 @@ class CartController extends Controller
 
         $this->sepetler->ekle($sepet, $varyant, (int) ($veri['quantity'] ?? 1));
 
-        return response()->json($this->goster($sepet->refresh()), 201);
+        return $this->cevap($sepet->refresh(), 201);
     }
 
     public function updateItem(Request $istek, string $variant): JsonResponse
@@ -61,7 +61,7 @@ class CartController extends Controller
 
         $this->sepetler->adetDegistir($this->satiriBul($sepet, $variant), (int) $veri['quantity']);
 
-        return response()->json($this->goster($sepet->refresh()));
+        return $this->cevap($sepet->refresh());
     }
 
     public function removeItem(Request $istek, string $variant): JsonResponse
@@ -70,7 +70,29 @@ class CartController extends Controller
 
         $this->sepetler->satirSil($this->satiriBul($sepet, $variant));
 
-        return response()->json($this->goster($sepet->refresh()));
+        return $this->cevap($sepet->refresh());
+    }
+
+    /**
+     * Sepet cevabı — misafir sepetinde ÇEREZ de yazılıyor. (4A)
+     *
+     * ⚠️ Çerez sunucu render'lı vitrin için şart: tarayıcı düz gezinmede
+     * `X-Cart-Token` başlığını gönderemiyor, sunucu da üst bardaki sepet
+     * sayısını yazamıyordu.
+     *
+     * ⚠️ MÜŞTERİ sepetine çerez YAZILMIYOR: onun kimliği zaten oturumu.
+     * Yazılsaydı çıkış yapan kullanıcının tarayıcısında, sahibi belli bir
+     * sepetin token'ı kalırdı.
+     */
+    private function cevap(Cart $sepet, int $durum = 200): JsonResponse
+    {
+        $cevap = response()->json($this->goster($sepet), $durum);
+
+        if ($sepet->customer_id === null && is_string($sepet->session_token)) {
+            $cevap->withCookie(CartToken::cerez($sepet->session_token));
+        }
+
+        return $cevap;
     }
 
     /**
@@ -88,7 +110,7 @@ class CartController extends Controller
             return $this->sepetler->musteriSepeti($kullanici);
         }
 
-        $sepet = $this->sepetler->misafirSepetiBul($istek->header('X-Cart-Token'));
+        $sepet = $this->sepetler->misafirSepetiBul(CartToken::oku($istek));
 
         if ($sepet !== null) {
             return $sepet;

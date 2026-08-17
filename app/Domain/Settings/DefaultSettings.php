@@ -76,6 +76,33 @@ class DefaultSettings
                 // verebilir; `customers.email` bu yüzden nullable.
                 'guest_enabled' => true,
             ],
+
+            /*
+            | ★ TEMA (4A) — 4-K5'in uygulaması: marka AYAR seçer, ŞABLON YAZMAZ.
+            |
+            | ⚠️ Buradaki her değer doğrudan HTML'e giriyor. Bu yüzden
+            | okuma yolunda ([ThemeSettings]) hepsi DOĞRULANIYOR ve
+            | geçersizse varsayılana düşüyor — ayarın kendisi de bir
+            | giriş kapısıdır (gerekçesi orada, ölçüldü).
+            */
+            SettingGroup::Theme->value => [
+                // Marka rengi. Yalnızca `#rrggbb` kabul ediliyor.
+                'primary_color' => ThemeSettings::VARSAYILAN_RENK,
+
+                // Sabit listeden seçilir; serbest metin CSS enjeksiyonudur.
+                'font' => ThemeSettings::VARSAYILAN_YAZI_TIPI,
+
+                // Vitrin düzeni — bugün tek çeşit, 4G'de çoğalacak.
+                'layout' => ThemeSettings::VARSAYILAN_DUZEN,
+
+                /*
+                | ⚠️ Logo BOŞ doğuyor ve bu bilinçli: yer tutucu bir görsel
+                | konsaydı marka onu değiştirmeyi unutur ve mağazasını
+                | başkasının logosuyla açardı. Boşken vitrin mağaza adını
+                | yazıyor — eksikliği GÖRÜNÜR kalıyor.
+                */
+                'logo_path' => null,
+            ],
         ];
     }
 

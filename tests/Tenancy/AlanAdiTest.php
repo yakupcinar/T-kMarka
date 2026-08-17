@@ -1,21 +1,56 @@
 <?php
 
+use App\Domain\Settings\DefaultSettings;
+use App\Domain\Settings\SettingsService;
+use App\Domain\Settings\StorePublication;
+use App\Enums\SettingGroup;
+
 /*
 | Kapı görevlisinin (InitializeTenancyByDomain) ve Caddy sorgu ucunun
 | testleri. HTTP tarafı — gerçek istek atılıyor.
 */
 
 it('kiraci adresine gelen istek dogru markayi buluyor', function () {
-    $a = kiraciOlustur('marka-a.test');
-    $b = kiraciOlustur('marka-b.test');
+    /*
+    | ⚠️ BU TEST 4A'DA YENİDEN YAZILDI ve ölçtüğü şey GÜÇLENDİ.
+    |
+    | Önce `/` bir hata ayıklama ucuydu ve `tenant('id')` basıyordu; test de
+    | o kimliği arıyordu. Yani ölçtüğü tek şey "kiracı DEĞİŞKENİ doğru
+    | kuruldu"ydu — şemadan tek bir satır bile okunmuyordu.
+    |
+    | `/` artık vitrin. Aranan şey markanın KENDİ AYARINDAN gelen mağaza
+    | adı; o ayar marka şemasında duruyor. Yani bu hâliyle test
+    | `search_path`'in gerçekten o markaya kurulduğunu ölçüyor.
+    */
+    foreach ([['marka-a.test', 'Ada Kozmetik'], ['marka-b.test', 'Bora Spor']] as [$alanAdi, $ad]) {
+        $marka = kiraciOlustur($alanAdi, $ad);
+
+        tenancy()->initialize($marka);
+        app(DefaultSettings::class)->kur($ad);
+        magazayiHazirla();
+
+        /*
+        | ⚠️ AD BURADA, `magazayiHazirla()`'DAN SONRA yazılıyor: o yardımcı
+        | şirket bilgilerini doldururken `name`'i de "Test Markası" yapıyor
+        | ve markanın kendi adını EZİYOR. Önce yazılsaydı iki marka da aynı
+        | adı taşır, test "ayrı şemadan okuyor muyuz" sorusunu ölçemezdi —
+        | üstelik yeşil kalırdı.
+        */
+        app(SettingsService::class)->yaz(SettingGroup::Store, 'name', $ad);
+
+        app(StorePublication::class)->yayinla();
+        tenancy()->end();
+    }
 
     $this->get('http://marka-a.test/')
         ->assertOk()
-        ->assertSee($a->id);
+        ->assertSee('Ada Kozmetik')
+        ->assertDontSee('Bora Spor');
 
     $this->get('http://marka-b.test/')
         ->assertOk()
-        ->assertSee($b->id);
+        ->assertSee('Bora Spor')
+        ->assertDontSee('Ada Kozmetik');
 });
 
 it('tanimsiz alan adi 404 donuyor', function () {

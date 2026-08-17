@@ -207,6 +207,19 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   valid cache path`). Veritabanı testte ayrı (`tikmarka_test`) ama **disk
   ayrı değil**. Kural: dosya silen her servis **kök parametresi** almalı ve
   test kendi geçici klasöründe çalışmalı.
+- **`getJson` ŞİFRELENMEMİŞ ÇEREZİ DÜŞÜRÜYOR — istek çerezsiz gidiyor.**
+  Ölçüldü (4A): aynı istek `get()` ile çerezi taşıyor, `getJson()` ile çerez
+  torbası **boş** geliyor ve hata yok. Ayrıca iki yardımcı iki farklı şey
+  yapıyor: `withCookie()` değeri **şifreliyor**, `withUnencryptedCookie()`
+  düz gönderiyor. Çerez okuyan testte `get()` + elle `Accept` başlığı kullan.
+  ⚠️ `postJson`'ın `Accept` başlığını sessizce eklemesiyle (2E) aynı aile:
+  **test yardımcısı, ölçmek istediğin şeyi ortadan kaldırıyor.**
+- **`EncryptCookies` YALNIZCA `web` grubunda çalışıyor.** `api` grubunda çerez
+  middleware'i hiç yok. Bir çerez iki grupta da okunacaksa `encryptCookies`
+  istisna listesine girmeli; girmezse aynı çerez iki grupta **iki farklı
+  değer** olur ve bu hata vermez — sepet sayfada görünür, sepet ucunda
+  görünmez (4A). ⚠️ Bunu ölçen test **iki gruba birden** vurmalı: yalnızca
+  `api` tarafına vuran test istisna kaldırılınca **yeşil kalıyor** (ölçüldü).
 - **Kullanıcının yazdığı Blade RENDER EDİLMEZ — bu RCE'dir.** Blade PHP'dir ve
   kum havuzu yoktur (Twig'in aksine); `Blade::render()`'a dışarıdan gelen metin
   vermek doğrudan uzaktan kod çalıştırmadır. Cachet'te (#4621) tam bu yaşandı.

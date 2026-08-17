@@ -39,6 +39,22 @@ class RequirePublishedStore
         | 3600 sn = 1 saat: marka düzenlemesini bitirene kadar makul bir
         | süre; çok kısa olsaydı gereksiz yere tekrar tekrar yoklanırdık.
         */
+        /*
+        | ★ TARAYICIYA HTML, API'YE JSON. (4A'da eklendi)
+        |
+        | ⚠️ Önceden HER İKİSİNE de JSON dönüyordu ve API için doğruydu —
+        | arayüz yoktu (M-3). Faz 4'te vitrin var: kapalı mağazayı ziyaret
+        | eden müşteri ekranında süslü parantezli bir metin görürdü.
+        |
+        | ⚠️ Ayrımı `expectsJson()` yapıyor ve bu ANCAK 4A'dan sonra güvenilir:
+        | `ForceJson` global olduğu sürece HER istek "JSON istiyorum" derdi
+        | ve bu dal hiç çalışmazdı. Middleware `api` grubuna daraltıldı.
+        */
+        if (! $istek->expectsJson()) {
+            return response()->view('storefront.kapali', [], Response::HTTP_SERVICE_UNAVAILABLE)
+                ->header('Retry-After', '3600');
+        }
+
         return response()->json(
             ['message' => 'Mağaza şu anda hizmet vermiyor, kısa süre içinde tekrar açılacak.'],
             Response::HTTP_SERVICE_UNAVAILABLE,

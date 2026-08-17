@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Domain\Identity\EmailNormalizer;
 use App\Domain\Quota\QuotaGuard;
+use App\Http\Storefront\StorefrontViewData;
 use App\Platform\Domains\DnsChecker;
 use App\Platform\Domains\SystemDnsChecker;
 use App\Platform\PlanQuotaGuard;
@@ -12,6 +13,7 @@ use App\Platform\Subscription\SubscriptionProviderFactory;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -64,6 +66,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        /*
+        | ★ VİTRİN ORTAK VERİSİ (4A) — tema ve sepet sayısı.
+        |
+        | ⚠️ Controller'da tekrarlanamaz: mağaza kapalı sayfasını MIDDLEWARE
+        | döndürüyor ([RequirePublishedStore]) ve onun controller'ı yok.
+        | Gerekçenin tamamı [StorefrontViewData]'da.
+        */
+        View::composer('storefront.*', StorefrontViewData::class);
+
         /*
         | MERKEZ migration klasörünü kaydediyoruz.
         |

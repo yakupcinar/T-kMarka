@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ──────────────── şu an: FAZ 4 · M-3 verildi ─┐
+┌─ YOL HARİTASI ────────────── şu an: FAZ 4 · 4A bitti ──────┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -29,15 +29,15 @@
 │                    ╰ çıktı: ürün kendi kendini satıyor         │
 │                      ⚠️ eksik: marka geneli veri dışa aktarma  │
 │                                                                │
-│  4 · ARAYÜZ  ◀ AÇILDI — M-3 verildi: yüzeye göre bölünmüş     │
+│  4 · ARAYÜZ  ◀ AÇILDI — M-3 verildi: yüzeye göre bölünmüş      │
 │     vitrin Blade · panel+yönetim Inertia+Vue · SSR YOK         │
-│     4A vitrin → 4B akış → 4C panel → 4D katalog                │
+│     ✅ 4A vitrin → 4B akış → 4C panel → 4D katalog             │
 │     4E sipariş → 4F yönetim → 4G tema → 4H kapanış             │
 │  5 · ENTEGRASYON   kargo · e-fatura                            │
 │  6 · DAĞITIM       yayın · yedekleme · izleme                  │
 │                                                                │
 │  Kural: bir blok bitmeden sonrakine geçilmez.                  │
-│  549 test · lint · analyse · CI hepsi yeşil                    │
+│  564 test · lint · analyse · CI hepsi yeşil                    │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -4235,6 +4235,108 @@ settings.theme  →  renkler · logo · yazı tipi · ana sayfa blok sırası
 | **4F** | kontrol düzlemi arayüzü — merkez alan adında |
 | **4G** | tema — ayar seti, marka başına görünüm, önizleme |
 | **4H** | blok kapanışı — iki markada gerçek tarayıcı koşusu |
+
+### 4A — BİTTİ ✅ (15 test)
+
+Kod: `app/Domain/Settings/ThemeSettings.php` · `DefaultSettings` (tema) ·
+`app/Http/Storefront/{HomeController,CartToken,StorefrontViewData}.php` ·
+`resources/views/storefront/` · `RequirePublishedStore` (HTML dalı) ·
+`bootstrap/app.php` · `routes/tenant.php` · `tests/Tenancy/VitrinTest.php`
+
+**Toplam 564 test** (Faz 3 sonu: 549).
+
+**★ 4A'nın işi üç ENGELİ kaldırmaktı — üçü de "arayüz yokken verilmiş,
+şimdi vadesi gelen" karar:**
+
+| engel | eski gerekçe | neden artık geçersiz |
+|---|---|---|
+| `ForceJson` **global** | *"arayüz olmadığı için (M-3) login rotası yok"* | arayüz VAR: her sayfa "JSON istiyorum" sayılırdı, form hataları 422 JSON dönerdi |
+| sepet kimliği **yalnızca başlıkta** | *"çerez değil, çünkü M-3 seçilmedi"* | vitrin sunucuda render ediliyor; tarayıcı düz gezinmede özel başlık **gönderemez** |
+| `/` **`api` grubunda JSON** | vitrin yoktu | HTML sayfası `web` grubunda olmalı: oturum, çerez, ilerde CSRF |
+
+⚠️ `ForceJson` **kaldırılmadı, daraltıldı** (`api` grubuna): 2E'de ölçülen
+500 hatası API istemcileri için hâlâ gerçek.
+
+**4A-K1 · Tema ayarı da bir GİRİŞ KAPISI — 4-K5 tek başına yetmiyor.**
+
+> 4-K5 "marka şablon yazamaz" diyor ve kapıyı kapatıyor. Ama ayarın kendisi
+> **pencere**: renk doğrudan bir `<style>` bloğuna giriyor. Marka panelden
+> `red; } body { background: url(https://baskasi.example/x) ` kaydedebilseydi
+> çıkan sayfa markanın yazmadığı CSS'i çalıştırırdı.
+>
+> Bu yüzden okuma yolu **beyaz liste**: renk `#rrggbb` kalıbına, yazı tipi
+> sabit listeye, düzen sabit listeye uyar ya da **varsayılana düşer**.
+> Geçersiz değer sayfaya hiç ulaşmıyor.
+
+⚠️ **Doğrulama YAZMA yolunda değil OKUMA yolunda.** Ayar veritabanına başka
+yollardan da girebiliyor (tohumlayıcı, artisan, elle SQL); yazarken
+doğrulamak o yolları açık bırakırdı.
+
+**4A-K2 · Çerez ŞİFRELENMİYOR — ve bu bir tuzağı kapatıyor.**
+
+`EncryptCookies` yalnızca `web` grubunda çalışıyor; `api` grubunda çerez
+middleware'i hiç yok. Şifreleme açık kalsaydı aynı çerez iki grupta **iki
+farklı değer** olurdu:
+
+```
+vitrin sayfası (web) → çözülmüş token → sepet BULUNUR
+sepet ucu      (api) → şifreli metin  → sepet BULUNMAZ
+```
+
+Hata vermezdi: müşteri sayfada sepetini görür, eklemeye çalışınca yeni boş
+sepet açılırdı. ⚠️ Güvenlik düşmüyor — token zaten aynı değerle
+`X-Cart-Token` başlığında düz metin gidiyor ve doğrulaması veritabanına
+karşı yapılıyor.
+
+**★★ KIRMA DENEMELERİ — dördü yapıldı, BİRİ testin yalanını gösterdi**
+
+| kırılan | sonuç |
+|---|---|
+| renk beyaz listesi kaldırıldı | ✅ enjeksiyon testi düştü |
+| `CartToken` çerez dalı kaldırıldı | ✅ iki sepet testi düştü |
+| `ForceJson` tekrar global yapıldı | ✅ "kapalı mağaza HTML" testi düştü |
+| çerez şifreleme istisnası kaldırıldı | ⚠️ **"çerez şifrelenmiyor" testi YEŞİL KALDI** |
+
+> ★ Sonuncusu bir **yalan testti**: yalnızca `api` grubuna vuruyordu ve orada
+> `EncryptCookies` zaten yok — istisna o yolda hiç rol oynamıyor. Test
+> yeniden yazıldı: artık **tek çerezle iki gruba birden** vuruyor ve istisna
+> kaldırılınca düşüyor.
+
+**★ TEST YARDIMCISI ÖLÇÜLECEK ŞEYİ YOK EDİYORDU** — 2E'nin akrabası:
+
+```
+withCookie()             değeri ŞİFRELİYOR   (bizim çerezimiz şifresiz)
+withUnencryptedCookie()  düz gönderiyor      ✓
+getJson()                şifresiz çerezi SESSİZCE DÜŞÜRÜYOR
+```
+
+Çerez testleri `getJson` ile yazılsaydı istek **çerezsiz** giderdi ve
+"çerez okunuyor" iddiası hiç ölçülmezdi. Hata da vermezdi.
+
+**★ Devredilen borç KENDİLİĞİNDEN işledi.** Tema ayarları sonradan eklendiği
+için mevcut markalarda yoktu — 3A'nın aracı üç markada da 4 eksiği buldu ve
+tamamladı (`tenants:run marka:eksikleri-tamamla`). ⚠️ Vitrin ayar olmadan da
+çalışıyordu, çünkü okuma yolu varsayılana düşüyor; backfill onları
+**panelden düzenlenebilir** yapıyor.
+
+**Ayrıca:** `AlanAdiTest`'in ilk testi yeniden yazıldı ve ölçtüğü şey
+güçlendi. Eskiden `/` bir hata ayıklama ucuydu ve `tenant('id')` basıyordu;
+test yalnızca "kiracı değişkeni kuruldu"yu ölçüyordu — şemadan tek satır
+okunmuyordu. Artık markanın kendi ayarından gelen mağaza adı aranıyor,
+yani `search_path` gerçekten sınanıyor.
+
+**Doğrulandı (iki markada gerçek HTTPS):** ikisi de 200 + `text/html`, her
+biri kendi adıyla · A'ya `#0ea5e9` yazıldı, sayfaya girdi · B'ye enjeksiyon
+yazıldı, **varsayılana düştü ve `kotu.example` sayfada hiç yok** · sepete
+ekleme `Set-Cookie` (düz, `httponly`, `samesite=lax`) döndü, çerezle sayfada
+"Sepet 2", çerezsiz boş · B kapatıldı → tarayıcıya **HTML 503**, API
+istemcisine **JSON 503**.
+
+**⚠️ Bu blokta YAPILMAYAN:** ürün detay sayfası, sepet sayfası ve ödeme
+akışı (4B). Ana sayfadaki ürün kartları bugün ana sayfaya dönüyor — ölü
+`href="#"` yerine çalışan bir adres bırakıldı.
+
+---
 
 ### Bitiş ölçütü
 

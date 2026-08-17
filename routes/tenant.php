@@ -24,6 +24,7 @@ use App\Http\Storefront\CatalogController;
 use App\Http\Storefront\CheckoutController as VitrinCheckout;
 use App\Http\Storefront\CollectionController as StorefrontCollectionController;
 use App\Http\Storefront\CouponController;
+use App\Http\Storefront\HomeController;
 use App\Http\Storefront\LegalController as VitrinLegal;
 use App\Http\Storefront\PaymentController;
 use App\Http\Storefront\PaymentReturnController;
@@ -58,12 +59,6 @@ Route::middleware([
     InitializeTenancyByDomain::class,
     PreventAccessFromCentralDomains::class,
 ])->group(function () {
-
-    // Markanın ayakta olduğunu görmek için — vitrin Faz 4'te gelecek (M-3).
-    Route::get('/', fn () => response()->json([
-        'tenant' => tenant('id'),
-        'message' => 'Marka ayakta. Vitrin Faz 4te.',
-    ]));
 
     /*
     | ÖDEME BİLDİRİMİ (1E.4) — sağlayıcının sunucusu çağırıyor.
@@ -512,4 +507,35 @@ Route::middleware([
             });
         });
     });
+});
+
+/*
+|--------------------------------------------------------------------------
+| VİTRİN SAYFALARI — insanın gördüğü yüz (4A)
+|--------------------------------------------------------------------------
+|
+| ⚠️ `web` GRUBU, `api` DEĞİL — ve bu 3C'deki dersin TERSİ tarafı.
+| 3C'de merkez API'si yanlışlıkla `web`'e yazılmıştı ve CSRF her POST'u
+| kırıyordu. Burada `web` BİLEREK seçiliyor:
+|
+|   oturum   müşteri girişi ve form akışları buna dayanacak (4B)
+|   çerez    misafir sepetinin kimliği (CartToken) — başlık taşınamıyor
+|   CSRF     form gönderimi için İSTENİYOR
+|
+| ⚠️ `ForceJson` bu gruba TAKILMIYOR (4A'da `api`'ye daraltıldı). Takılı
+| kalsaydı her sayfa "istemci JSON istiyor" sayılır, form hataları geri
+| yönlendirme yerine 422 JSON dönerdi.
+|
+| ⚠️ `magaza-acik` VAR: kapalı mağazanın vitrini açık kalamaz. Middleware
+| tarayıcıya artık HTML dönüyor (503 + Retry-After).
+*/
+Route::middleware([
+    'web',
+    InitializeTenancyByDomain::class,
+    PreventAccessFromCentralDomains::class,
+    'magaza-acik',
+])->group(function () {
+
+    Route::get('/', HomeController::class)->name('vitrin.anasayfa');
+
 });

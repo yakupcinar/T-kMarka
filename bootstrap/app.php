@@ -36,6 +36,7 @@ use App\Http\Middleware\RequireActiveTenant;
 use App\Http\Middleware\RequireOwner;
 use App\Http\Middleware\RequirePermission;
 use App\Http\Middleware\RequirePublishedStore;
+use App\Http\Storefront\CartToken;
 use App\Platform\DomainUnavailableException;
 use App\Platform\InvalidTransitionException;
 use App\Platform\Subscription\AlreadySubscribedException;
@@ -99,15 +100,48 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         /*
-        | ★ HER CEVAP JSON — ölçülerek eklendi (2E).
+        | ★ HER CEVAP JSON — ölçülerek eklendi (2E), 4A'da DARALTILDI.
         |
         | `Accept: application/json` göndermeyen bir istemci korumalı bir
-        | uca vurduğunda Laravel `login` rotasına yönlendirmeye çalışıyor;
-        | arayüz olmadığı için (M-3) öyle bir rota yok ve 500 dönüyor.
-        | Gerekçenin tamamı [ForceJson]'da — `shouldRenderJsonWhen` ve
-        | istisna eşlemesinin ikisi de denendi, ikisi de çözmedi.
+        | uca vurduğunda Laravel `login` rotasına yönlendirmeye çalışıyor
+        | ve 500 dönüyor. Gerekçenin tamamı [ForceJson]'da —
+        | `shouldRenderJsonWhen` ve istisna eşlemesinin ikisi de denendi,
+        | ikisi de çözmedi.
+        |
+        | ⚠️ ÖNCE GLOBAL'Dİ (`prepend`), ARTIK SADECE `api` GRUBUNDA.
+        |
+        | Gerekçesi kendi yorumunda yazılıydı: "arayüz olmadığı için (M-3)
+        | öyle bir rota yok". Faz 4'te arayüz VAR. Global kalsaydı vitrinin
+        | HER sayfası "istemci JSON istiyor" sayılırdı:
+        |
+        |   form doğrulaması  → geri yönlendirme yerine 422 JSON
+        |   kimliksiz istek   → giriş sayfası yerine 401 JSON
+        |
+        | ⚠️ KALDIRILMIYOR, daraltılıyor: 2E'de ölçülen 500 hatası API
+        | istemcileri için hâlâ gerçek.
         */
-        $middleware->prepend(ForceJson::class);
+        $middleware->api(prepend: [ForceJson::class]);
+
+        /*
+        | ★ SEPET ÇEREZİ ŞİFRELENMİYOR — ve bu bir tuzağı kapatıyor. (4A)
+        |
+        | `EncryptCookies` yalnızca `web` grubunda çalışıyor; `api` grubunda
+        | çerez middleware'i HİÇ YOK. Şifreleme açık kalsaydı aynı çerez
+        | iki grupta İKİ FARKLI DEĞER olurdu:
+        |
+        |   vitrin sayfası (web) → çözülmüş token   → sepet bulunur
+        |   sepet ucu     (api)  → ŞİFRELİ metin    → sepet BULUNMAZ
+        |
+        | Hata vermez: müşteri sayfada sepetini görür, sepete eklemeye
+        | çalışınca yeni boş sepet açılır. Sessiz ve tam ortadan bölen bir
+        | bozukluk.
+        |
+        | ⚠️ Şifrelemeyi kapatmak güvenliği düşürmüyor: token zaten aynı
+        | değerle `X-Cart-Token` BAŞLIĞINDA düz metin gidiyor (1C-K1) ve
+        | doğrulaması veritabanına karşı yapılıyor — kurcalanan token
+        | eşleşmez, yalnızca bulunamaz.
+        */
+        $middleware->encryptCookies(except: [CartToken::CEREZ]);
 
         /*
         | Rotalarda `izin:staff.manage` şeklinde kullanılabilmesi için takma ad.
