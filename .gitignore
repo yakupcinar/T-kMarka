@@ -11,12 +11,20 @@
 # Laravel çalışma zamanı
 # ⚠ Kiracı klasörleri: her markanın yüklediği dosyalar buraya düşüyor
 #   (storage/tenant<kimlik>/app/...). Ürün görselleri dahil — asla depoya girmez.
-# Derlenmiş Blade önbelleği — DERLEME ÇIKTISI, kaynak değil.
+# ⚠️ ÇALIŞMA ZAMANI KLASÖRLERİ YER TUTUCUYLA AYAKTA TUTULUYOR.
 #
-# ⚠️ 4A'da fark edildi: 7 dosya depoya kaçmıştı ve her Blade değişikliğinde
-# anlamsız fark üretiyorlardı. Laravel bu klasörü kendi .gitignore'uyla
-# korur; bizde yoktu.
-/storage/framework/views/*.php
+# İçerik yok sayılıyor ama her klasörde bir `.gitignore` var (`*` +
+# `!.gitignore`) — Laravel'in kendi yaptığı şey; bizde eksikti.
+#
+# ★ 4A'da ÖLÇÜLDÜ ve CI'ı kırdı: derlenmiş Blade dosyaları yanlışlıkla
+# depodaydı ve onları takipten çıkarınca `storage/framework/views`
+# klasörünü ayakta tutan TEK ŞEY gitmiş oldu. Git BOŞ KLASÖR TUTMAZ —
+# taze bir çıkışta klasör hiç oluşmuyor, Blade derleyemiyor ve vitrinin
+# bütün sayfaları düşüyor. Yerelde görünmez: klasör zaten diskte.
+#
+# `storage/logs/laravel.log` de bu yüzden takipten çıkarıldı: günlük
+# dosyası kaynak değil, her koşuda değişip her `git status`'ta kirlilik
+# üretiyordu.
 
 /storage/tenant*
 /storage/*.key
