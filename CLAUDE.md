@@ -207,6 +207,21 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   valid cache path`). Veritabanı testte ayrı (`tikmarka_test`) ama **disk
   ayrı değil**. Kural: dosya silen her servis **kök parametresi** almalı ve
   test kendi geçici klasöründe çalışmalı.
+- **Git BOŞ KLASÖR TUTMAZ — takipteki son dosyayı silmek KLASÖRÜ siler.**
+  4A'da CI'ı kırdı: derlenmiş Blade dosyaları yanlışlıkla depodaydı,
+  takipten çıkarıldı ve `storage/framework/views`'i ayakta tutan tek şey
+  gitti. Taze çıkışta klasör hiç oluşmuyor, Blade derleyemiyor, vitrinin
+  **bütün sayfaları** düşüyor. ⚠️ Yerelde görünmez: klasör zaten diskte.
+  Çalışma zamanı klasörleri Laravel'in yaptığı gibi `.gitignore` yer
+  tutucusuyla tutulur (`*` + `!.gitignore`). Ölçmenin yolu:
+  `git clone . /tmp/taze && ls /tmp/taze/storage/framework`.
+- **CI hata anotasyonu KONUMA göre değil ÖNEME göre seçilmeli.**
+  `.github/ci-kontrol.sh` önce `tail -40` yazıyordu; Pest'in yığın izi
+  40 satırı tek başına dolduruyor ve asıl mesaj
+  (`Failed asserting that 404 is identical to 200`) izin **üstünde**
+  kaldığı için anotasyona hiç girmiyordu. Üstüne GitHub bir adımda ~10
+  anotasyon gösteriyor — ekranda yalnızca yığın izinin ortası görünüyor
+  ve hata **teşhis edilemiyordu**. Artık satırlar kalıba göre seçiliyor.
 - **`getJson` ŞİFRELENMEMİŞ ÇEREZİ DÜŞÜRÜYOR — istek çerezsiz gidiyor.**
   Ölçüldü (4A): aynı istek `get()` ile çerezi taşıyor, `getJson()` ile çerez
   torbası **boş** geliyor ve hata yok. Ayrıca iki yardımcı iki farklı şey
