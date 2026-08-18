@@ -1,7 +1,6 @@
 <?php
 
 use App\Domain\Order\FulfillmentService;
-use App\Domain\Payment\PaymentService;
 use App\Domain\Returns\OverReturnException;
 use App\Domain\Returns\RefundService;
 use App\Domain\Returns\RefundTotals;
@@ -15,7 +14,6 @@ use App\Enums\RefundStatus;
 use App\Enums\ReturnStatus;
 use App\Models\Order;
 use App\Models\OrderReturn;
-use App\Models\Payment;
 use App\Models\ProductVariant;
 use App\Models\Refund;
 use App\Models\Role;
@@ -30,32 +28,6 @@ use App\Models\User;
 |   3  vergi yeniden hesaplanmıyor, satırınki dönüyor
 |   4  tam caymada kargo da geri (yasal zorunluluk)
 */
-
-/** Ödenmiş, teslim edilmiş, iadeye hazır sipariş üretir. */
-function iadeyeHazirSiparis(string $alanAdi): Order
-{
-    $siparis = sevkiyatlikSiparis($alanAdi);
-
-    $servis = app(FulfillmentService::class);
-    $paket = $servis->olustur($siparis, $siparis->items->pluck('quantity', 'id')->all());
-    $servis->kargoyaVer($paket);
-    $servis->teslimEdildi($paket->refresh());
-
-    /*
-    | ⚠️ İade sağlayıcıya gidiyor; o da tahsil edilmiş bir ödeme kaydı
-    | istiyor. `sevkiyatlikSiparis` ödemeyi servisten yapıyor, kayıt
-    | açmıyor — burada gerçek ödeme akışı taklit ediliyor.
-    */
-    $siparis->payment_status = PaymentStatus::Pending;
-    $siparis->save();
-
-    app(PaymentService::class)->baslat($siparis, "http://{$alanAdi}/odeme/donus");
-
-    $deneme = Payment::firstOrFail();
-    bildirimGonder($alanAdi, $siparis->order_number, (string) $deneme->provider_ref, (string) $siparis->grand_total);
-
-    return $siparis->refresh();
-}
 
 it('★ CAYMA SÜRESİ TESLİM tarihinden başlıyor', function () {
     $siparis = iadeyeHazirSiparis('iade-a.test');

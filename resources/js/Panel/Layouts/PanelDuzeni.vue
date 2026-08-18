@@ -21,6 +21,7 @@ const menu = [
   { ad: 'Pano', yol: '/yonetim', izin: null },
   { ad: 'Ürünler', yol: '/yonetim/urunler', izin: 'product.write' },
   { ad: 'Siparişler', yol: '/yonetim/siparisler', izin: 'order.view' },
+  { ad: 'İadeler', yol: '/yonetim/iadeler', izin: 'order.view' },
   { ad: 'Ayarlar', yol: '/yonetim/ayarlar', izin: 'settings.write' },
 ]
 

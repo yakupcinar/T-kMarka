@@ -6,17 +6,20 @@ use App\Domain\Catalog\VariantService;
 use App\Domain\Identity\DefaultRoles;
 use App\Domain\Legal\LegalDocumentService;
 use App\Domain\Order\CheckoutService;
+use App\Domain\Order\FulfillmentService;
 use App\Domain\Payment\FakePaymentProvider;
 use App\Domain\Payment\PaymentService;
 use App\Domain\Settings\DefaultSettings;
 use App\Domain\Settings\SettingsService;
 use App\Domain\Settings\StorePublication;
 use App\Enums\LegalDocumentType;
+use App\Enums\PaymentStatus;
 use App\Enums\ProductStatus;
 use App\Enums\SettingGroup;
 use App\Enums\TenantStatus;
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\Payment;
 use App\Models\ProductVariant;
 use App\Models\User;
 use App\Platform\Models\Tenant;
@@ -487,4 +490,36 @@ function inertiaVerisi(string $html): array
     $veri = json_decode(html_entity_decode($eslesme[1], ENT_QUOTES), true, 512, JSON_THROW_ON_ERROR);
 
     return $veri;
+}
+
+/**
+ * Ödenmiş, TESLİM EDİLMİŞ, iadeye hazır sipariş üretir.
+ *
+ * ⚠️ Pest.php'de: 4E'de ikinci bir dosya (panel iade ekranları) kullanmaya
+ * başladı. Test dosyasında kalsaydı o dosya tek başına koşturulunca
+ * "tanımsız fonksiyon" verirdi.
+ */
+function iadeyeHazirSiparis(string $alanAdi): Order
+{
+    $siparis = sevkiyatlikSiparis($alanAdi);
+
+    $servis = app(FulfillmentService::class);
+    $paket = $servis->olustur($siparis, $siparis->items->pluck('quantity', 'id')->all());
+    $servis->kargoyaVer($paket);
+    $servis->teslimEdildi($paket->refresh());
+
+    /*
+    | ⚠️ İade sağlayıcıya gidiyor; o da tahsil edilmiş bir ödeme kaydı
+    | istiyor. `sevkiyatlikSiparis` ödemeyi servisten yapıyor, kayıt
+    | açmıyor — burada gerçek ödeme akışı taklit ediliyor.
+    */
+    $siparis->payment_status = PaymentStatus::Pending;
+    $siparis->save();
+
+    app(PaymentService::class)->baslat($siparis, "http://{$alanAdi}/odeme/donus");
+
+    $deneme = Payment::firstOrFail();
+    bildirimGonder($alanAdi, $siparis->order_number, (string) $deneme->provider_ref, (string) $siparis->grand_total);
+
+    return $siparis->refresh();
 }

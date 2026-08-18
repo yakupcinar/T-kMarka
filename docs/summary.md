@@ -1588,3 +1588,54 @@ BİTİŞ ÖLÇÜTÜ  marka HİÇ curl kullanmadan mağazasını kurar; müşteri
         panelden sil → vitrinden düştü
       ⚠️ YAPILMAYAN: görsel yükleme · seçenek/kombinasyon üretici ·
         kategori yönetimi · toplu işlemler (uçları var, ekranları yok)
+
+4E ✅  PANEL SİPARİŞ VE İADE EKRANLARI — 15 test (toplam 614)
+      marka artık siparişi görüp KARGOLUYOR ve iadeyi yönetiyor
+
+      ★★ İDDİA: YETKİ ÜÇ KATMANLI, ARAYÜZ ONU BOZMUYOR
+        order.view     görebilir
+        order.fulfill  kargolayabilir
+        order.refund   para iadesi yapabilir
+        ⚠️ tek izne indirgemek DEPO PERSONELİNE PARA İADESİ YETKİSİ
+          vermek demekti
+        üç kırma denemesi de düştü (fulfill kapısı · refund kapısı ×2)
+
+      4E-K1 SORUNLU SİPARİŞLER LİSTENİN BAŞINDA
+        stok açığı olan sipariş tarihe bakılmaksızın önce
+        tarihe göre sıralansaydı yoğun günde uyarı 3. sayfaya düşer,
+        pratikte GÖRÜNMEZ olurdu
+
+      4E-K2 paket SİPARİŞE DARALTILMIŞ doğrulanıyor (1A.5)
+      4E-K3 aşırı sevkiyat kuralı controller'da TEKRARLANMIYOR (1D'de)
+
+      ★★ KIRMA DENEMESİ ÖLÇÜLMEYEN BİR DAVRANIŞ BULDU
+        stok açığı sıralamasını kaldırdım, HİÇBİR TEST DÜŞMEDİ
+        → davranış yorumda yazılıydı ama ölçülmüyordu; test yazıldı
+        ★ önceki bloklarda kırma denemesi YALAN TESTLERİ buluyordu;
+          bu kez HİÇ YAZILMAMIŞ testi buldu — aynı soru: bu davranışı
+          gerçekten ölçüyor muyuz?
+
+      ★ node_modules BAĞLI KLASÖRDEN ÇIKARILDI
+        Vite derlemesi Unknown system error -35 ile düştü (errno=35 ailesi)
+        ⚠️ "dosyayı sil-yeniden yaz" çözümü BURADA YETMİYOR: kilitlenen
+          dosya node_modules içinde ve binlerce tane var
+        adlandırılmış Docker birimine taşındı — kilit gitti, derleme hızlandı
+
+      ★ İKİ TEST YARDIMCISI Pest.php'ye TAŞINDI
+        iadeyeHazirSiparis · inertiaVerisi
+        ikinci dosya kullanmaya başladı; tek dosyada kalsalardı o dosya
+        TEK BAŞINA koşturulunca "tanımsız fonksiyon" verirdi
+
+      ★ sevkiyatlikSiparis() PARA İADESİNE HAZIR DEĞİLMİŞ
+        ödemeyi servisten yapıyor, TAHSİL EDİLMİŞ Payment kaydı açmıyor
+        RefundService onu firstOrFail() ile arıyor → 404
+        ⚠️ belirti yanıltıcı: hata mesajı değil Laravel'in 404 SAYFASI
+          geliyor, yani "rota yok" sanılıyor
+
+      DOĞRULANDI (gerçek tarayıcı, oturum + CSRF)
+        sipariş listesi 200, 15 sipariş; stok açığı olan ikisi GERÇEKTEN
+        BAŞTA · ayrıntı adresi, satırları ve ONAYLANAN SÖZLEŞME SÜRÜMÜNÜ
+        gösteriyor · paket → kargoya ver → teslim zinciri çalıştı,
+        sipariş `fulfilled`, satır 1/1 sevk edildi
+      ⚠️ YAPILMAYAN: kısmi iade tutarı ekranda hesaplanmıyor · kargo
+        firması entegrasyonu (Faz 5) · sipariş arama yalnızca kargo durumu

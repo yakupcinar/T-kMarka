@@ -207,6 +207,23 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   valid cache path`). Veritabanı testte ayrı (`tikmarka_test`) ama **disk
   ayrı değil**. Kural: dosya silen her servis **kök parametresi** almalı ve
   test kendi geçici klasöründe çalışmalı.
+- **`node_modules` BAĞLI KLASÖRDE DURMAZ — adlandırılmış birime konur.**
+  macOS bind mount üzerinden binlerce küçük dosya okumak hem yavaş hem de
+  kilitleniyor: Vite derlemesi `Unknown system error -35` ile düştü, üç
+  denemede de aynı yerde. ⚠️ Tek dosyayı yeniden yazma çözümü BURADA
+  YETMİYOR (kilitlenen dosya `node_modules` içinde ve binlerce tane var).
+  `docker-compose.yml` → `- node_modules:/var/www/html/node_modules` (4E).
+  Sonuç: `npm ci` konteyner içinde yaşıyor.
+- **Test yardımcısı İKİNCİ dosyada kullanılacaksa `tests/Pest.php`'ye taşınır.**
+  Tek test dosyasında tanımlı kalırsa diğer dosya **tek başına** koşturulunca
+  "tanımsız fonksiyon" verir — tüm süitte görünmeyen, dosya yükleme sırasına
+  bağlı sessiz bağımlılık. 4E'de `iadeyeHazirSiparis` ve `inertiaVerisi`
+  bu yüzden taşındı.
+- **`sevkiyatlikSiparis()` PARA İADESİNE HAZIR DEĞİL.** Ödemeyi servisten
+  yapıyor, **tahsil edilmiş `Payment` kaydı açmıyor**; `RefundService`
+  `firstOrFail()` ile onu arıyor ve bulamayınca **404** dönüyor. ⚠️ Belirti
+  yanıltıcı: hata mesajı değil Laravel'in 404 sayfası geliyor, yani "rota
+  yok" sanılıyor. Para iadesi testinde `iadeyeHazirSiparis()` kullan.
 - **Inertia DevTools her isteğe DOSYA YAZIYOR — kapalı tutulmalı.**
   `storage/inertia-devtools/` altına kayıt açıyor ve periyodik damga
   yazıyor; bağlı klasörde `errno=35` ile düşünce panelin **bütün

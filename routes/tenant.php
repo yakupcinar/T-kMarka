@@ -10,11 +10,13 @@ use App\Http\Panel\DomainController;
 use App\Http\Panel\LegalController;
 use App\Http\Panel\OptionController;
 use App\Http\Panel\OrderController;
+use App\Http\Panel\OrderPageController;
 use App\Http\Panel\PanelAuthPageController;
 use App\Http\Panel\PaymentSettingsController;
 use App\Http\Panel\ProductController;
 use App\Http\Panel\ProductPageController as PanelUrunSayfasi;
 use App\Http\Panel\ReturnController as PanelIade;
+use App\Http\Panel\ReturnPageController;
 use App\Http\Panel\ReviewController;
 use App\Http\Panel\RoleController;
 use App\Http\Panel\SettingsController;
@@ -658,6 +660,52 @@ Route::middleware([
 
             Route::delete('/urunler/{urun:uuid}/varyantlar/{varyant:uuid}', [PanelUrunSayfasi::class, 'varyantSil'])
                 ->withoutScopedBindings()->name('panel.varyant.sil');
+        });
+
+        /*
+        | SİPARİŞ VE İADE (4E) — YETKİ ÜÇ KATMANLI.
+        |
+        | ★ Panel API'siyle AYNI ayrım (Faz 1-2). Arayüz onu BOZMUYOR:
+        |   order.view     görebilir
+        |   order.fulfill  kargolayabilir
+        |   order.refund   para iadesi yapabilir
+        |
+        | ⚠️ Tek izne indirgemek en kolay yoldu ve depo personeline para
+        | iadesi yetkisi vermek demekti.
+        */
+        Route::middleware('izin:order.view')->group(function () {
+            Route::get('/siparisler', [OrderPageController::class, 'index'])->name('panel.siparisler');
+            Route::get('/siparisler/{siparis:uuid}', [OrderPageController::class, 'show'])->name('panel.siparis');
+
+            // ⚠️ İade TALEBİNİ görmek `order.view`; karar vermek `order.refund`.
+            Route::get('/iadeler', [ReturnPageController::class, 'index'])->name('panel.iadeler');
+            Route::get('/iadeler/{iade:uuid}', [ReturnPageController::class, 'show'])->name('panel.iade');
+        });
+
+        Route::middleware('izin:order.fulfill')->group(function () {
+            /*
+            | ⚠️ İç içe kapsama KAPALI (4D-K3'ün gerekçesi): paketin bu
+            | siparişe ait olduğu controller'da AÇIKÇA doğrulanıyor, yani
+            | koruma görünür ve ölçülebilir.
+            */
+            Route::post('/siparisler/{siparis:uuid}/paketler', [OrderPageController::class, 'paketOlustur'])
+                ->name('panel.paket.olustur');
+
+            Route::post('/siparisler/{siparis:uuid}/paketler/{paket:uuid}/kargo', [OrderPageController::class, 'kargoyaVer'])
+                ->withoutScopedBindings()->name('panel.paket.kargo');
+
+            Route::post('/siparisler/{siparis:uuid}/paketler/{paket:uuid}/teslim', [OrderPageController::class, 'teslimEdildi'])
+                ->withoutScopedBindings()->name('panel.paket.teslim');
+
+            Route::delete('/siparisler/{siparis:uuid}/paketler/{paket:uuid}', [OrderPageController::class, 'paketIptal'])
+                ->withoutScopedBindings()->name('panel.paket.iptal');
+        });
+
+        Route::middleware('izin:order.refund')->group(function () {
+            Route::post('/iadeler/{iade:uuid}/onayla', [ReturnPageController::class, 'onayla'])->name('panel.iade.onayla');
+            Route::post('/iadeler/{iade:uuid}/reddet', [ReturnPageController::class, 'reddet'])->name('panel.iade.reddet');
+            Route::post('/iadeler/{iade:uuid}/teslim-al', [ReturnPageController::class, 'teslimAl'])->name('panel.iade.teslim');
+            Route::post('/iadeler/{iade:uuid}/para-iadesi', [ReturnPageController::class, 'paraIadesi'])->name('panel.iade.para');
         });
     });
 

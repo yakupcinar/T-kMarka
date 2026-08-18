@@ -31,13 +31,13 @@
 │                                                                │
 │  4 · ARAYÜZ  ◀ AÇILDI — M-3 verildi: yüzeye göre bölünmüş      │
 │     vitrin Blade · panel+yönetim Inertia+Vue · SSR YOK         │
-│     ✅ 4A vitrin → ✅ 4B akış → ✅ 4C panel → ✅ 4D katalog       │
+│     ✅ 4A vitrin → ✅ 4B akış → ✅ 4C panel → ✅ 4D katalog     │
 │     4E sipariş → 4F yönetim → 4G tema → 4H kapanış             │
 │  5 · ENTEGRASYON   kargo · e-fatura                            │
 │  6 · DAĞITIM       yayın · yedekleme · izleme                  │
 │                                                                │
 │  Kural: bir blok bitmeden sonrakine geçilmez.                  │
-│  599 test · lint · analyse · CI hepsi yeşil                    │
+│  588 test · lint · analyse · CI hepsi yeşil                    │
 └────────────────────────────────────────────────────────────────┘
 ```
 

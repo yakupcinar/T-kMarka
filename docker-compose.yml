@@ -31,6 +31,18 @@ services:
     build: ./docker/php
     volumes:
       - .:/var/www/html           # kod canlı bağlı — kaydettiğin anda geçerli
+
+      # ⚠️ node_modules BAĞLI KLASÖRÜN DIŞINDA — adlandırılmış birimde. (4E)
+      #
+      # macOS'ta bind mount üzerinden binlerce küçük dosya okumak hem çok
+      # yavaş hem de KİLİTLENİYOR: Vite derlemesi `Unknown system error -35`
+      # (errno=35, Resource deadlock avoided) ile düştü ve üç denemede de
+      # aynı yerde takıldı. Aynı hata composer ve phpstan'da da görülmüştü;
+      # orada tek dosyayı yeniden yazmak yetiyordu, burada yetmedi.
+      #
+      # ⚠️ Sonuç: `npm install` konteyner İÇİNDE yaşıyor. Host'taki
+      # node_modules klasörü (varsa) artık kullanılmıyor.
+      - node_modules:/var/www/html/node_modules
     # env_file YOK — bilerek. Laravel .env'i dosyadan kendisi okuyor.
     # Konteyner ortamına enjekte edilirse $_SERVER'a yazılır ve
     # phpunit.xml testlerde onu EZEMEZ → testler geliştirme
@@ -139,6 +151,7 @@ services:
       - caddy
 
 volumes:
+  node_modules:
   pg_data:
   redis_data:
   caddy_data:
