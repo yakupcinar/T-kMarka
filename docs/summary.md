@@ -1477,3 +1477,58 @@ BİTİŞ ÖLÇÜTÜ  marka HİÇ curl kullanmadan mağazasını kurar; müşteri
         B markasında aynı akış çalıştı, A'nın sepeti B'de GÖRÜNMEDİ
       ⚠️ YAPILMAYAN: müşteri girişi/kayıt · adres defteri · sipariş
         geçmişi · yorum yazma ekranı (uçları var, sayfaları yok)
+
+4C ✅  PANEL İSKELETİ — 12 test (toplam 588)
+      ilk kez Node/Vite/Vue projeye girdi; /yonetim ayakta
+
+      4C-K1 NODE APP İMAJINA girdi, ayrı servise değil
+        kural: "yerel makinede PHP yok, her şey Makefile'da"
+        Node dışarıda kalsaydı geliştiricinin makinesine bağımlılık
+        imaj ~60 MB büyüdü — bilinçli takas
+
+      4C-K2 TESTLER JS DERLEMESİNE BAĞLI DEĞİL, ama CI DERLİYOR
+        withoutVite(): Inertia'nın sunucu iddiaları JS'siz ölçülüyor
+        ⚠️ CI ayrı adımda derliyor — olmasaydı bozuk bir Vue bileşeni
+          bütün testler yeşilken geçerdi
+
+      4C-K3 PANEL OTURUM, API TOKEN — aynı tablo, iki kapı
+        staff (token) · staff-web (session)
+        ⚠️ 1A.0'daki "oturum kullanmıyoruz, panel ayrı alt alan adına
+          taşınabilir" gerekçesi ARTIK GEÇERSİZ: M-3 paneli markanın
+          kendi alan adında /yonetim'e koydu. Karar gerekçesiyle değişti
+
+      4C-K4 DÜĞMEYİ GİZLEMEK YETKİ DEĞİLDİR
+        izinler prop olarak gidiyor ama SADECE menüyü şekillendirmek için
+        gerçek koruma sunucuda `izin:` middleware'inde
+
+      ★★ GERÇEK TARAYICI: PANEL BOŞ SAYFA AÇILIYORDU
+        asset_helper_tenancy `asset()`'i /tenancy/assets/'e çeviriyor:
+          /tenancy/assets/build/...js  → 404
+          /build/...js                 → 200
+        ⚠️ BEDELİ TAMAMEN SESSİZ: sunucu 200, HTML doğru, Inertia verisi
+          doğru, testler yeşil (withoutVite) — tarayıcı betiği indiremiyor
+        kapatıldı; marka dosyaları zaten tenant_asset() kullanıyor
+
+      ★ 2E'NİN HATASI PANEL TARAFINDA YENİDEN ÇIKTI
+        kimliksiz istek `login` adlı rotaya gidiyor → rota yok → 500
+        2E'de cevap "her şey JSON"dı; Faz 4'te doğru cevap GİRİŞ
+        SAYFASINA YÖNLENDİRME → redirectGuestsTo, yola göre ayırıyor
+
+      ★ ÜÇ KÜÇÜK TUZAK
+        composer require errno=35'e takıldı (optimize-autoloader taraması);
+          kurulum tamamlanmıştı, package:discover elle çalıştırıldı
+        ReservedSubdomains.php okunamaz oldu → sil-yeniden yaz
+        Vue menüsüne order.read yazmıştım, enum'da order.view — test yakaladı
+
+      ★★ 5 KIRMA DENEMESİ, BEŞİ DE TESTLERİ DÜŞÜRDÜ
+        sahip kısa devresi · model olduğu gibi paylaşımı · panele
+        magaza-acik · kimliksiz yönlendirme · asset_helper_tenancy
+
+      DOĞRULANDI (iki markada gerçek tarayıcı)
+        kimliksiz /yonetim → 302 giriş · Giris bileşeni + noindex
+        gerçek POST girişi → 302 pano · Panosu, "A Markası Sahibi",
+        9 izin, marka adı doğru, PAROLA SIZMIYOR · panel betiği 200
+        A'nın oturumu B'nin panelini AÇMIYOR
+      ⚠️ YAPILMAYAN: ürün/sipariş/ayar ekranları (4D-4F). Panoda sahte
+        sayaç YOK — çalışıyor gibi görünen boş pano, eksik olduğu belli
+        olandan kötüdür

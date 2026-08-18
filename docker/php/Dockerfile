@@ -22,4 +22,18 @@ RUN install-php-extensions \
 # Composer'ı hazır imajdan kopyala — ayrıca kurmaya gerek yok.
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
+# ─────────────────────────────────────────────────────────────────────
+# NODE — panel arayüzünün derleyicisi. (4C-K1)
+#
+# ⚠️ AYRI SERVİS DEĞİL, AYNI İMAJ. Proje kuralı "yerel makinede PHP yok,
+# her şey Makefile'da"; Node'u dışarıda bırakmak geliştiricinin makinesine
+# bağımlılık eklerdi ve "bende çalışıyor" sınıfı hataların kapısını açardı.
+#
+# ⚠️ İmajı büyütüyor (~60 MB) ve bu BİLİNÇLİ bir takas: tek konteyner,
+# tek komut. Üretimde derleme yapılmayacak (varlıklar önceden derlenip
+# gönderilecek), yani bu maliyet yalnızca geliştirme ve CI'da.
+COPY --from=node:22-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:22-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
+
 WORKDIR /var/www/html

@@ -5,10 +5,12 @@ declare(strict_types=1);
 use App\Http\Panel\AuthController as PanelAuth;
 use App\Http\Panel\CategoryController;
 use App\Http\Panel\CollectionController;
+use App\Http\Panel\DashboardController;
 use App\Http\Panel\DomainController;
 use App\Http\Panel\LegalController;
 use App\Http\Panel\OptionController;
 use App\Http\Panel\OrderController;
+use App\Http\Panel\PanelAuthPageController;
 use App\Http\Panel\PaymentSettingsController;
 use App\Http\Panel\ProductController;
 use App\Http\Panel\ReturnController as PanelIade;
@@ -567,5 +569,46 @@ Route::middleware([
     */
     Route::get('/odeme', [CheckoutPageController::class, 'form'])->name('vitrin.odeme');
     Route::post('/odeme', [CheckoutPageController::class, 'gonder'])->name('vitrin.odeme.gonder');
+
+});
+
+/*
+|--------------------------------------------------------------------------
+| PANEL SAYFALARI — markanın personelinin çalışma alanı (4C)
+|--------------------------------------------------------------------------
+|
+| ★ 4-K1'İN UYGULAMASI: ayrım ALAN ADI + YOL ile.
+|   marka alan adı + `/`         → vitrin   (müşteri)
+|   marka alan adı + `/yonetim`  → panel    (personel)
+|   merkez alan adı + `/yonetim` → kontrol düzlemi (biz, 4F)
+|
+| ⚠️ `magaza-acik` YOK: marka mağazasını kapatınca kendini panelin dışında
+| bırakmamalı — mağazayı tekrar açmanın tek yolu burası.
+|
+| ⚠️ `web` grubu: oturum ve CSRF gerekiyor (4C-K3 · 4-K4).
+*/
+Route::middleware([
+    'web',
+    InitializeTenancyByDomain::class,
+    PreventAccessFromCentralDomains::class,
+])->prefix('yonetim')->group(function () {
+
+    /*
+    | ⚠️ `guest:staff-web` — GİRİŞ YAPMIŞ personel giriş formunu görmemeli.
+    | Görseydi, ikinci kez giriş yapması oturumunu yeniler ve o sırada
+    | doldurduğu formlar sessizce kaybolurdu.
+    */
+    Route::middleware('guest:staff-web')->group(function () {
+        Route::get('/giris', [PanelAuthPageController::class, 'form'])->name('panel.giris');
+
+        Route::post('/giris', [PanelAuthPageController::class, 'giris'])
+            ->middleware('throttle:giris')
+            ->name('panel.giris.gonder');
+    });
+
+    Route::middleware(['auth:staff-web', 'marka-aktif'])->group(function () {
+        Route::get('/', DashboardController::class)->name('panel.pano');
+        Route::post('/cikis', [PanelAuthPageController::class, 'cikis'])->name('panel.cikis');
+    });
 
 });

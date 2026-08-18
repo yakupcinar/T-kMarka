@@ -1,0 +1,5 @@
+/* Panel görünümü — vitrinin temasından BAĞIMSIZ. (4C)
+   Vitrin markanın sitesi ve marka rengini taşıyor; panel BİZİM aracımız
+   ve her markada aynı görünüyor. Karıştırılsaydı marka kendi panelini
+   okunamaz hâle getirebilirdi. */
+@import 'tailwindcss';

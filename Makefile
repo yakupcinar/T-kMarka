@@ -9,7 +9,7 @@ DC   = docker compose
 APP  = $(DC) exec -T app
 
 .DEFAULT_GOAL := yardim
-.PHONY: yardim ayaga kaldir indir yeniden durum tunel tunel-kapat kontrol lint analiz test \
+.PHONY: yardim ayaga kaldir indir yeniden derle durum tunel tunel-kapat kontrol lint analiz test \
         migrate marka kabuk log temiz
 
 yardim:
@@ -26,6 +26,7 @@ yardim:
 	@echo "    make tunel-kapat  tüneli kapat"
 	@echo ""
 	@echo "  DENETİM"
+	@echo "    make derle        panel arayüzünü derle (Vue değişince ŞART)"
 	@echo "    make kontrol      lint + analiz + test (commit öncesi ZORUNLU)"
 	@echo "    make lint / analiz / test"
 	@echo ""
@@ -55,6 +56,12 @@ indir:
 # devam eder (CLAUDE.md). Caddy de bağlı yapılandırmayı yeniden okumaz.
 yeniden:
 	$(DC) restart worker scheduler caddy
+
+# ⚠️ PANEL DEĞİŞİNCE ŞART (4C). Vue/Inertia dosyaları derlenmeden
+# tarayıcıya ulaşmaz — sunucu doğru HTML döner ama sayfa BOŞ açılır.
+# Vitrin etkilenmez: o sunucuda render edilen Blade (4-K1).
+derle:
+	$(DC) exec -T app npm run build
 
 durum:
 	@$(DC) ps --format "  {{.Service}}\t{{.State}}"

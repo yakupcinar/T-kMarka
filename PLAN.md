@@ -31,13 +31,13 @@
 │                                                                │
 │  4 · ARAYÜZ  ◀ AÇILDI — M-3 verildi: yüzeye göre bölünmüş      │
 │     vitrin Blade · panel+yönetim Inertia+Vue · SSR YOK         │
-│     ✅ 4A vitrin → ✅ 4B akış → 4C panel → 4D katalog            │
+│     ✅ 4A vitrin → ✅ 4B akış → ✅ 4C panel → 4D katalog         │
 │     4E sipariş → 4F yönetim → 4G tema → 4H kapanış             │
 │  5 · ENTEGRASYON   kargo · e-fatura                            │
 │  6 · DAĞITIM       yayın · yedekleme · izleme                  │
 │                                                                │
 │  Kural: bir blok bitmeden sonrakine geçilmez.                  │
-│  577 test · lint · analyse · CI hepsi yeşil                    │
+│  588 test · lint · analyse · CI hepsi yeşil                    │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -4413,6 +4413,97 @@ eklendi" → ödeme sayfası (sözleşme sürümü gömülü) → sipariş **302
 
 **⚠️ Bu blokta YAPILMAYAN:** müşteri girişi/kayıt sayfaları, adres defteri,
 sipariş geçmişi ve yorum yazma ekranı. Uçları var (Faz 1-2), sayfaları yok.
+
+---
+
+### 4C — BİTTİ ✅ (12 test)
+
+Kod: `docker/php/Dockerfile` (Node) · `config/auth.php` (`staff-web`) ·
+`config/tenancy.php` (`asset_helper_tenancy`) ·
+`app/Http/Middleware/HandleInertiaRequests.php` ·
+`app/Http/Panel/{PanelAuthPageController,DashboardController}.php` ·
+`StaffAuthService::dogrula()` · `resources/js/Panel/` ·
+`resources/views/panel/app.blade.php` · `bootstrap/app.php` ·
+`vite.config.js` · `Makefile` (`make derle`) · `.github/workflows/ci.yml`
+
+**Toplam 588 test** (4B sonu: 577).
+
+**4C-K1 · Node AYRI SERVİSE değil APP İMAJINA giriyor.**
+> Proje kuralı "yerel makinede PHP/Composer yok, her şey Makefile'da".
+> Node'u dışarıda bırakmak geliştiricinin makinesine bağımlılık eklerdi.
+> İmaj ~60 MB büyüyor — bilinçli takas; üretimde derleme yapılmayacak.
+
+**4C-K2 · Testler JS derlemesine BAĞLANMIYOR, ama CI derliyor.**
+> Testler `withoutVite()` kullanıyor: Inertia'nın sunucu tarafı iddiaları
+> (hangi sayfa, hangi prop) JS olmadan ölçülebiliyor ve süiti Node'a
+> bağlamak gereksiz yavaşlık olurdu.
+>
+> ⚠️ **Ama CI ayrı bir adımda derliyor.** Olmasaydı bozuk bir Vue bileşeni
+> bütün testler yeşilken geçer, panelin açılmadığı ancak elle fark edilirdi.
+
+**4C-K3 · Panel OTURUM, API TOKEN — aynı tablo, iki kapı.**
+```
+staff      token   → API istemcisi, mobil, entegrasyon
+staff-web  oturum  → tarayıcıdaki panel (Inertia)
+```
+> ⚠️ 1A.0'daki "oturum çerezi kullanılmıyor, panel ileride ayrı alt alan
+> adına taşınırsa çerez kapsamı sorun çıkarır" gerekçesi **artık geçersiz**:
+> M-3 (4-K1) panelin markanın kendi alan adında `/yonetim` yolunda
+> duracağına karar verdi. Karar değişti, gerekçesiyle yazıldı.
+
+**4C-K4 · Düğmeyi gizlemek YETKİ DEĞİLDİR.**
+> İzinler Inertia prop'u olarak paylaşılıyor ama yalnızca menüyü
+> şekillendirmek için. Gerçek koruma sunucuda `izin:` middleware'inde.
+> ⚠️ Bir gün "izni arayüzde kontrol ettik, uçta gerek yok" denirse sistem
+> tamamen açılır: tarayıcıdaki her şey kullanıcının elindedir.
+
+---
+
+**★★ GERÇEK TARAYICI KOŞUSU BİR HATA GÖSTERDİ — PANEL BOŞ SAYFA AÇILIYORDU**
+
+Kiracılık paketi `asset_helper_tenancy` ile `asset()` çağrılarını kendi
+yoluna çeviriyor:
+
+```
+/tenancy/assets/build/assets/panel-*.js   → 404
+/build/assets/panel-*.js                  → 200
+```
+
+> ⚠️ **Bedeli tamamen sessizdi:** sunucu 200 ve doğru HTML dönüyordu,
+> Inertia sayfa verisi doğruydu, testler `withoutVite()` kullandığı için
+> yeşildi — ama tarayıcı betiği indiremediğinden panel **boş** açılıyordu.
+
+Kapatıldı; marka dosyaları zaten açıkça `tenant_asset()` kullanıyor
+(paketin kendi belgesinin önerdiği yol). Testle kilitlendi ve kırma
+denemesiyle doğrulandı.
+
+**★ 2E'NİN HATASI PANEL TARAFINDA YENİDEN ÇIKTI.** Kimliksiz istek `login`
+adlı rotaya yönlendiriliyor, bizde öyle bir rota yok → **500**. 2E'de
+cevap "her şey JSON" idi; Faz 4'te arayüz var, doğru cevap **giriş
+sayfasına yönlendirme**. `redirectGuestsTo` yola göre ayırıyor — müşteri
+girişi geldiğinde (vitrin) o başka sayfaya gidecek.
+
+**★ Üç küçük tuzak daha:**
+
+| | |
+|---|---|
+| `composer require` Docker Desktop kilidine takıldı (`errno=35`) | optimize-autoloader taraması; kurulum aslında tamamlanmıştı, `package:discover` elle çalıştırıldı |
+| `app/Platform/ReservedSubdomains.php` okunamaz hâle geldi | belgelenmiş çözüm: sil–yeniden yaz (inode değişsin) |
+| Vue menüsüne `order.read` yazmıştım | enum'da `order.view` — test yakaladı |
+
+**★★ Beş kırma denemesi, beşi de testleri düşürdü:** sahip kısa devresi ·
+model olduğu gibi paylaşımı · panele `magaza-acik` · kimliksiz yönlendirme ·
+`asset_helper_tenancy`.
+
+**Doğrulandı (iki markada gerçek tarayıcı):** kimliksiz `/yonetim` → **302
+giriş sayfası** · giriş sayfası Inertia `Giris` bileşeni + `noindex` ·
+gerçek POST ile giriş → **302 pano** · pano `Panosu`, kullanıcı
+"A Markası Sahibi", **9 izin**, marka adı doğru, **parola sızmıyor** ·
+panel betiği **200** · A'nın oturumu **B'nin panelini açmıyor**.
+
+**⚠️ Bu blokta YAPILMAYAN:** ürün/sipariş/ayar ekranları (4D-4F). Menüde
+görünüyorlar ama hedefleri henüz yok. Panoda sahte sayaç YOK — çalışıyor
+gibi görünen boş bir pano, eksik olduğu belli olandan kötüdür.
 
 ---
 

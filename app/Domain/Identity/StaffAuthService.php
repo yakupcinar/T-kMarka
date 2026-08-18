@@ -28,6 +28,29 @@ class StaffAuthService
      */
     public function girisYap(string $email, string $parola): array
     {
+        $personel = $this->dogrula($email, $parola);
+
+        return [
+            'user' => $personel,
+            'token' => $personel->createToken('panel')->plainTextToken,
+        ];
+    }
+
+    /**
+     * Kimlik doğrular — TOKEN ÜRETMEZ.
+     *
+     * ★ 4C'de ayrıldı: panel sayfaları OTURUM tabanlı (4C-K3) ve token'a
+     * ihtiyaçları yok. Üretilseydi her sayfa girişi kullanılmayan bir token
+     * bırakır, `personal_access_tokens` tablosu çöple dolardı.
+     *
+     * ⚠️ AYRI BİR KOPYA DEĞİL, ORTAK KAYNAK. Kontrolü panel sayfası için
+     * yeniden yazmak, aşağıdaki gizlilik kuralını iki yerde tutmak olurdu —
+     * ve biri bir gün güncellenmezdi.
+     *
+     * @throws ValidationException
+     */
+    public function dogrula(string $email, string $parola): User
+    {
         $personel = User::where('email', EmailNormalizer::normallestir($email))->first();
 
         /*
@@ -45,10 +68,7 @@ class StaffAuthService
             ]);
         }
 
-        return [
-            'user' => $personel,
-            'token' => $personel->createToken('panel')->plainTextToken,
-        ];
+        return $personel;
     }
 
     /** Çıkış — yalnızca bu oturumun token'ı iptal edilir. */

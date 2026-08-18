@@ -67,6 +67,29 @@ return [
         ],
 
         /*
+        | ★ PANEL SAYFALARI — OTURUM tabanlı. (4C-K3 · 4-K4'ün uygulaması)
+        |
+        | ⚠️ `staff` ile AYNI kullanıcı tablosu, FARKLI kapı:
+        |
+        |   staff      token   → API istemcisi, mobil, entegrasyon
+        |   staff-web  oturum  → tarayıcıdaki panel (Inertia)
+        |
+        | Neden ayrı guard: Inertia sayfa gezinmesi çerezle çalışıyor,
+        | tarayıcı özel `Authorization` başlığı gönderemiyor. Token guard'ını
+        | oturuma çevirmek API istemcilerini kırardı.
+        |
+        | ⚠️ Yukarıdaki yorum "oturum çerezi kullanılmıyor, panel ileride
+        | ayrı alt alan adına taşınırsa çerez kapsamı sorun çıkarır" diyordu.
+        | M-3 (4-K1) panelin MARKANIN kendi alan adında `/yonetim` yolunda
+        | duracağına karar verdi — yani ayrı alt alan adı yok ve çerez
+        | kapsamı sorunu doğmuyor. Karar değişti, gerekçesiyle yazıldı.
+        */
+        'staff-web' => [
+            'driver' => 'session',
+            'provider' => 'staff',
+        ],
+
+        /*
         | ★ ÜÇÜNCÜ KİMLİK ALANI (3C) — kontrol düzlemi.
         |
         | ⚠️ TıkMarka'yı işleten kişi; yetkisi BÜTÜN MARKALARA uzanıyor,

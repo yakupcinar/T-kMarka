@@ -32,6 +32,7 @@ use App\Domain\Settings\StoreNotReadyException;
 use App\Domain\Stock\InsufficientStockException;
 use App\Domain\Stock\StockLockTimeoutException;
 use App\Http\Middleware\ForceJson;
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireActiveTenant;
 use App\Http\Middleware\RequireOwner;
 use App\Http\Middleware\RequirePermission;
@@ -45,6 +46,7 @@ use App\Platform\WeeklyLimitReachedException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Exceptions\TenantCouldNotBeIdentifiedOnDomainException;
@@ -142,6 +144,49 @@ return Application::configure(basePath: dirname(__DIR__))
         | eşleşmez, yalnızca bulunamaz.
         */
         $middleware->encryptCookies(except: [CartToken::CEREZ]);
+
+        /*
+        | ★ INERTIA — panelin her sayfasına ortak veri ekliyor. (4C)
+        |
+        | ⚠️ YALNIZCA `web` grubunda: `api` grubunda oturum yok, dolayısıyla
+        | paylaşılacak kullanıcı da yok. Global eklenseydi her API cevabına
+        | gereksiz iş bindirirdi.
+        |
+        | ⚠️ Vitrin de `web` grubunda ama Inertia'yı KULLANMIYOR — middleware
+        | yalnızca `Inertia::render()` çağrılarına dokunuyor, düz Blade
+        | cevaplarına karışmıyor.
+        */
+        $middleware->web(append: [HandleInertiaRequests::class]);
+
+        /*
+        | ★ KİMLİKSİZ ZİYARETÇİ NEREYE GİDER — 2E'nin hatası PANEL tarafında
+        | yeniden çıktı. (4C'de ölçüldü)
+        |
+        | Laravel `auth` middleware'i kimliksiz isteği `login` ADLI rotaya
+        | yönlendiriyor. Bizde öyle bir rota yok ve `RouteNotFoundException`
+        | ile **500** dönüyordu — panele giren personel giriş sayfası yerine
+        | hata ekranı görüyordu.
+        |
+        | ⚠️ 2E'de aynı hata API tarafında çıkmış ve [ForceJson] ile
+        | çözülmüştü ("her cevap JSON"). Faz 4'te arayüz var: panelde doğru
+        | cevap JSON değil, GİRİŞ SAYFASINA YÖNLENDİRME.
+        |
+        | ⚠️ Yol kontrolü var çünkü ileride müşteri girişi de gelecek
+        | (vitrin tarafı) ve o BAŞKA bir sayfaya gitmeli. Sabit tek adres
+        | yazılsaydı müşteri, personel giriş ekranına düşerdi.
+        */
+        $middleware->redirectGuestsTo(function (Request $istek): ?string {
+            if ($istek->is('yonetim', 'yonetim/*')) {
+                return route('panel.giris');
+            }
+
+            /*
+            | ⚠️ `null` DEĞİL — `null` dönmek Laravel'i yine `login`
+            | rotasına götürür. Bilinen bir sayfaya düşmeyen her istek
+            | vitrinin anasayfasına gidiyor.
+            */
+            return url('/');
+        });
 
         /*
         | Rotalarda `izin:staff.manage` şeklinde kullanılabilmesi için takma ad.

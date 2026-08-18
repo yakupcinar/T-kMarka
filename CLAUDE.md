@@ -207,6 +207,25 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   valid cache path`). Veritabanı testte ayrı (`tikmarka_test`) ama **disk
   ayrı değil**. Kural: dosya silen her servis **kök parametresi** almalı ve
   test kendi geçici klasöründe çalışmalı.
+- **`asset_helper_tenancy` AÇIKKEN Vite varlıkları 404 alıyor.** Paket
+  `asset()` çağrılarını `/tenancy/assets/...` yoluna çeviriyor; derlenmiş
+  panel paketi orada yok. ⚠️ **Bedeli sessiz:** sunucu 200 ve doğru HTML
+  döner, testler (`withoutVite()`) yeşil kalır, ama tarayıcı betiği
+  indiremediği için panel **boş sayfa** açılır. Kapatıldı (4C) — marka
+  dosyaları zaten açıkça `tenant_asset()` kullanıyor.
+- **Panel/Vue değişince `make derle` ŞART.** Derlenmemiş bileşen tarayıcıya
+  ulaşmaz; belirti yine boş sayfa. Vitrin etkilenmez (sunucuda render
+  edilen Blade, 4-K1).
+- **Kimliksiz istek `login` ADLI rotaya yönlendiriliyor.** Bizde öyle bir
+  rota yok ve `RouteNotFoundException` ile **500** dönüyor. 2E'de API
+  tarafında çıkmıştı (`ForceJson` ile çözüldü), 4C'de panel tarafında
+  yeniden çıktı — orada doğru cevap JSON değil **giriş sayfasına
+  yönlendirme**. `bootstrap/app.php`'de `redirectGuestsTo` ile yola göre
+  ayrılıyor.
+- **Inertia sayfa verisi ÖZNİTELİKTE DEĞİL `<script>` içinde.** v2
+  `<script data-page="app" type="application/json">` kullanıyor. Testte ham
+  metinde `&quot;component&quot;` aramak kırılgan; JSON'u çözüp `component`
+  alanına bak.
 - **`@section('ad', ifade)` KISA BİÇİMİ virgülde kırılıyor.** İfadenin
   içinde virgül varsa (`Str::limit($x, 150)`) Blade argümanları yanlış
   bölüyor ve **görünüm derlenemez** hâle geliyor. ⚠️ Belirti sinsi: sayfa

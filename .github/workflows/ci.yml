@@ -69,6 +69,15 @@ jobs:
           extensions: pdo_pgsql, redis, intl, bcmath, gd, zip
           coverage: none
 
+      # 2b) NODE kur — panel derlemesi için (4C).
+      #     ⚠ Sürüm docker/php/Dockerfile'daki ile AYNI olmalı; ayrışırsa
+      #       "yerelde derleniyor, CI'da derlenmiyor" sınıfı hatalar çıkar.
+      - name: Node 22 kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
       # 3) Composer paketlerini önbellekten al (varsa).
       #    composer.lock değişmediyse indirme adımı saniyeler sürer.
       - name: Composer önbelleği
@@ -126,3 +135,17 @@ jobs:
       - name: Testler (Pest)
         if: always()
         run: bash .github/ci-kontrol.sh "pest" composer test
+
+      # 7) PANEL DERLEMESİ (4C-K2).
+      #
+      #    ⚠ Testler derlemeye BAĞLI DEĞİL: `withoutVite()` kullanıyorlar,
+      #      çünkü Inertia'nın sunucu tarafı iddiaları (hangi sayfa, hangi
+      #      prop) JS olmadan ölçülebiliyor ve süiti Node'a bağlamak
+      #      gereksiz yavaşlık olurdu.
+      #
+      #    ⚠ AMA DERLEME YİNE DE ÇALIŞTIRILIYOR: bu adım olmasaydı bozuk
+      #      bir Vue bileşeni bütün testler yeşilken CI'dan geçer ve
+      #      panelin açılmadığı ancak elle fark edilirdi.
+      - name: Panel derlemesi (Vite)
+        if: always()
+        run: bash .github/ci-kontrol.sh "vite" sh -c "npm ci && npm run build"

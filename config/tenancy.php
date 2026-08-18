@@ -180,7 +180,25 @@ return [
          * disable asset() helper tenancy and explicitly use tenant_asset() calls in places
          * where you want to use tenant-specific assets (product images, avatars, etc).
          */
-        'asset_helper_tenancy' => true,
+        /*
+        | ★ KAPALI (4C) — ve bu GERÇEK TARAYICI KOŞUSUNDA bulundu.
+        |
+        | Açıkken paket `asset()` çağrılarını `/tenancy/assets/...` yoluna
+        | çeviriyor. Vite derlenmiş panel paketini `asset()` ile adresliyor
+        | ve o yolda dosya YOK:
+        |
+        |   /tenancy/assets/build/assets/panel-*.js   → 404
+        |   /build/assets/panel-*.js                  → 200
+        |
+        | ⚠️ Bedeli SESSİZDİ: sunucu 200 ve doğru HTML dönüyordu, testler
+        | (`withoutVite()`) yeşildi — ama tarayıcı betiği indiremediği için
+        | panel BOŞ SAYFA olarak açılıyordu.
+        |
+        | ⚠️ Kapatmak güvenli çünkü marka dosyaları ZATEN açıkça
+        | `tenant_asset()` ile adresleniyor ([ProductImage::url]) — paketin
+        | kendi belgesinin önerdiği yol da bu.
+        */
+        'asset_helper_tenancy' => false,
     ],
 
     /**
