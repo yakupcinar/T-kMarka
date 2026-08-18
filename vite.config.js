@@ -16,7 +16,7 @@ export default defineConfig({
              | hiçbir sayfa onları çağırmıyordu, derlenmeleri boş çıktı
              | üretiyordu.
              */
-            input: ['resources/js/panel.js'],
+            input: ['resources/js/panel.js', 'resources/js/platform.js'],
             refresh: true,
         }),
         vue({

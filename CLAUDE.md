@@ -207,6 +207,25 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   valid cache path`). Veritabanı testte ayrı (`tikmarka_test`) ama **disk
   ayrı değil**. Kural: dosya silen her servis **kök parametresi** almalı ve
   test kendi geçici klasöründe çalışmalı.
+- **VERİ DÖKÜMÜNDE TABLO LİSTESİNİ DARALTMAK YETMEZ — KOLON da temizlenir.**
+  4F'de ölçüldü: marka dökümüne `customers.password` üzerinden **bcrypt
+  hash'leri** girmişti. Sorun tablonun kendisi değil içindeki kolondu.
+  Kimlik bilgisi iş verisi değildir — marka "kim müşterim"i alır,
+  "müşterim hangi parolayı kullanıyor"u almaz.
+  ⚠️ Şifreli ayar değerleri de çıkarılır: şifreli olması dosyaya
+  konabileceği anlamına gelmiyor (dosya `APP_KEY` ile birlikte sızarsa
+  çözülür). `TenantDataExport::HASSAS_KOLONLAR`.
+- **Merkez rotalarda `route()` HER ZAMAN İLK alan adını üretir.**
+  `central_domains` birden çok alan adı içeriyor (`localhost`,
+  `127.0.0.1`, ileride gerçek alan adı). 4F'de ısırdı: `localhost`'tan
+  giriş yapan yönetici `127.0.0.1`'e savruluyordu ve oturum çerezi orada
+  geçerli olmadığı için giriş ekranına geri düşerdi. Merkez yönlendirmelerde
+  **göreli yol** kullan (`redirect('/yonetim')`).
+- **Inertia middleware'i GLOBAL `web` grubuna eklenmez — rota grubuna eklenir.**
+  İki Inertia yüzeyi varsa (marka paneli + kontrol düzlemi) ikisi de `web`
+  grubunda çalışır ve **kök görünümü sonuncusu belirler**; yani bir yüzey
+  diğerinin kabuğuyla render edilebilir. Her yüzey kendi middleware'ini
+  kendi grubunda takar (4F'de daraltıldı).
 - **`node_modules` BAĞLI KLASÖRDE DURMAZ — adlandırılmış birime konur.**
   macOS bind mount üzerinden binlerce küçük dosya okumak hem yavaş hem de
   kilitleniyor: Vite derlemesi `Unknown system error -35` ile düştü, üç

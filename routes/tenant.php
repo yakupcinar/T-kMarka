@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Panel\AuthController as PanelAuth;
 use App\Http\Panel\CategoryController;
 use App\Http\Panel\CollectionController;
@@ -594,6 +595,11 @@ Route::middleware([
     'web',
     InitializeTenancyByDomain::class,
     PreventAccessFromCentralDomains::class,
+
+    // ⚠️ Inertia middleware'i BU GRUBA takılı, global değil (4F'de
+    // daraltıldı): kontrol düzleminin kendi yüzeyi var ve ikisi global
+    // olsaydı kök görünümü sonuncusu belirlerdi.
+    HandleInertiaRequests::class,
 ])->prefix('yonetim')->group(function () {
 
     /*

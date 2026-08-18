@@ -103,6 +103,25 @@ return [
             'driver' => 'sanctum',
             'provider' => 'platform_users',
         ],
+
+        /*
+        | ★ KONTROL DÜZLEMİ SAYFALARI — OTURUM tabanlı. (4F)
+        |
+        | `platform` ile AYNI kullanıcı tablosu, FARKLI kapı — panelde
+        | yaptığımızın (4C-K3) aynısı:
+        |
+        |   platform      token   → merkez API
+        |   platform-web  oturum  → tarayıcıdaki kontrol düzlemi
+        |
+        | ⚠️ MARKA PANELİNDEN AYRI GUARD: `staff-web` marka şemasındaki
+        | `users` tablosuna bakıyor, bu merkez şemadaki `platform_users`'a.
+        | Aynı guard'da olsalardı bir markanın sahibi kontrol düzlemine
+        | girebilirdi — sistemdeki en tehlikeli yetki (3C).
+        */
+        'platform-web' => [
+            'driver' => 'session',
+            'provider' => 'platform_users',
+        ],
     ],
 
     /*

@@ -1639,3 +1639,54 @@ BİTİŞ ÖLÇÜTÜ  marka HİÇ curl kullanmadan mağazasını kurar; müşteri
         sipariş `fulfilled`, satır 1/1 sevk edildi
       ⚠️ YAPILMAYAN: kısmi iade tutarı ekranda hesaplanmıyor · kargo
         firması entegrasyonu (Faz 5) · sipariş arama yalnızca kargo durumu
+
+4F ✅  KONTROL DÜZLEMİ ARAYÜZÜ — 15 test (toplam 629)
+      merkez alan adında /yonetim; ★ FAZ 3'ÜN BORCU KAPANDI
+
+      ★★ MARKA VERİSİ DIŞA AKTARMA (Faz 3 bitiş ölçütünün eksik parçası)
+        Faz 3 kapanışında "yapılmadı" diye yazılmıştı
+        KVKK: veri işleyen sözleşme bitince veriyi İADE EDİP siler
+        silme 3G'de vardı, İADE yoktu — yükümlülüğün yarısı eksikti
+        artık 21 tablo JSON olarak iniyor
+
+      4F-K1 İKİ YÜZEY AYRI: guard · kök görünüm · JS PAKETİ
+        staff-web     marka şemasındaki users
+        platform-web  merkez şemadaki platform_users
+        ⚠️ tek guard olsaydı bir markanın sahibi BÜTÜN MARKALARA uzanan
+          yetkiyi ele geçirirdi (3C)
+        ⚠️ ayrı paket de bilinçli: tek paket olsaydı marka personelinin
+          tarayıcısına kontrol düzleminin ekran kodu inerdi
+
+      4F-K2 dışa aktarım tablo listesi AÇIK YAZILI, otomatik tarama değil
+        otomatik tarama yeni tabloyu da dökerdi (sayaçlar, kuyruk, jetonlar)
+
+      ★★ GERÇEK KOŞU BİR AÇIK GÖSTERDİ — VE AÇIK BENİMDİ
+        dökümün içine bakınca customers.password'te BCRYPT HASH'LERİ vardı
+        ⚠️ TABLO LİSTESİNİ DARALTMAK YETMİYORDU: sorun tablo değil
+          İÇİNDEKİ KOLONDU
+        kimlik bilgisi İŞ VERİSİ DEĞİLDİR: marka "kim müşterim"i alır,
+        "müşterim hangi parolayı kullanıyor"u almaz
+        aynı temizlik şifreli ayar değerlerine de uygulandı (dosya
+        APP_KEY ile birlikte sızarsa çözülür)
+
+      ★ İKİNCİ KOD HATASI: route() merkezde YANLIŞ ALAN ADI üretiyordu
+        central_domains birden çok alan adı içeriyor, route() İLKİNİ üretir
+        localhost'tan giren yönetici 127.0.0.1'e savruluyor, oturum çerezi
+        orada geçersiz olduğu için GİRİŞ EKRANINA GERİ DÜŞÜYORDU
+        → göreli yola çevrildi
+
+      ★ INERTIA MIDDLEWARE'İ GLOBAL'DEN ROTA GRUBUNA DARALTILDI
+        4C'de bütün `web` grubuna ekleniyordu; ikinci yüzey gelince
+        ÇAKIŞIRDI ve kök görünümü SONUNCUSU belirlerdi
+
+      ★★ 4 KIRMA DENEMESİ, DÖRDÜ DE DÜŞTÜ
+        tek guard · tenancy()->end() kaldırma · jeton tablosunu ekleme ·
+        kök görünüm ayrımını kaldırma
+
+      DOĞRULANDI (gerçek tarayıcı)
+        giriş LOCALHOST'TA KALDI (düzeltilen hata) · pano 3 marka
+        (1 deneme + 2 aktif) · dışa aktarım 99 KB, 21 tablo, attachment
+        BCRYPT İZİ YOK, 3 şifreli ayarın hiçbiri değer taşımıyor
+        doğrulama için açılan geçici merkez hesabı SİLİNDİ
+      ⚠️ YAPILMAYAN: abonelik başlatma/iptal ekranı · marka silme ekranı
+        (geri alınamaz işlem için bilinçli) · merkez kullanıcı yönetimi

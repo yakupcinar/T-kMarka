@@ -146,17 +146,21 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->encryptCookies(except: [CartToken::CEREZ]);
 
         /*
-        | ★ INERTIA — panelin her sayfasına ortak veri ekliyor. (4C)
+        | ★ INERTIA MIDDLEWARE'LERİ ROTA GRUBUNDA — GLOBAL DEĞİL. (4F'de
+        | daraltıldı)
         |
-        | ⚠️ YALNIZCA `web` grubunda: `api` grubunda oturum yok, dolayısıyla
-        | paylaşılacak kullanıcı da yok. Global eklenseydi her API cevabına
-        | gereksiz iş bindirirdi.
+        | 4C'de marka panelininki bütün `web` grubuna ekleniyordu. 4F'de
+        | ikinci bir Inertia yüzeyi geldi (kontrol düzlemi) ve ikisi
+        | ÇAKIŞIRDI: her ikisi de `web` grubunda çalışır, kök görünümü
+        | sonuncusu belirlerdi. Yani marka paneli merkez kök görünümüyle
+        | (ya da tersi) render edilebilirdi.
         |
-        | ⚠️ Vitrin de `web` grubunda ama Inertia'yı KULLANMIYOR — middleware
-        | yalnızca `Inertia::render()` çağrılarına dokunuyor, düz Blade
-        | cevaplarına karışmıyor.
+        | Artık her yüzey kendi middleware'ini kendi grubunda takıyor:
+        |   routes/tenant.php  → HandleInertiaRequests   (marka paneli)
+        |   routes/web.php     → HandlePlatformInertia   (kontrol düzlemi)
+        |
+        | ⚠️ Vitrin hiçbirini kullanmıyor: o düz Blade (4-K1).
         */
-        $middleware->web(append: [HandleInertiaRequests::class]);
 
         /*
         | ★ KİMLİKSİZ ZİYARETÇİ NEREYE GİDER — 2E'nin hatası PANEL tarafında

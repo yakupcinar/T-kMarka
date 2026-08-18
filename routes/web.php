@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Middleware\HandlePlatformInertia;
 use App\Http\Platform\DomainCheckController;
+use App\Http\Platform\PlatformAuthPageController as PlatformAuthPage;
+use App\Http\Platform\PlatformPageController as PlatformPage;
 use App\Models\Event;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
@@ -81,6 +84,50 @@ foreach (config('tenancy.central_domains') as $centralDomain) {
 
         // Caddy on-demand TLS için sorar: "bu alan adı sizin mi?" (M-4.1/1)
         // 200 = kayıtlı, sertifika alınabilir · 404 = kayıtlı değil
+        /*
+        |------------------------------------------------------------------
+        | KONTROL DÜZLEMİ ARAYÜZÜ (4F) — TıkMarka'yı işletenin ekranı
+        |------------------------------------------------------------------
+        |
+        | ★ 4-K1: ayrım ALAN ADI + YOL ile.
+        |   marka alan adı  + /yonetim → MARKANIN paneli
+        |   merkez alan adı + /yonetim → BİZİM kontrol düzlemimiz
+        |
+        | ⚠️ `web` grubu: oturum ve CSRF gerekiyor. Merkez API'si
+        | (`routes/platform.php`) `api` grubunda kalıyor — 3C'de o ayrım
+        | gerçek `curl` koşusuyla öğrenilmişti.
+        |
+        | ⚠️ Buradaki her işlem BÜTÜN MARKALARA uzanıyor.
+        */
+        Route::prefix('yonetim')->middleware(HandlePlatformInertia::class)->group(function () {
+
+            Route::middleware('guest:platform-web')->group(function () {
+                Route::get('/giris', [PlatformAuthPage::class, 'form'])->name('yonetim.giris');
+
+                Route::post('/giris', [PlatformAuthPage::class, 'giris'])
+                    ->middleware('throttle:giris')->name('yonetim.giris.gonder');
+            });
+
+            Route::middleware('auth:platform-web')->group(function () {
+                Route::get('/', [PlatformPage::class, 'pano'])->name('yonetim.pano');
+                Route::post('/cikis', [PlatformAuthPage::class, 'cikis'])->name('yonetim.cikis');
+
+                Route::get('/markalar', [PlatformPage::class, 'markalar'])->name('yonetim.markalar');
+                Route::get('/markalar/{tenant}', [PlatformPage::class, 'marka'])->name('yonetim.marka');
+                Route::post('/markalar/{tenant}/durum', [PlatformPage::class, 'durumDegistir'])->name('yonetim.marka.durum');
+                Route::post('/markalar/{tenant}/plan', [PlatformPage::class, 'planAta'])->name('yonetim.marka.plan');
+
+                /*
+                | ★ MARKA VERİSİNİN DIŞA AKTARIMI — Faz 3'ten devredilen
+                | borç. KVKK: veri işleyen, sözleşme bitince veriyi İADE
+                | EDİP siler. Silme 3G'de vardı, iade yoktu.
+                */
+                Route::get('/markalar/{tenant}/disa-aktar', [PlatformPage::class, 'disaAktar'])
+                    ->name('yonetim.marka.disa-aktar');
+            });
+
+        });
+
         Route::get('/tenancy/domain-check', DomainCheckController::class)
             ->name('tenancy.domain-check');
 

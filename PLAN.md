@@ -27,17 +27,17 @@
 │                    3E abonelik → 3F kota → 3G kalıcı silme     │
 │                    3H özel alan adı + on-demand TLS            │
 │                    ╰ çıktı: ürün kendi kendini satıyor         │
-│                      ⚠️ eksik: marka geneli veri dışa aktarma  │
+│                      ✅ borç 4F'de kapandı: veri dışa aktarma  │
 │                                                                │
 │  4 · ARAYÜZ  ◀ AÇILDI — M-3 verildi: yüzeye göre bölünmüş      │
 │     vitrin Blade · panel+yönetim Inertia+Vue · SSR YOK         │
 │     ✅ 4A vitrin → ✅ 4B akış → ✅ 4C panel → ✅ 4D katalog     │
-│     4E sipariş → 4F yönetim → 4G tema → 4H kapanış             │
+│     ✅ 4E sipariş → ✅ 4F yönetim → 4G tema → 4H kapanış        │
 │  5 · ENTEGRASYON   kargo · e-fatura                            │
 │  6 · DAĞITIM       yayın · yedekleme · izleme                  │
 │                                                                │
 │  Kural: bir blok bitmeden sonrakine geçilmez.                  │
-│  588 test · lint · analyse · CI hepsi yeşil                    │
+│  629 test · lint · analyse · CI hepsi yeşil                    │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -4582,6 +4582,86 @@ panelden sil → vitrinden düştü. Testlerde ayrıca: izinsiz personel sayfada
 **⚠️ Bu blokta YAPILMAYAN:** görsel yükleme, seçenek/varyant kombinasyon
 üretici, kategori yönetimi ve toplu işlemler. Uçları var (Faz 1B),
 ekranları yok — 4G ve sonrasına kalıyor.
+
+---
+
+### 4F — BİTTİ ✅ (15 test)
+
+Kod: `app/Http/Middleware/HandlePlatformInertia.php` ·
+`app/Http/Platform/{PlatformPageController,PlatformAuthPageController}.php` ·
+`app/Platform/TenantDataExport.php` · `config/auth.php` (`platform-web`) ·
+`resources/js/Platform/` · `resources/views/platform/app.blade.php` ·
+`routes/web.php` · `bootstrap/app.php` · `vite.config.js` ·
+`tests/Tenancy/KontrolDuzlemiArayuzTest.php`
+
+**Toplam 629 test** (4E sonu: 614).
+
+**★★ FAZ 3'TEN DEVREDİLEN BORÇ KAPANDI: marka verisi dışa aktarılabiliyor.**
+
+Faz 3 kapanışında bitiş ölçütünün *"ayrılırsa verisini indirir"* parçası
+**yapılmadı** diye yazılmıştı. KVKK açısından veri işleyen, sözleşme
+bitince veriyi **iade edip** siler; silme 3G'de vardı, iade yoktu — yani
+yükümlülüğün yarısı eksikti. Artık 21 tablo JSON olarak iniyor.
+
+**4F-K1 · İki yüzey AYRI: guard, kök görünüm, JS paketi.**
+
+```
+staff-web     marka şemasındaki users        → marka paneli
+platform-web  merkez şemadaki platform_users → kontrol düzlemi
+```
+
+> ⚠️ Tek guard kullanılsaydı bir markanın sahibi **bütün markalara**
+> uzanan yetkiyi ele geçirirdi (3C'nin gerekçesi). Ayrı paket de bilinçli:
+> tek paket olsaydı marka personelinin tarayıcısına kontrol düzleminin
+> ekran kodu inerdi — çalıştıramasa bile hangi işlemlerin var olduğunu
+> okuyabilirdi.
+
+**4F-K2 · Dışa aktarım tablo listesi AÇIK YAZILI, otomatik tarama değil.**
+> Otomatik tarama yeni bir tablo eklendiğinde onu da dökerdi: dahili
+> sayaçlar, kuyruk kayıtları, oturum jetonları dâhil.
+
+---
+
+**★★ GERÇEK KOŞU BİR AÇIK GÖSTERDİ — VE AÇIK BENİMDİ**
+
+Dökümü aldıktan sonra dosyanın içine baktım: `customers.password`
+kolonunda **bcrypt hash'leri** vardı. Müşteriler hesap açabiliyor (M-1)
+ve parolaları o tabloda duruyor.
+
+> ⚠️ **Tablo listesini daraltmak yetmiyordu** — sorun tablonun kendisi
+> değil, İÇİNDEKİ KOLONDU. Kimlik bilgisi iş verisi değildir: marka
+> "kim müşterim"i alır, "müşterim hangi parolayı kullanıyor"u almaz.
+>
+> Aynı temizlik şifreli ayar değerlerine de uygulandı: ödeme
+> sağlayıcısının gizli anahtarı `settings`'te şifreli duruyor ama dosya
+> `APP_KEY` ile birlikte sızarsa çözülür.
+
+İki test yazıldı, kırma denemesiyle doğrulandı, gerçek dosya yeniden
+alınıp **bcrypt izi kalmadığı** ölçüldü.
+
+**★ İKİNCİ BİR KOD HATASI: `route()` merkezde YANLIŞ ALAN ADI üretiyordu.**
+`central_domains` birden çok alan adı içeriyor; `route()` her zaman
+listedeki ilkini üretiyor. `localhost`'tan giriş yapan yönetici
+`127.0.0.1`'e savruluyor, oturum çerezi orada geçerli olmadığı için
+**giriş ekranına geri düşüyordu**. Göreli yola çevrildi.
+
+**★ INERTIA MIDDLEWARE'İ GLOBAL'DEN ROTA GRUBUNA DARALTILDI.** 4C'de marka
+panelininki bütün `web` grubuna ekleniyordu; ikinci yüzey gelince ikisi
+çakışırdı ve **kök görünümü sonuncusu belirlerdi** — yani marka paneli
+merkez kabuğuyla render edilebilirdi.
+
+**★★ Dört kırma denemesi, dördü de düştü:** tek guard · `tenancy()->end()`
+kaldırma · jeton tablosunu listeye ekleme · kök görünüm ayrımını kaldırma.
+
+**Doğrulandı (gerçek tarayıcı):** giriş **`localhost`'ta kaldı** (düzeltilen
+hata) · pano 3 marka, 1 deneme + 2 aktif · marka listesi planlarıyla ·
+dışa aktarım **99 KB, 21 tablo**, `attachment` başlığıyla indi ·
+**bcrypt izi yok**, 3 şifreli ayarın hiçbiri değer taşımıyor.
+Doğrulama için açılan geçici merkez hesabı **silindi**.
+
+**⚠️ Bu blokta YAPILMAYAN:** abonelik başlatma/iptal ekranı (uçları 3E'de
+var) · marka silme ekranı (`tenant:delete` komutu var, arayüzü yok —
+geri alınamaz işlem için bilinçli) · merkez kullanıcı yönetimi.
 
 ---
 
