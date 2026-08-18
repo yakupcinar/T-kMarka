@@ -207,6 +207,29 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   valid cache path`). Veritabanı testte ayrı (`tikmarka_test`) ama **disk
   ayrı değil**. Kural: dosya silen her servis **kök parametresi** almalı ve
   test kendi geçici klasöründe çalışmalı.
+- **Inertia DevTools her isteğe DOSYA YAZIYOR — kapalı tutulmalı.**
+  `storage/inertia-devtools/` altına kayıt açıyor ve periyodik damga
+  yazıyor; bağlı klasörde `errno=35` ile düşünce panelin **bütün
+  sayfaları 500** verdi. ⚠️ Belirti yanıltıcı: hata `file_put_contents`'ten
+  geliyor, yığın izinde sayfayı yazan kod hiç görünmüyor. `config/inertia.php`
+  → `devtools.enabled = false` (4D).
+- **Inertia'da sunucu cevabı EKRANDAKİ METNİ İÇERMEZ.** Sayfa tarayıcıda
+  render ediliyor; cevapta yalnızca bileşen adı ve prop'lar var. Panelde
+  `assertSee('Henüz ürün yok')` yazmak testi yalancı yapar — `component`
+  ve `props` üzerinden iddia kur. ⚠️ Vitrin bunun TERSİ: orada sayfa
+  sunucuda render ediliyor (4-K1), metin aramak doğru yöntem.
+- **İç içe rota bağlamada Laravel çocuğu EBEVEYNİN İLİŞKİSİNDEN çözüyor.**
+  `{urun:uuid}/{varyant:uuid}` için `Product::varyants()` arıyor; ilişkinin
+  adı `variants` olduğu için **500** veriyor. Ya parametre adı ilişkiyle
+  hizalanır ya da `withoutScopedBindings()` ile kapsama kapatılıp
+  doğrulama açıkça yapılır (4D'de ikincisi seçildi: koruma görünür ve
+  ölçülebilir olsun diye).
+- **Kırma denemesinde DEĞİŞİKLİĞİN UYGULANDIĞINI doğrula.** 4D'de aynı
+  kalıp (`izin:product.write`) iki yerde geçiyordu; `replace(..., 1)` ilk
+  eşleşmeyi (panel API'sini) bozdu, sayfa izni sağlam kaldı ve test
+  "geçti". Yani kırma denemesi **yanlış yeri kırmıştı** ve testin ölçtüğü
+  şey hakkında yanlış güven verdi. Kalıp birden çok yerdeyse hedefi
+  konumla daralt ve değişikliği `grep` ile gör.
 - **`asset_helper_tenancy` AÇIKKEN Vite varlıkları 404 alıyor.** Paket
   `asset()` çağrılarını `/tenancy/assets/...` yoluna çeviriyor; derlenmiş
   panel paketi orada yok. ⚠️ **Bedeli sessiz:** sunucu 200 ve doğru HTML

@@ -222,36 +222,3 @@ it('★★ PANEL BETIGININ ADRESI kiraci yoluna yazilmiyor', function () {
     // Marka dosyalarının yolu ise kiracıya ÖZEL kalmalı.
     expect(tenant_asset('urun.jpg'))->toContain('/tenancy/assets/');
 });
-
-/**
- * Inertia'nın sayfa verisini çözer.
- *
- * ⚠️ ÖZNİTELİKTE DEĞİL, `<script>` İÇİNDE. Inertia v2 sayfa nesnesini
- * `<script data-page="app" type="application/json">` etiketinin gövdesine
- * yazıyor; eski sürümlerde `<div data-page="{...}">` özniteliğiydi.
- *
- * ★ Testler ham metinde `&quot;component&quot;` aramıyor: kaçış biçimi
- * sürüme göre değişiyor ve o hâlde test, Inertia güncellendiğinde
- * "hangi sayfa render edildi" sorusunu değil "hangi karakterlerle
- * yazıldı" sorusunu ölçmüş olurdu.
- *
- * @return array<string, mixed>
- */
-function inertiaVerisi(string $html): array
-{
-    $bulundu = preg_match(
-        '/<script[^>]*data-page="app"[^>]*>(.*?)<\/script>/s',
-        $html,
-        $eslesme,
-    );
-
-    expect($bulundu)->toBe(1, 'Inertia sayfa verisi bulunamadı — render edilmemiş.');
-
-    // PHPStan yakalama grubunun varlığını iddiadan çıkaramıyor.
-    assert(isset($eslesme[1]));
-
-    /** @var array<string, mixed> $veri */
-    $veri = json_decode(html_entity_decode($eslesme[1], ENT_QUOTES), true, 512, JSON_THROW_ON_ERROR);
-
-    return $veri;
-}

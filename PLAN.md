@@ -31,13 +31,13 @@
 │                                                                │
 │  4 · ARAYÜZ  ◀ AÇILDI — M-3 verildi: yüzeye göre bölünmüş      │
 │     vitrin Blade · panel+yönetim Inertia+Vue · SSR YOK         │
-│     ✅ 4A vitrin → ✅ 4B akış → ✅ 4C panel → 4D katalog         │
+│     ✅ 4A vitrin → ✅ 4B akış → ✅ 4C panel → ✅ 4D katalog       │
 │     4E sipariş → 4F yönetim → 4G tema → 4H kapanış             │
 │  5 · ENTEGRASYON   kargo · e-fatura                            │
 │  6 · DAĞITIM       yayın · yedekleme · izleme                  │
 │                                                                │
 │  Kural: bir blok bitmeden sonrakine geçilmez.                  │
-│  588 test · lint · analyse · CI hepsi yeşil                    │
+│  599 test · lint · analyse · CI hepsi yeşil                    │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -4504,6 +4504,84 @@ panel betiği **200** · A'nın oturumu **B'nin panelini açmıyor**.
 **⚠️ Bu blokta YAPILMAYAN:** ürün/sipariş/ayar ekranları (4D-4F). Menüde
 görünüyorlar ama hedefleri henüz yok. Panoda sahte sayaç YOK — çalışıyor
 gibi görünen boş bir pano, eksik olduğu belli olandan kötüdür.
+
+---
+
+### 4D — BİTTİ ✅ (10 test)
+
+Kod: `app/Http/Panel/ProductPageController.php` ·
+`resources/js/Panel/Pages/Urunler/{Liste,Form}.vue` · `routes/tenant.php` ·
+`config/inertia.php` · `tests/Tenancy/PanelKatalogTest.php`
+
+**Toplam 599 test** (4C sonu: 589).
+
+**★★ 4C-K4'ÜN İKİNCİ YARISI ARTIK ÖLÇÜLÜYOR.**
+
+4C'de "düğmeyi gizlemek yetki değildir" denmişti ama `izin:` korumalı bir
+panel SAYFASI yoktu, yani iddianın yarısı ölçülemiyordu. Artık var:
+
+```
+menüde "Ürünler" gizli        ← KOLAYLIK
+/yonetim/urunler → 403        ← KORUMA
+```
+
+⚠️ Panel sayfası ile panel API'si **aynı izni** istiyor (`product.write`).
+Farklı izin isteselerdi birinden kapatılan diğerinden açık kalırdı.
+
+**4D-K1 · Panelde `forPanel()`, vitrinde `forStorefront()`.**
+> Marka kendi TASLAĞINI görebilmeli — göremezse düzenleyemez. Vitrin
+> sorgusu kullanılsaydı yeni eklenen ürün panelde de görünmezdi.
+> Aynı sebeple panel araması **arama motorunu (2C) kullanmıyor**: o vitrin
+> sorgusundan geçiyor ve taslakları elerdi.
+
+**4D-K2 · Yeni ürün TASLAK doğuyor ve DÜZENLEME sayfasına gidiliyor.**
+> Varyantsız ürün satılamaz. Listeye dönmek markayı yarım bir kayıtla baş
+> başa bırakırdı; liste ve form "varyant yok — satılamaz" uyarısını
+> **gizlemeden** yazıyor.
+
+**4D-K3 · Varyant ÜRÜNE DARALTILMIŞ doğrulamadan geçiyor** (1A.5 deseni) ve
+iç içe rota kapsaması **bilinçli olarak kapatıldı** (`withoutScopedBindings`).
+> Laravel çocuğu ebeveynin ilişkisinden çözüyor (`Product::varyants()`
+> arıyor, ilişki `variants` → 500). Parametreyi ilişkiyle hizalayıp
+> pakete bırakabilirdik; bırakmadık, çünkü o zaman controller'daki açık
+> kontrol **ölü savunma** olur ve kimse onu ölçemezdi.
+
+---
+
+**★★ KIRMA DENEMESİ YANLIŞ YERİ KIRDI — ve bu bir DERS**
+
+`izin:product.write` kalıbı **iki yerde** geçiyor (panel API'si ve
+sayfalar). İlk denemede `replace(..., 1)` ilk eşleşmeyi (API'yi) bozdu,
+sayfa izni sağlam kaldı ve test **geçti**.
+
+> ⚠️ Yani kırma denemesi "test bu iddiayı ölçmüyor" değil, **"benim
+> kırma denemem yanlış yeri kırdı"** diyordu — ve aradaki fark
+> ölçülmeseydi testin sağlamlığı hakkında yanlış güven doğardı.
+> Hedef konumla daraltılıp değişiklik `grep` ile görüldükten sonra
+> ikisi de düştü. **Kırma denemesinin kendisi de doğrulanmalı.**
+
+**★ GERÇEK KOŞU: PANELİN BÜTÜN SAYFALARI 500 VERİYORDU.** Inertia DevTools
+her isteğe `storage/inertia-devtools/` altına dosya yazıyor; bağlı klasörde
+`errno=35` ile düştü. ⚠️ Belirti yanıltıcıydı — hata `file_put_contents`'ten
+geliyordu ve yığın izinde sayfayı yazan kod hiç görünmüyordu. Kapatıldı
+(`config/inertia.php`), aynı dosyaya SSR'ın neden kapalı olduğu da yazıldı.
+
+**★ INERTIA'DA SUNUCU CEVABI EKRANDAKİ METNİ İÇERMİYOR.** Boş liste testini
+`assertSee('Henüz ürün yok')` diye yazdım ve düştü: o yazı Vue şablonunda,
+tarayıcıda üretiliyor. İddia `component` ve `props` üzerinden kuruldu.
+⚠️ Vitrin bunun tersi (sunucuda render, metin aramak doğru) — **aynı
+projede iki farklı test yöntemi** ve karıştırmak testi yalancı yapıyor.
+
+**Doğrulandı (gerçek tarayıcı, oturum + CSRF):** ürün listesi 200 ve
+4 ürün doğru durum/varyant/stok ile · panelden ürün oluştur → **taslak,
+vitrinde YOK** · varyant ekle → yayına al → **vitrinde göründü, 89,90 TL** ·
+panelden sil → vitrinden düştü. Testlerde ayrıca: izinsiz personel sayfada
+**403**, menüde de izni yok; başka ürünün varyantı bu ürün üzerinden
+**404**; iki markanın ürünleri panelde karışmıyor.
+
+**⚠️ Bu blokta YAPILMAYAN:** görsel yükleme, seçenek/varyant kombinasyon
+üretici, kategori yönetimi ve toplu işlemler. Uçları var (Faz 1B),
+ekranları yok — 4G ve sonrasına kalıyor.
 
 ---
 

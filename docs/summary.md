@@ -1532,3 +1532,59 @@ BİTİŞ ÖLÇÜTÜ  marka HİÇ curl kullanmadan mağazasını kurar; müşteri
       ⚠️ YAPILMAYAN: ürün/sipariş/ayar ekranları (4D-4F). Panoda sahte
         sayaç YOK — çalışıyor gibi görünen boş pano, eksik olduğu belli
         olandan kötüdür
+
+4D ✅  PANEL KATALOG YÖNETİMİ — 10 test (toplam 599)
+      markanın ÜRÜN EKLEDİĞİ ekran; zincir panel → vitrin tamamlandı
+
+      ★★ 4C-K4'ÜN İKİNCİ YARISI ARTIK ÖLÇÜLÜYOR
+        4C'de "düğmeyi gizlemek yetki değildir" denmişti ama izin:
+        korumalı bir panel SAYFASI yoktu — iddianın yarısı ölçülemiyordu
+          menüde "Ürünler" gizli      ← KOLAYLIK
+          /yonetim/urunler → 403      ← KORUMA
+        ⚠️ sayfa ile API AYNI izni istiyor: farklı isteselerdi birinden
+          kapatılan diğerinden açık kalırdı
+
+      4D-K1 panelde forPanel(), vitrinde forStorefront()
+        marka kendi TASLAĞINI görmeli — göremezse düzenleyemez
+        aynı sebeple panel araması arama motorunu (2C) KULLANMIYOR:
+        o vitrin sorgusundan geçiyor ve taslakları elerdi
+
+      4D-K2 yeni ürün TASLAK doğuyor, DÜZENLEME sayfasına gidiliyor
+        varyantsız ürün satılamaz; "varyant yok — satılamaz" uyarısı
+        gizlenmiyor, yazılıyor
+
+      4D-K3 varyant ÜRÜNE DARALTILMIŞ doğrulamadan geçiyor (1A.5)
+        iç içe rota kapsaması BİLİNÇLİ kapatıldı (withoutScopedBindings):
+        Laravel çocuğu ebeveynin ilişkisinden çözüyor (Product::varyants()
+        arıyor, ilişki `variants` → 500). Pakete bıraksaydık açık kontrol
+        ÖLÜ savunma olur ve kimse ölçemezdi
+
+      ★★ KIRMA DENEMESİ YANLIŞ YERİ KIRDI — VE BU BİR DERS
+        izin:product.write kalıbı İKİ yerde; replace(...,1) ilk eşleşmeyi
+        (API'yi) bozdu, sayfa izni sağlam kaldı, test "geçti"
+        → yani deneme "test ölçmüyor" değil "BEN YANLIŞ YERİ KIRDIM"
+          diyordu; fark görülmeseydi testin sağlamlığı hakkında YANLIŞ
+          GÜVEN doğardı
+        KIRMA DENEMESİNİN KENDİSİ DE DOĞRULANMALI (grep ile)
+
+      ★ GERÇEK KOŞU: PANELİN BÜTÜN SAYFALARI 500 VERİYORDU
+        Inertia DevTools her isteğe storage'a dosya yazıyor, errno=35
+        ⚠️ belirti yanıltıcı: hata file_put_contents'ten, yığın izinde
+          sayfayı yazan kod hiç yok
+        kapatıldı (config/inertia.php) — aynı dosyaya SSR'ın neden kapalı
+        olduğu da yazıldı
+
+      ★ INERTIA'DA SUNUCU CEVABI EKRANDAKİ METNİ İÇERMİYOR
+        assertSee('Henüz ürün yok') yazdım, düştü: o yazı Vue şablonunda
+        iddia component + props üzerinden kuruldu
+        ⚠️ VİTRİN BUNUN TERSİ (sunucuda render, metin aramak doğru)
+          aynı projede İKİ FARKLI test yöntemi; karıştırmak testi
+          yalancı yapıyor
+
+      DOĞRULANDI (gerçek tarayıcı, oturum + CSRF)
+        ürün listesi 200, 4 ürün doğru durum/varyant/stok ile
+        panelden ürün oluştur → TASLAK, vitrinde YOK
+        varyant ekle → yayına al → VİTRİNDE GÖRÜNDÜ (89,90 TL)
+        panelden sil → vitrinden düştü
+      ⚠️ YAPILMAYAN: görsel yükleme · seçenek/kombinasyon üretici ·
+        kategori yönetimi · toplu işlemler (uçları var, ekranları yok)

@@ -26,6 +26,9 @@
 # dosyası kaynak değil, her koşuda değişip her `git status`'ta kirlilik
 # üretiyordu.
 
+# Inertia geliştirici aracının kayıtları — hata ayıklama çıktısı (4D'de kapatıldı)
+/storage/inertia-devtools
+
 /storage/tenant*
 /storage/*.key
 /storage/pail

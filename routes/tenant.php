@@ -13,6 +13,7 @@ use App\Http\Panel\OrderController;
 use App\Http\Panel\PanelAuthPageController;
 use App\Http\Panel\PaymentSettingsController;
 use App\Http\Panel\ProductController;
+use App\Http\Panel\ProductPageController as PanelUrunSayfasi;
 use App\Http\Panel\ReturnController as PanelIade;
 use App\Http\Panel\ReviewController;
 use App\Http\Panel\RoleController;
@@ -609,6 +610,55 @@ Route::middleware([
     Route::middleware(['auth:staff-web', 'marka-aktif'])->group(function () {
         Route::get('/', DashboardController::class)->name('panel.pano');
         Route::post('/cikis', [PanelAuthPageController::class, 'cikis'])->name('panel.cikis');
+
+        /*
+        | KATALOG (4D) — markanın ürün eklediği ekran.
+        |
+        | ★ 4C-K4'ÜN İKİNCİ YARISI BURADA ÖLÇÜLEBİLİR HÂLE GELİYOR.
+        | Menüde "Ürünler" maddesi izne göre gizleniyordu ama o bir
+        | KOLAYLIK; gerçek koruma burası. `product.write` izni olmayan
+        | personel adresi elle yazsa da 403 alıyor.
+        |
+        | ⚠️ Panel API'siyle AYNI izin (`izin:product.write`): iki yüzeyin
+        | farklı izin istemesi, birinden kapatılanın diğerinden açık
+        | kalması demek olurdu.
+        */
+        Route::middleware('izin:product.write')->group(function () {
+            Route::get('/urunler', [PanelUrunSayfasi::class, 'index'])->name('panel.urunler');
+            Route::get('/urunler/yeni', [PanelUrunSayfasi::class, 'create'])->name('panel.urun.yeni');
+            Route::post('/urunler', [PanelUrunSayfasi::class, 'store'])->name('panel.urun.olustur');
+
+            /*
+            | ⚠️ Bağlama `uuid` ile — otomatik artan `id` ile DEĞİL.
+            | Sıralı kimlik adres çubuğunda görünseydi marka personeli
+            | (ya da adresi gören herkes) kaç ürün olduğunu sayabilirdi;
+            | ayrıca `id` tahmin edilebilir.
+            */
+            Route::get('/urunler/{urun:uuid}', [PanelUrunSayfasi::class, 'edit'])->name('panel.urun.duzenle');
+            Route::put('/urunler/{urun:uuid}', [PanelUrunSayfasi::class, 'update'])->name('panel.urun.guncelle');
+            Route::post('/urunler/{urun:uuid}/durum', [PanelUrunSayfasi::class, 'durum'])->name('panel.urun.durum');
+            Route::delete('/urunler/{urun:uuid}', [PanelUrunSayfasi::class, 'destroy'])->name('panel.urun.sil');
+
+            Route::post('/urunler/{urun:uuid}/varyantlar', [PanelUrunSayfasi::class, 'varyantEkle'])->name('panel.varyant.ekle');
+            /*
+            | ⚠️ `withoutScopedBindings()` — ve bu BİLİNÇLİ.
+            |
+            | Laravel iç içe bağlamada çocuğu ebeveynin İLİŞKİSİNDEN
+            | çözmeye çalışıyor: `{varyant:uuid}` için `Product::varyants()`
+            | arıyor ve bulamayıp 500 veriyor (ilişkinin adı `variants`).
+            |
+            | Parametreyi `variant` diye adlandırıp paketin kapsamasına
+            | bırakabilirdik. Bırakmadık: o zaman controller'daki açık
+            | kontrol ÖLÜ savunma olur ve kimse onu ölçemezdi. Koruma
+            | görünür ve test edilebilir olsun diye kapsama kapatıldı,
+            | doğrulama [ProductPageController]'da açıkça yapılıyor (1A.5).
+            */
+            Route::put('/urunler/{urun:uuid}/varyantlar/{varyant:uuid}', [PanelUrunSayfasi::class, 'varyantGuncelle'])
+                ->withoutScopedBindings()->name('panel.varyant.guncelle');
+
+            Route::delete('/urunler/{urun:uuid}/varyantlar/{varyant:uuid}', [PanelUrunSayfasi::class, 'varyantSil'])
+                ->withoutScopedBindings()->name('panel.varyant.sil');
+        });
     });
 
 });
