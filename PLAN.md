@@ -33,11 +33,15 @@
 │     vitrin Blade · panel+yönetim Inertia+Vue · SSR YOK         │
 │     ✅ 4A vitrin → ✅ 4B akış → ✅ 4C panel → ✅ 4D katalog    │
 │     ✅ 4E sipariş → ✅ 4F yönetim → ✅ 4G tema → ✅ 4H kapanış │
-│  5 · ENTEGRASYON ◀ SIRADA — kargo · e-fatura                  │
+│  4.5 · ARAYÜZ BOŞLUKLARI ◀ AÇILDI — ölçüldü: 73 uç, 34 sayfa  │
+│     ✅ 4.5A yasal metin → ✅ 4.5B ödeme+sözleşme ekranı        │
+│     4.5C personel/alan adı → 4.5D müşteri hesabı               │
+│     4.5E katalog ekranları → 4.5F görsel + kapanış             │
+│  5 · ENTEGRASYON   kargo · e-fatura                            │
 │  6 · DAĞITIM       yayın · yedekleme · izleme                  │
 │                                                                │
 │  Kural: bir blok bitmeden sonrakine geçilmez.                  │
-│  648 test · lint · analyse · CI hepsi yeşil                    │
+│  667 test · lint · analyse · CI hepsi yeşil                    │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -4930,6 +4934,150 @@ kendi yüzeyinden, kimse diğerinin ekranını göremeden.
 > · **Karşılaştırma** — [Livewire vs Inertia 2026](https://dev.to/hafiz619/livewire-4-vs-inertiajs-3-which-laravel-frontend-stack-should-you-use-in-2026-47p4) ·
 >   [Laravel arayüz mimarisi 2026](https://redberry.international/laravel-frontend-architecture/) ·
 >   [Spree çok kiracılı tema](https://spreecommerce.org/open-source-multi-tenant-alternative-to-shopify/)
+
+---
+
+## Faz 4.5 — Arayüz boşlukları  ◀ **AÇILDI**
+
+Faz 4 "arayüz **var**" hedefini karşıladı; "arayüz **yeterli**" hedefi hiç
+konulmamıştı. Kapanıştan sonra ölçüldü:
+
+```
+panel API ucu     73
+panel sayfası     34      → arka ucun kabaca YARISINA arayüzden erişilemiyor
+```
+
+### Neden Faz 5'ten ÖNCE
+
+Faz 5 kargo ve e-fatura entegrasyonu. Ama **marka bugün panelden ödeme
+sağlayıcısını kuramıyor** — yani gerçek para tahsil edemiyor. Kargo
+entegrasyonu, ödemesi çalışmayan bir mağazaya eklenmez.
+
+> ⚠️ Ayrıca bir **yasal hata** var ve bugün canlıda: ödeme sayfasındaki
+> "Mesafeli satış sözleşmesini okudum" bağlantısı `/api/legal/...`'e
+> gidiyor ve müşteri **ham JSON** görüyor. Müşterinin sözleşmeyi
+> okuyabilmesi yasal bir zorunluluk.
+
+### Ölçülen boşluklar
+
+**Panelde ekranı hiç olmayan alanlar:**
+
+| alan | uç sayısı | bedeli |
+|---|---|---|
+| ödeme sağlayıcı ayarları | 2 | **marka gerçek tahsilat yapamıyor** |
+| yasal metinler | 3 | **marka sözleşmesini düzenleyemiyor** |
+| personel ve roller | 7 | marka personel ekleyemiyor |
+| özel alan adı (3H) | 4 | DNS talimatı görülemiyor |
+| yorum moderasyonu | 3 | yorumlar onaylanamıyor |
+| kategoriler | 5 | — |
+| koleksiyonlar | 8 | — |
+| ürün seçenekleri | 7 | çok varyantlı ürün kurulamıyor |
+| ürün görselleri | — | ürün görselsiz kalıyor |
+
+**Vitrinde eksik olanlar:** yasal metin sayfaları · müşteri hesabı
+(giriş/kayıt · adres defteri · sipariş geçmişi/takip · yorum yazma) ·
+KVKK veri talebi · kategori ve koleksiyon gezinme.
+
+### Bloklar
+
+| | konu | neden bu sırada |
+|---|---|---|
+| **4.5A** | vitrin yasal metin sayfaları + ödeme sayfasındaki bağlantı | bugünkü **yasal hata** |
+| **4.5B** | panel: ödeme sağlayıcı ayarları + yasal metin düzenleme | marka **gerçekten satışa çıkabilsin** |
+| **4.5C** | panel: personel/roller + özel alan adı | 1A ve 3H'nin karşılığı |
+| **4.5D** | vitrin: müşteri hesabı — giriş/kayıt · adres · sipariş takibi | müşteri siparişini göremiyor |
+| **4.5E** | panel: kategori · koleksiyon · seçenek · ürün görseli | katalog tamamlanır |
+| **4.5F** | görsel iyileştirme + kapanış | iskeletten tasarıma |
+
+### 4.5A — BİTTİ ✅ (8 test)
+
+Kod: `app/Http/Storefront/LegalPageController.php` ·
+`resources/views/storefront/{yasal,yasal-liste}.blade.php` ·
+`routes/tenant.php` · `tests/Tenancy/VitrinYasalTest.php`
+
+**★ BUGÜNKÜ BİR YASAL HATA KAPANDI.** Ödeme sayfasındaki "Mesafeli satış
+sözleşmesini okudum" bağlantısı `/api/legal/...` uçuna gidiyordu; müşteri
+tıklayınca **ham JSON** görüyordu:
+
+```
+{"document":{"version_id":1,"content":"# Mesafeli Satış Sözleşmesi\n…
+```
+
+> ⚠️ Yalnızca çirkin değil: mesafeli satışta müşterinin sözleşmeyi
+> **okuyabilmesi zorunlu**. Onay kutusunu işaretlemesini istediğimiz metni
+> gösteremiyorduk.
+>
+> **4B'de neden kaçtı:** test `assertSee('Mesafeli satış sözleşmesini')`
+> diyordu — **bağlantının varlığını** ölçüyordu, **nereye gittiğini**
+> değil. Yeni test tam bunu ölçüyor.
+
+**4.5A-K1 · Yasal metinler `magaza-acik` kapısının DIŞINDA.**
+> Emsal 2G'de kuruldu (KVKK doğrulama bağlantısı) ve gerekçesi aynen
+> şuydu: *"Yasal bir hak, mağazanın açık olmasına bağlanamaz."*
+>
+> ⚠️ İlk hâli kapının içindeydi ve **test ortaya çıkardı**: yasal
+> metinlerini henüz tamamlamamış (dolayısıyla mağazası kapalı) bir marka,
+> yayınladığı metni bile gösteremiyordu.
+
+⚠️ Metin `{!! !!}` ile değil `nl2br(e())` ile basılıyor: metni **marka**
+yazıyor ve ham HTML olsaydı marka kendi vitrinine betik gömebilirdi —
+4-K5'in kapattığı kapının aynısı. · Sürüm ve tarih sayfada yazılı
+(1A.4 · 1D-K2). · Yayınlanmamış metin listede görünmüyor.
+
+**Üç kırma denemesi, üçü de düştü.** **Doğrulandı (gerçek tarayıcı):**
+`/yasal/distance_sales` → **200 + `text/html`**, başlıkta sözleşme adı,
+"Sürüm 1"; JSON kalıntısı yok.
+
+---
+
+### 4.5B — BİTTİ ✅ (11 test)
+
+Kod: `app/Http/Panel/{PaymentSettingsPageController,LegalPageController}.php` ·
+`resources/js/Panel/Pages/{Odeme,Yasal}.vue` · `routes/tenant.php` ·
+`tests/Tenancy/PanelOdemeYasalTest.php`
+
+**Toplam 667 test** (Faz 4 sonu: 648).
+
+**★ FAZ 4'ÜN EN CİDDİ BOŞLUĞU KAPANDI: marka artık panelden ödeme
+sağlayıcısını kurabiliyor** — yani gerçek para tahsil edebiliyor. Uçları
+1E'de vardı, ekranı yoktu.
+
+**4.5B-K1 · Anahtar DEĞERLERİ ekrana hiç gitmiyor.**
+> Ekran yalnızca "girilmiş mi" bilgisini veriyor. Anahtarlar şifreli
+> saklanıyor (1E.1) ama ekranda gösterilseydi **panele giren herkes**
+> onları okuyabilirdi.
+
+**4.5B-K2 · Boş bırakılan anahtar mevcut değeri SİLMİYOR.**
+> ⚠️ Ekran mevcut değeri göstermediği için marka formu açıp yalnızca
+> sağlayıcıyı değiştirdiğinde anahtar alanları **boş gider**. Boşu
+> yazsaydık marka farkında olmadan anahtarlarını siler ve **tahsilat
+> dururdu**.
+
+**4.5B-K3 · Taslak kaydetmek yayınlamak DEĞİL** (1A.4).
+> `legal_document_versions` salt-ekleme: yayınlamak yeni satır demek ve
+> eski sürüm silinmiyor — siparişler ona bağlı (1D-K2). Ekran ayrıca
+> "yayınlanmamış değişiklik var" uyarısı gösteriyor: marka
+> değişikliğini yayınladığını sanmasın.
+
+⚠️ Sahte sağlayıcı seçiliyken ekran açıkça uyarıyor: *"bu sağlayıcı gerçek
+para tahsil etmez"*. Yazılmasaydı marka test sağlayıcısıyla satışa çıkıp
+parasını alamazdı.
+
+**Üç kırma denemesi, üçü de düştü:** boş anahtarı yazma · anahtar
+değerlerini prop'a koyma · taslak kaydederken yayınlama.
+
+**Doğrulandı (gerçek tarayıcı):** ödeme ekranı **iyzico** seçili, iki
+anahtar "girilmiş", **gerçek değer sızmıyor** · yasal ekran üç metnin
+yayın sürümünü ve "yayınlanmamış değişiklik" uyarısını gösteriyor.
+
+---
+
+### Bitiş ölçütü
+
+Panelde **ekranı olmayan uç kalmaz** (ya ekran yazılır ya "bilerek yok"
+diye gerekçesiyle plana geçer); müşteri sözleşmeyi **okuyabilir**, hesabına
+girip **siparişini takip edebilir**; marka ödeme sağlayıcısını ve yasal
+metinlerini **panelden** kurabilir.
 
 ---
 

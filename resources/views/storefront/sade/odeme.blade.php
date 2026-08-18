@@ -99,7 +99,13 @@
                 <label class="onay">
                     <input type="checkbox" name="sozlesme_onay" value="1" required>
                     <span>
-                        <a href="{{ url('/api/legal/distance_sales') }}" target="_blank" rel="noopener">
+                        {{--
+                            ⚠️ BURASI BİR HATAYDI (4.5A'da düzeltildi):
+                            bağlantı `/api/legal/...` uçuna gidiyordu ve
+                            müşteri HAM JSON görüyordu. Mesafeli satışta
+                            müşterinin sözleşmeyi OKUYABİLMESİ zorunlu.
+                        --}}
+                        <a href="{{ route('vitrin.yasal', 'distance_sales') }}" target="_blank" rel="noopener">
                             Mesafeli satış sözleşmesini
                         </a>
                         okudum, onaylıyorum.

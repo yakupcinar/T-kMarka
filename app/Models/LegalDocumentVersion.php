@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\LegalDocumentType;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * Yayınlanmış yasal metin — DEĞİŞMEZ.
@@ -20,6 +21,7 @@ use Illuminate\Database\Eloquent\Model;
  * kolonu varchar gördüğü için `type`'ı metin sanıyor.
  *
  * @property LegalDocumentType $type
+ * @property Carbon|null $published_at
  * @property int $version_no
  */
 class LegalDocumentVersion extends Model

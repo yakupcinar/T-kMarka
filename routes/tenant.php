@@ -10,11 +10,13 @@ use App\Http\Panel\CollectionController;
 use App\Http\Panel\DashboardController;
 use App\Http\Panel\DomainController;
 use App\Http\Panel\LegalController;
+use App\Http\Panel\LegalPageController as PanelLegalSayfa;
 use App\Http\Panel\OptionController;
 use App\Http\Panel\OrderController;
 use App\Http\Panel\OrderPageController;
 use App\Http\Panel\PanelAuthPageController;
 use App\Http\Panel\PaymentSettingsController;
+use App\Http\Panel\PaymentSettingsPageController;
 use App\Http\Panel\ProductController;
 use App\Http\Panel\ProductPageController as PanelUrunSayfasi;
 use App\Http\Panel\ReturnController as PanelIade;
@@ -37,6 +39,7 @@ use App\Http\Storefront\CollectionController as StorefrontCollectionController;
 use App\Http\Storefront\CouponController;
 use App\Http\Storefront\HomeController;
 use App\Http\Storefront\LegalController as VitrinLegal;
+use App\Http\Storefront\LegalPageController;
 use App\Http\Storefront\PaymentController;
 use App\Http\Storefront\PaymentReturnController;
 use App\Http\Storefront\PaymentWebhookController;
@@ -581,6 +584,36 @@ Route::middleware([
 
 /*
 |--------------------------------------------------------------------------
+| YASAL METİNLER (4.5A) — `magaza-acik` KAPISININ DIŞINDA
+|--------------------------------------------------------------------------
+|
+| ★ Emsal 2G'de kuruldu: KVKK doğrulama bağlantısı da bu kapının dışında
+| ve gerekçesi aynen şuydu — *"Yasal bir hak, mağazanın açık olmasına
+| bağlanamaz."*
+|
+| ⚠️ Mağaza kapalıyken de okunabilmeli:
+|   · KVKK aydınlatma metni bir bilgilendirme yükümlülüğü, satış özelliği
+|     değil.
+|   · Sipariş vermiş bir müşteri, marka mağazasını kapatsa bile onayladığı
+|     sözleşmeyi okuyabilmeli.
+|
+| ⚠️ İlk hâli `magaza-acik` içindeydi ve testte ortaya çıktı: yasal
+| metinlerini henüz tamamlamamış (dolayısıyla mağazası kapalı) bir marka,
+| yayınladığı metni bile gösteremiyordu.
+*/
+Route::middleware([
+    'web',
+    InitializeTenancyByDomain::class,
+    PreventAccessFromCentralDomains::class,
+])->prefix('yasal')->group(function () {
+
+    Route::get('/', [LegalPageController::class, 'index'])->name('vitrin.yasal.liste');
+    Route::get('/{tur}', [LegalPageController::class, 'show'])->name('vitrin.yasal');
+
+});
+
+/*
+|--------------------------------------------------------------------------
 | PANEL SAYFALARI — markanın personelinin çalışma alanı (4C)
 |--------------------------------------------------------------------------
 |
@@ -732,6 +765,22 @@ Route::middleware([
             | ★ Bitiş ölçütünün eksik halkasıydı: marka `curl` olmadan
             | mağazasını AÇAMIYORDU.
             */
+            /*
+            | ÖDEME SAĞLAYICISI (4.5B) — Faz 4'ün EN CİDDİ boşluğuydu:
+            | marka panelden sağlayıcısını kuramıyordu, yani GERÇEK PARA
+            | TAHSİL EDEMİYORDU. Uçları 1E'de vardı, ekranı yoktu.
+            */
+            Route::get('/odeme-ayarlari', [PaymentSettingsPageController::class, 'index'])->name('panel.odeme');
+            Route::post('/odeme-ayarlari', [PaymentSettingsPageController::class, 'kaydet'])->name('panel.odeme.kaydet');
+
+            /*
+            | YASAL METİNLER (4.5B) — taslak ve yayın AYRI (1A.4).
+            | `legal_document_versions` salt-ekleme: yayınlamak yeni satır.
+            */
+            Route::get('/yasal', [PanelLegalSayfa::class, 'index'])->name('panel.yasal');
+            Route::post('/yasal/{tur}', [PanelLegalSayfa::class, 'kaydet'])->name('panel.yasal.kaydet');
+            Route::post('/yasal/{tur}/yayinla', [PanelLegalSayfa::class, 'yayinla'])->name('panel.yasal.yayinla');
+
             Route::get('/magaza', [StorePageController::class, 'index'])->name('panel.magaza');
             Route::post('/magaza', [StorePageController::class, 'kaydet'])->name('panel.magaza.kaydet');
             Route::post('/magaza/yayinla', [StorePageController::class, 'yayinla'])->name('panel.magaza.yayinla');

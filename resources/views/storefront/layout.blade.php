@@ -180,6 +180,14 @@
         .karsilama p { color: #78716c; margin: 0; }
         .urun-genis { grid-template-columns: 1fr; max-width: 720px; margin: 0 auto; }
 
+        /* YASAL METİN (4.5A) */
+        .yasal { max-width: 760px; margin: 0 auto; padding: 32px 0; }
+        .yasal h1 { font-size: 26px; }
+        .yasal-surum { color: #78716c; font-size: 14px; margin-top: -8px; }
+        .yasal-metin { margin-top: 20px; color: #292524; }
+        .yasal-liste { line-height: 2.2; }
+        footer a { color: inherit; }
+
         /* SONUÇ */
         .sonuc { padding: 56px 0; text-align: center; }
         .siparis-no { font-size: 17px; }
@@ -270,6 +278,13 @@
     <div class="kapsa">
         {{-- ⚠️ Yıl sabit yazılmıyor: her 1 Ocak'ta eskimiş bir sayfa olurdu. --}}
         © {{ date('Y') }} {{ $tema['ad'] }}
+
+        {{--
+            ⚠️ Yasal metinlere HER SAYFADAN erişilebilmeli: müşteri
+            sözleşmeyi yalnızca ödeme anında değil, öncesinde de
+            okuyabilmeli.
+        --}}
+        · <a href="{{ route('vitrin.yasal.liste') }}">Yasal metinler</a>
     </div>
 </footer>
 

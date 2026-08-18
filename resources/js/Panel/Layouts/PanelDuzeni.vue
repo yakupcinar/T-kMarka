@@ -23,6 +23,8 @@ const menu = [
   { ad: 'Siparişler', yol: '/yonetim/siparisler', izin: 'order.view' },
   { ad: 'İadeler', yol: '/yonetim/iadeler', izin: 'order.view' },
   { ad: 'Mağaza', yol: '/yonetim/magaza', izin: 'settings.write' },
+  { ad: 'Ödeme', yol: '/yonetim/odeme-ayarlari', izin: 'settings.write' },
+  { ad: 'Yasal', yol: '/yonetim/yasal', izin: 'settings.write' },
   { ad: 'Tema', yol: '/yonetim/tema', izin: 'settings.write' },
 ]
 

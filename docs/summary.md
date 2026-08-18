@@ -1829,3 +1829,51 @@ AÇIK BORÇLAR — FAZ 5'E
   abonelik ekranı · declare(strict_types=1)
 
 FAZ 5 SIRADA — entegrasyonlar: kargo firmaları · e-fatura/e-arşiv
+
+FAZ 4.5 AÇILDI — ARAYÜZ BOŞLUKLARI
+  ölçüldü: panelde 73 API ucu, 34 sayfa rotası
+  → arka ucun kabaca YARISINA arayüzden erişilemiyor
+  Faz 5'ten ÖNCE çünkü marka panelden ÖDEME SAĞLAYICISINI KURAMIYORDU,
+  yani gerçek para tahsil edemiyordu
+
+4.5A ✅ VİTRİN YASAL METİN SAYFALARI — 8 test
+      ★ BUGÜNKÜ BİR YASAL HATA KAPANDI
+        ödeme sayfasındaki "sözleşmeyi okudum" bağlantısı /api/legal/'e
+        gidiyordu; müşteri HAM JSON görüyordu
+        ⚠️ mesafeli satışta müşterinin sözleşmeyi OKUYABİLMESİ ZORUNLU
+        4B'de neden kaçtı: test assertSee('Mesafeli satış sözleşmesini')
+        diyordu — BAĞLANTININ VARLIĞINI ölçüyordu, NEREYE GİTTİĞİNİ değil
+
+      4.5A-K1 yasal metinler `magaza-acik` KAPISININ DIŞINDA
+        emsal 2G'de: "yasal bir hak, mağazanın açık olmasına bağlanamaz"
+        ⚠️ ilk hâli kapının içindeydi, TEST ORTAYA ÇIKARDI: metinlerini
+          tamamlamamış (mağazası kapalı) marka, yayınladığı metni bile
+          gösteremiyordu
+
+      metin nl2br(e()) ile basılıyor: ham HTML olsaydı marka kendi
+      vitrinine betik gömebilirdi (4-K5'in aynısı)
+      sürüm + tarih sayfada · yayınlanmamış metin listede yok
+
+4.5B ✅ PANEL: ÖDEME AYARLARI + YASAL METİN — 11 test (toplam 667)
+      ★ FAZ 4'ÜN EN CİDDİ BOŞLUĞU: marka artık ödeme sağlayıcısını
+        panelden kurabiliyor (uçları 1E'de vardı, ekranı yoktu)
+
+      4.5B-K1 anahtar DEĞERLERİ ekrana hiç gitmiyor
+        yalnızca "girilmiş mi"; gösterilseydi panele giren herkes okurdu
+      4.5B-K2 BOŞ bırakılan anahtar mevcut değeri SİLMİYOR
+        ⚠️ ekran değeri göstermiyor; marka yalnızca sağlayıcıyı
+          değiştirdiğinde alanlar BOŞ gider — boşu yazsaydık marka
+          farkında olmadan anahtarını siler, TAHSİLAT DURURDU
+      4.5B-K3 taslak kaydetmek YAYINLAMAK DEĞİL (1A.4)
+        salt-ekleme tablo: eski sürüm duruyor, siparişler ona bağlı
+        "yayınlanmamış değişiklik var" uyarısı ayrı gösteriliyor
+
+      sahte sağlayıcı seçiliyken ekran AÇIKÇA uyarıyor: "gerçek para
+      tahsil etmez" — yazılmasaydı marka test sağlayıcısıyla satışa
+      çıkıp parasını alamazdı
+
+      DOĞRULANDI (gerçek tarayıcı)
+        /yasal/distance_sales → 200 + text/html, "Sürüm 1", JSON yok
+        ödeme ekranı: iyzico seçili, iki anahtar "girilmiş",
+        GERÇEK DEĞER SIZMIYOR
+        yasal ekran: üç metnin yayın sürümü + değişiklik uyarısı
