@@ -6,6 +6,7 @@ use App\Domain\Payment\PaymentProviderFactory;
 use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -39,7 +40,7 @@ class PaymentReturnController extends Controller
      * yapıyor (iyzico POST eder). Tek yöntem tanımlansaydı gerçek
      * sağlayıcı takıldığı gün müşteri 405 ekranıyla karşılaşırdı.
      */
-    public function show(Request $istek): JsonResponse
+    public function show(Request $istek): JsonResponse|View
     {
         $saglayici = $this->saglayicilar->coz();
 
@@ -74,6 +75,29 @@ class PaymentReturnController extends Controller
         | `?status=success` yazarak kendine "ödendi" ekranı gösterebilirdi.
         | Sipariş hiç ödenmemiş olurdu ama o beklemeye başlardı.
         */
+        $durum = match ($siparis->payment_status) {
+            PaymentStatus::Paid => 'success',
+            PaymentStatus::Failed, PaymentStatus::Cancelled => 'failed',
+            default => 'processing',
+        };
+
+        /*
+        | ★ TARAYICIYA HTML, SAĞLAYICIYA/API'YE JSON. (4B)
+        |
+        | ⚠️ Bu uç müşterinin bankadan döndüğü EKRAN. Ham JSON göstermek,
+        | ödemesini yeni yapmış birine süslü parantezli bir metin göstermek
+        | demekti — siparişinin ne olduğunu anlayamazdı.
+        |
+        | ⚠️ Ayrım `expectsJson()` ile ve bu ancak 4A'dan sonra güvenilir:
+        | `ForceJson` global olduğu sürece her istek "JSON istiyorum" derdi.
+        */
+        if (! $istek->expectsJson()) {
+            return view('storefront.sade.odeme-donus', [
+                'siparis' => $siparis,
+                'durum' => $durum,
+            ]);
+        }
+
         return response()->json([
             'order_number' => $siparis->order_number,
             'payment_status' => $siparis->payment_status->value,
@@ -86,11 +110,7 @@ class PaymentReturnController extends Controller
             | "başarısız" gösterilseydi müşteri paniğe kapılır, ikinci kez
             | ödemeye çalışır ya da bankasını arardı — oysa ödemesi yolda.
             */
-            'state' => match ($siparis->payment_status) {
-                PaymentStatus::Paid => 'success',
-                PaymentStatus::Failed, PaymentStatus::Cancelled => 'failed',
-                default => 'processing',
-            },
+            'state' => $durum,
         ]);
     }
 }

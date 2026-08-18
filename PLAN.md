@@ -31,13 +31,13 @@
 │                                                                │
 │  4 · ARAYÜZ  ◀ AÇILDI — M-3 verildi: yüzeye göre bölünmüş      │
 │     vitrin Blade · panel+yönetim Inertia+Vue · SSR YOK         │
-│     ✅ 4A vitrin → 4B akış → 4C panel → 4D katalog             │
+│     ✅ 4A vitrin → ✅ 4B akış → 4C panel → 4D katalog            │
 │     4E sipariş → 4F yönetim → 4G tema → 4H kapanış             │
 │  5 · ENTEGRASYON   kargo · e-fatura                            │
 │  6 · DAĞITIM       yayın · yedekleme · izleme                  │
 │                                                                │
 │  Kural: bir blok bitmeden sonrakine geçilmez.                  │
-│  564 test · lint · analyse · CI hepsi yeşil                    │
+│  577 test · lint · analyse · CI hepsi yeşil                    │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -4335,6 +4335,84 @@ istemcisine **JSON 503**.
 **⚠️ Bu blokta YAPILMAYAN:** ürün detay sayfası, sepet sayfası ve ödeme
 akışı (4B). Ana sayfadaki ürün kartları bugün ana sayfaya dönüyor — ölü
 `href="#"` yerine çalışan bir adres bırakıldı.
+
+---
+
+### 4B — BİTTİ ✅ (12 test + 1 yapısal)
+
+Kod: `app/Http/Storefront/{ProductPageController,CartPageController,CheckoutPageController,CartResolver}.php` ·
+`PaymentReturnController` (HTML dalı) · `ForceJson` (istisna listesi) ·
+`resources/views/storefront/sade/{urun,sepet,odeme,odeme-donus}.blade.php` ·
+`tests/Tenancy/VitrinAkisTest.php` · `tests/Feature/SepetKimligiTest.php`
+
+**Toplam 577 test** (4A sonu: 565).
+
+**4B-K1 · Vitrin formları JAVASCRIPT'SİZ çalışıyor.**
+
+> Her işlem bir `<form method="post">`, cevabı yönlendirme (PRG deseni).
+> Sunucuda render edilen bir vitrinin JS'e bağımlı olması M-3'ün amacını
+> bozardı; müşteri betik yüklenmeden de alışveriş yapabilmeli.
+>
+> ⚠️ PRG zorunlu: doğrudan HTML dönseydi müşterinin sayfayı yenilemesi
+> aynı ürünü tekrar sepete eklerdi.
+
+**★★ 4A'DAN KAÇAN HATA: düzeltme SINIRA değil TEK YERE yapılmıştı.**
+
+4A'da sepet kimliğine çerez desteği eklendi — ama yalnızca `CartController`'a.
+Üç yer başlığı doğrudan okumaya devam etti ve **sonuçları sessizdi**:
+
+```
+CouponController    tarayıcıdan kupon → "sepet bulunamadı"
+CheckoutController  tarayıcıdan ödeme → "sepet bulunamadı"
+AuthController      giriş → misafir sepeti BİRLEŞMİYOR → SEPET GİDER
+```
+
+Hiçbiri hata vermiyordu; hepsi "sepetin yok" diyordu. Üçü de [CartToken]'a
+taşındı, ortak çözümleme [CartResolver]'a alındı ve kural artık **yapısal
+testle ölçülüyor** (`SepetKimligiTest`): `CartToken` dışında hiçbir dosya
+başlığı okuyamaz.
+
+> ⚠️ 3C'deki dersin aynısı: karar yorumla korunmuyor, **ölçen test**
+> gerekiyor. Kırma denemesi doğruladı — başlık tekrar doğrudan okununca
+> test düşüyor.
+
+**★★ GERÇEK KOŞU İKİ HATA DAHA GÖSTERDİ — ikisi de ÖDEME DÖNÜŞ EKRANINDA**
+
+Süit yeşilken `curl` bulduğu için ikisi de kayda değer; ikisi de müşterinin
+**ödemesini yeni bitirdiği** ekranda oluyordu:
+
+| hata | sebep |
+|---|---|
+| tarayıcıya **ham JSON** | uç `api` grubunda; `ForceJson` `Accept`'i eziyor, yazdığım HTML dalı hiç çalışmıyor |
+| **500** — `Undefined variable $errors` | düzen `$errors` bekliyor ama onu paylaşan middleware yalnızca `web` grubunda |
+
+Uç `web`'e taşınamıyor: sağlayıcı POST ediyor ve CSRF üretemez. Çözüm
+`ForceJson`'a **dar** bir istisna listesi (`HTML_UCLARI`) ve düzende
+`isset($errors)` koruması. İkisi için de test yazıldı ve kırma denemesiyle
+doğrulandı.
+
+**★ İKİ TESTİM YANLIŞ VARSAYIMLA YAZILMIŞTI — kod haklı çıktı**
+
+| yazdığım | gerçek |
+|---|---|
+| "eski sözleşme sürümü **reddedilmeli**" | karar reddetmek değil **görüleni kaydetmek** (1A.4 · 1D-K2): sipariş müşterinin ekranındaki sürümü taşıyor |
+| stok 0'da "**Stok yetersiz**" yazmalı | 1C-K2 stok bitmesini üç "artık satın alınamaz" durumundan biri sayıyor → "artık satışta değil". İki mesaj ayrı dallardan geliyor; **ikisi de** ölçülüyor artık |
+
+**★ Blade tuzağı:** `@section('ad', Str::limit($x, 150))` kısa biçimi
+virgülde kırılıyor ve **görünümü derlenemez** yapıyor. Belirti sinsi —
+Larastan "görünüm bulunamadı" diyor, sayfa çalışıyor görünüyor.
+
+**Doğrulandı (iki markada gerçek tarayıcı akışı, `curl` + çerez kavanozu):**
+ana sayfa → ürün bağlantısı → ürün sayfası (CSRF alanı ve varyant kimliği
+formda) → sepete ekle **302** → sepet sayfası "Sepet 2" + "Ürün sepete
+eklendi" → ödeme sayfası (sözleşme sürümü gömülü) → sipariş **302 →
+`sandbox-cpp.iyzipay.com`** · sipariş `TM-2026-000015`, 699,80 TL,
+`pending`, sözleşme sürümü kayıtlı · dönüş ekranı tarayıcıya **HTML
+"Ödemeniz işleniyor"**, API'ye **JSON**. B markasında aynı akış çalıştı ve
+**A'nın sepeti B'de görünmedi**.
+
+**⚠️ Bu blokta YAPILMAYAN:** müşteri girişi/kayıt sayfaları, adres defteri,
+sipariş geçmişi ve yorum yazma ekranı. Uçları var (Faz 1-2), sayfaları yok.
 
 ---
 

@@ -30,12 +30,7 @@
     @else
         <div class="izgara">
             @foreach ($urunler as $urun)
-                {{--
-                    ⚠️ Bağlantı bugün ana sayfaya dönüyor: ürün detay sayfası
-                    4B'de gelecek. Ölü bir `href="#"` yazmak yerine çalışan bir
-                    adres bırakıldı — kırık bağlantı, eksik özellikten kötüdür.
-                --}}
-                <a class="kart" href="{{ route('vitrin.anasayfa') }}">
+                <a class="kart" href="{{ route('vitrin.urun', $urun->slug) }}">
                     @if ($urun->images->first())
                         <img src="{{ $urun->images->first()->url() }}" alt="{{ $urun->title }}">
                     @else

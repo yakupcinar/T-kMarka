@@ -20,8 +20,10 @@ use App\Http\Panel\StoreController;
 use App\Http\Storefront\AddressController;
 use App\Http\Storefront\AuthController as VitrinAuth;
 use App\Http\Storefront\CartController;
+use App\Http\Storefront\CartPageController;
 use App\Http\Storefront\CatalogController;
 use App\Http\Storefront\CheckoutController as VitrinCheckout;
+use App\Http\Storefront\CheckoutPageController;
 use App\Http\Storefront\CollectionController as StorefrontCollectionController;
 use App\Http\Storefront\CouponController;
 use App\Http\Storefront\HomeController;
@@ -30,6 +32,7 @@ use App\Http\Storefront\PaymentController;
 use App\Http\Storefront\PaymentReturnController;
 use App\Http\Storefront\PaymentWebhookController;
 use App\Http\Storefront\PrivacyController;
+use App\Http\Storefront\ProductPageController;
 use App\Http\Storefront\ReturnController as VitrinIade;
 use App\Http\Storefront\ReviewController as StorefrontReviewController;
 use Illuminate\Support\Facades\Route;
@@ -537,5 +540,32 @@ Route::middleware([
 ])->group(function () {
 
     Route::get('/', HomeController::class)->name('vitrin.anasayfa');
+    Route::get('/urun/{slug}', ProductPageController::class)->name('vitrin.urun');
+
+    /*
+    | SEPET SAYFASI VE İŞLEMLERİ
+    |
+    | ⚠️ Hepsi POST → Redirect → GET (PRG). Doğrudan HTML dönseydi
+    | müşterinin sayfayı yenilemesi aynı ürünü tekrar sepete eklerdi.
+    |
+    | ⚠️ CSRF bu grupta AÇIK ve İSTENİYOR (4-K4): formlar tarayıcıdan
+    | geliyor. 3C'de aynı koruma yanlış yerdeydi ve API'yi kırıyordu;
+    | burası doğru yeri.
+    */
+    Route::get('/sepet', [CartPageController::class, 'show'])->name('vitrin.sepet');
+    Route::post('/sepet/ekle', [CartPageController::class, 'ekle'])->name('vitrin.sepet.ekle');
+    Route::post('/sepet/guncelle', [CartPageController::class, 'guncelle'])->name('vitrin.sepet.guncelle');
+    Route::post('/sepet/sil', [CartPageController::class, 'sil'])->name('vitrin.sepet.sil');
+    Route::post('/sepet/kupon', [CartPageController::class, 'kupon'])->name('vitrin.sepet.kupon');
+
+    /*
+    | ÖDEME SAYFASI
+    |
+    | ⚠️ Ödeme DÖNÜŞÜ burada DEĞİL: o `api` grubunda kalıyor çünkü
+    | sağlayıcı POST ediyor ve CSRF üretemez (rota zaten oradaydı).
+    | Aynı uç artık tarayıcıya HTML, API'ye JSON dönüyor.
+    */
+    Route::get('/odeme', [CheckoutPageController::class, 'form'])->name('vitrin.odeme');
+    Route::post('/odeme', [CheckoutPageController::class, 'gonder'])->name('vitrin.odeme.gonder');
 
 });

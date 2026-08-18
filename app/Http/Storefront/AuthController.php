@@ -64,7 +64,7 @@ class AuthController
      */
     private function sepetiBirlestir(Request $istek, Customer $musteri): bool
     {
-        $misafirSepeti = $this->sepetler->misafirSepetiBul($istek->header('X-Cart-Token'));
+        $misafirSepeti = $this->sepetler->misafirSepetiBul(CartToken::oku($istek));
 
         if ($misafirSepeti === null) {
             return false;

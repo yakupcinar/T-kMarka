@@ -127,6 +127,63 @@
 
         .bos { padding: 64px 0; text-align: center; color: #78716c; }
 
+        /* ÜRÜN SAYFASI */
+        .urun { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; padding: 32px 0; }
+        .urun-gorsel { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; background: #f5f5f4; }
+        .bos-gorsel { display: grid; place-items: center; color: #a8a29e; }
+        .marka-adi { color: #78716c; margin-top: -8px; }
+        .fiyat-buyuk { font-size: 28px; font-weight: 800; color: var(--marka); }
+        .ekle-form { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin: 20px 0; }
+        .ekle-form label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+        .ekle-form input, .ekle-form select { padding: 8px; border: 1px solid #d6d3d1; border-radius: 8px; font: inherit; }
+        .ekle-form input[type=number] { width: 80px; }
+        .dugme.buyuk { padding: 12px 24px; font-size: 16px; font-weight: 600; }
+        .aciklama { margin-top: 24px; color: #44403c; }
+
+        /* SEPET */
+        .sepet-tablo { width: 100%; border-collapse: collapse; margin: 24px 0; }
+        .sepet-tablo td { border-bottom: 1px solid #e7e5e4; padding: 14px 8px; vertical-align: top; }
+        .sepet-tablo tr.olu { opacity: .55; }
+        .satir-form { display: flex; gap: 6px; }
+        .satir-form input { width: 64px; padding: 6px; border: 1px solid #d6d3d1; border-radius: 6px; font: inherit; }
+        .satir-form button, .sil { padding: 6px 10px; border: 1px solid #d6d3d1; background: #fff; border-radius: 6px; cursor: pointer; font: inherit; }
+        .sil { color: #b91c1c; }
+        .uyari { color: #b45309; font-size: 13px; margin-top: 4px; }
+        .kupon-form { display: flex; gap: 8px; align-items: center; margin: 20px 0; flex-wrap: wrap; }
+        .kupon-form input { padding: 8px 12px; border: 1px solid #d6d3d1; border-radius: 8px; font: inherit; }
+        .ipucu { color: #78716c; font-size: 13px; }
+        .engel-kutusu { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 10px; padding: 14px 18px; margin: 20px 0; }
+
+        /* BİLDİRİMLER */
+        .bildirim { padding: 12px 18px; border-radius: 10px; margin: 16px 0; }
+        .bildirim.iyi { background: #dcfce7; border: 1px solid #86efac; }
+        .bildirim.kotu { background: #fee2e2; border: 1px solid #fca5a5; }
+
+        /* ÖDEME */
+        .odeme-form { display: grid; grid-template-columns: 1.4fr 1fr; gap: 32px; padding: 24px 0; align-items: start; }
+        .odeme-form h2 { font-size: 17px; margin: 24px 0 8px; }
+        .odeme-form label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; margin-bottom: 12px; }
+        .odeme-form input[type=text], .odeme-form input[type=email], .odeme-form input[type=tel] {
+            padding: 9px 12px; border: 1px solid #d6d3d1; border-radius: 8px; font: inherit;
+        }
+        .ikili { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .odeme-sag { background: #fff; border: 1px solid #e7e5e4; border-radius: 12px; padding: 20px; position: sticky; top: 90px; }
+        .ozet { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+        .ozet td { padding: 6px 0; border-bottom: 1px solid #f5f5f4; font-size: 14px; }
+        .ozet .sag { text-align: right; white-space: nowrap; }
+        .onay { flex-direction: row !important; align-items: flex-start; gap: 8px; margin: 16px 0; }
+        .onay input { margin-top: 4px; }
+
+        /* SONUÇ */
+        .sonuc { padding: 56px 0; text-align: center; }
+        .siparis-no { font-size: 17px; }
+
+        @media (max-width: 720px) {
+            .urun { grid-template-columns: 1fr; }
+            .odeme-form { grid-template-columns: 1fr; }
+            .ikili { grid-template-columns: 1fr; }
+        }
+
         footer {
             border-top: 1px solid #e7e5e4;
             margin-top: 48px;
@@ -159,13 +216,47 @@
             (CartToken) tek görünür sebebi. Başlık tek yol olarak kalsaydı
             burada her zaman 0 yazardı.
         --}}
-        <a class="sepet" href="{{ route('vitrin.anasayfa') }}">
+        <a class="sepet" href="{{ route('vitrin.sepet') }}">
             Sepet @if ($sepetAdedi > 0)<span>{{ $sepetAdedi }}</span>@endif
         </a>
     </div>
 </header>
 
 <main class="kapsa">
+
+    {{--
+        ⚠️ Bildirimler DÜZENDE, sayfalarda değil: PRG deseninde her işlem
+        yönlendirmeyle bitiyor ve sonucu gösterecek tek ortak yer burası.
+        Her sayfaya ayrı yazılsaydı biri unutulur ve o işlem sessizce
+        "hiçbir şey olmamış" gibi görünürdü.
+    --}}
+    @if (session('mesaj'))
+        <p class="bildirim iyi">{{ session('mesaj') }}</p>
+    @endif
+
+    @if (session('hata'))
+        <p class="bildirim kotu">{{ session('hata') }}</p>
+    @endif
+
+    {{--
+        ⚠️ `$errors` VARLIĞI KONTROL EDİLİYOR — ve bu gerçek bir 500'den
+        sonra eklendi.
+
+        `$errors` görünümlere `ShareErrorsFromSession` tarafından veriliyor
+        ve o middleware yalnızca `web` grubunda çalışıyor. Ödeme dönüşü
+        ekranı (4B) `api` grubunda — sağlayıcı POST ettiği için oraya
+        taşınamıyor — ve aynı düzeni kullanıyor. Kontrolsüz hâlde
+        "Undefined variable $errors" ile 500 veriyordu: müşteri ödemesini
+        bitirmiş, dönüş ekranında hata sayfası görüyordu.
+    --}}
+    @if (isset($errors) && $errors->any())
+        <div class="bildirim kotu">
+            @foreach ($errors->all() as $hata)
+                <div>{{ $hata }}</div>
+            @endforeach
+        </div>
+    @endif
+
     @yield('icerik')
 </main>
 

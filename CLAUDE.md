@@ -207,6 +207,25 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   valid cache path`). Veritabanı testte ayrı (`tikmarka_test`) ama **disk
   ayrı değil**. Kural: dosya silen her servis **kök parametresi** almalı ve
   test kendi geçici klasöründe çalışmalı.
+- **`@section('ad', ifade)` KISA BİÇİMİ virgülde kırılıyor.** İfadenin
+  içinde virgül varsa (`Str::limit($x, 150)`) Blade argümanları yanlış
+  bölüyor ve **görünüm derlenemez** hâle geliyor. ⚠️ Belirti sinsi: sayfa
+  çalışıyor görünüyor ama Larastan görünümü bulamıyor (`view-string`
+  hatası) — 4B'de yarım saat aldı. Blok biçimini kullan
+  (`@section('ad') … @endsection`).
+- **`$errors` ve oturuma bağlı görünüm değişkenleri YALNIZCA `web` grubunda
+  var.** `ShareErrorsFromSession` `api` grubunda çalışmıyor. Aynı düzeni
+  (layout) iki gruptan render eden bir sayfa varsa `isset($errors)` ile
+  korunmalı; korunmazsa `Undefined variable $errors` ile **500** döner.
+  4B'de ölçüldü: ödeme dönüş ekranı `api` grubunda (sağlayıcı POST ediyor,
+  CSRF üretemez) ve müşteri ödemesini bitirdikten sonra hata sayfası
+  görüyordu.
+- **`ForceJson` `api` grubunda İNSAN EKRANLARINI da eziyor.** Uç `api`
+  grubundaysa `Accept` her istekte JSON'a çevriliyor ve `expectsJson()`
+  **her zaman doğru** oluyor — HTML dalı yazsan bile hiç çalışmaz.
+  İnsanın gördüğü uçlar `ForceJson::HTML_UCLARI` listesine girer.
+  ⚠️ Liste **dar** tutulmalı: genişletilirse 2E'de ölçülen 500 geri gelir.
+  ⚠️ Testler bunu görmedi, gerçek `curl` gösterdi (4B).
 - **Git BOŞ KLASÖR TUTMAZ — takipteki son dosyayı silmek KLASÖRÜ siler.**
   4A'da CI'ı kırdı: derlenmiş Blade dosyaları yanlışlıkla depodaydı,
   takipten çıkarıldı ve `storage/framework/views`'i ayakta tutan tek şey

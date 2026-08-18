@@ -68,7 +68,7 @@ class CheckoutController extends Controller
             return $this->sepetler->musteriSepeti($kullanici);
         }
 
-        $sepet = $this->sepetler->misafirSepetiBul($istek->header('X-Cart-Token'));
+        $sepet = $this->sepetler->misafirSepetiBul(CartToken::oku($istek));
 
         abort_if($sepet === null, 404, 'Sepet bulunamadı.');
 

@@ -1428,3 +1428,52 @@ BİTİŞ ÖLÇÜTÜ  marka HİÇ curl kullanmadan mağazasını kurar; müşteri
         Set-Cookie (düz·httponly·lax) döndü, çerezle "Sepet 2",
         çerezsiz boş · B kapatıldı → tarayıcı HTML 503, API JSON 503
       ⚠️ YAPILMAYAN: ürün detay · sepet sayfası · ödeme akışı → 4B
+
+4B ✅  VİTRİN AKIŞI — 12 test + 1 yapısal (toplam 577)
+      ürün detay · sepet · ödeme · dönüş ekranı — hepsi Blade
+
+      4B-K1 FORMLAR JAVASCRIPT'SİZ ÇALIŞIYOR
+        her işlem <form method="post">, cevabı yönlendirme (PRG)
+        ⚠️ PRG zorunlu: doğrudan HTML dönseydi sayfayı yenileyen
+          müşteri aynı ürünü tekrar sepete eklerdi
+
+      ★★ 4A'DAN KAÇAN HATA: düzeltme SINIRA değil TEK YERE yapılmıştı
+        4A'da çerez desteği yalnızca CartController'a eklenmişti;
+        üç yer başlığı doğrudan okumaya devam etti, SONUÇLARI SESSİZ:
+          CouponController    tarayıcıdan kupon → "sepet bulunamadı"
+          CheckoutController  tarayıcıdan ödeme → "sepet bulunamadı"
+          AuthController      giriş → misafir sepeti BİRLEŞMİYOR
+                              → müşterinin sepeti GİDİYOR
+        hiçbiri hata vermiyordu, hepsi "sepetin yok" diyordu
+        → CartResolver + YAPISAL TEST (SepetKimligiTest): CartToken
+          dışında hiçbir dosya başlığı okuyamaz
+        ⚠️ 3C dersinin aynısı: yorum korumuyor, ÖLÇEN test gerekiyor
+
+      ★★ GERÇEK KOŞU İKİ HATA DAHA GÖSTERDİ — ikisi de ÖDEME DÖNÜŞÜNDE
+        ham JSON        uç `api` grubunda, ForceJson Accept'i eziyor,
+                        yazdığım HTML dalı HİÇ çalışmıyordu
+        500 hatası      düzen $errors bekliyor; onu paylaşan middleware
+                        yalnızca `web` grubunda
+        ikisi de MÜŞTERİ ÖDEMESİNİ BİTİRDİKTEN SONRA görünüyordu
+        uç `web`'e taşınamıyor: sağlayıcı POST ediyor, CSRF üretemez
+        → ForceJson'a DAR istisna listesi + isset($errors) koruması
+
+      ★ İKİ TESTİM YANLIŞ VARSAYIMLA YAZILMIŞTI — KOD HAKLI ÇIKTI
+        "eski sözleşme reddedilmeli" sandım → karar REDDETMEK değil
+          GÖRÜLENİ KAYDETMEK (1A.4 · 1D-K2): sipariş müşterinin
+          ekranındaki sürümü taşıyor
+        stok 0'da "Stok yetersiz" bekledim → 1C-K2 stok bitmesini
+          "artık satın alınamaz" sayıyor; iki mesaj AYRI dallardan,
+          ikisi de artık ölçülüyor
+
+      ★ BLADE TUZAĞI: @section('ad', Str::limit($x, 150)) kısa biçimi
+        virgülde kırılıyor, GÖRÜNÜM DERLENEMEZ oluyor; belirti sinsi
+
+      DOĞRULANDI (iki markada gerçek tarayıcı akışı, curl + çerez kavanozu)
+        ana sayfa → ürün → sepete ekle 302 → "Sepet 2" → ödeme sayfası
+        → sipariş 302 → sandbox-cpp.iyzipay.com
+        sipariş TM-2026-000015 · 699,80 TL · pending · sözleşme kayıtlı
+        dönüş: tarayıcıya HTML "Ödemeniz işleniyor", API'ye JSON
+        B markasında aynı akış çalıştı, A'nın sepeti B'de GÖRÜNMEDİ
+      ⚠️ YAPILMAYAN: müşteri girişi/kayıt · adres defteri · sipariş
+        geçmişi · yorum yazma ekranı (uçları var, sayfaları yok)
