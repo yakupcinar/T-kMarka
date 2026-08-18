@@ -59,14 +59,18 @@ class ThemeSettings
     ];
 
     /**
-     * Vitrin düzenleri. Bugün tek çeşit — 4G'de çoğalacak.
+     * Vitrin düzenleri. (4G'de ikincisi eklendi)
      *
-     * ⚠️ Liste bugün tek elemanlı olsa da VAR: sonradan eklemek,
-     * "düzen" kavramını sonradan icat etmekten kolay.
+     * ⚠️ 4A'da tek elemanlıydı ve gerekçesi "sonradan eklemek, kavramı
+     * sonradan icat etmekten kolay" diye yazılmıştı. Doğru çıktı: ikinci
+     * düzeni eklemek bir klasör açmak ve buraya bir satır yazmaktan
+     * ibaret oldu.
+     *
+     * ⚠️ Marka düzen dosyalarını DÜZENLEYEMEZ (4-K5), yalnızca SEÇER.
      *
      * @var list<string>
      */
-    public const DUZENLER = ['sade'];
+    public const DUZENLER = ['sade', 'vitrinli'];
 
     public function __construct(private readonly SettingsService $ayarlar) {}
 

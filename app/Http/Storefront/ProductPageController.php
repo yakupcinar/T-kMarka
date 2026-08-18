@@ -3,6 +3,7 @@
 namespace App\Http\Storefront;
 
 use App\Domain\Catalog\ProductQuery;
+use App\Domain\Settings\ThemeSettings;
 use App\Http\Controllers\Controller;
 use Illuminate\Contracts\View\View;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -14,7 +15,10 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  */
 class ProductPageController extends Controller
 {
-    public function __construct(private readonly ProductQuery $sorgu) {}
+    public function __construct(
+        private readonly ProductQuery $sorgu,
+        private readonly ThemeSettings $tema,
+    ) {}
 
     public function __invoke(string $slug): View
     {
@@ -32,6 +36,17 @@ class ProductPageController extends Controller
 
         $urun->load(['images', 'variants']);
 
-        return view('storefront.sade.urun', ['urun' => $urun]);
+        /*
+        | ⚠️ Görünüm adı `match` ile SABİT metne çevriliyor, birleştirmeyle
+        | değil: ayardan gelen metnin görünüm yoluna girmesi, o metin bir
+        | gün doğrulanmadan geçerse sunucudaki BAŞKA bir Blade dosyasının
+        | render edilmesi demek (4A'da PHPStan da uyarmıştı).
+        */
+        $gorunum = match ($this->tema->duzen()) {
+            'vitrinli' => 'storefront.vitrinli.urun',
+            default => 'storefront.sade.urun',
+        };
+
+        return view($gorunum, ['urun' => $urun]);
     }
 }

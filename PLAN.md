@@ -32,12 +32,12 @@
 │  4 · ARAYÜZ  ◀ AÇILDI — M-3 verildi: yüzeye göre bölünmüş      │
 │     vitrin Blade · panel+yönetim Inertia+Vue · SSR YOK         │
 │     ✅ 4A vitrin → ✅ 4B akış → ✅ 4C panel → ✅ 4D katalog     │
-│     ✅ 4E sipariş → ✅ 4F yönetim → 4G tema → 4H kapanış        │
+│     ✅ 4E sipariş → ✅ 4F yönetim → ✅ 4G tema → 4H kapanış     │
 │  5 · ENTEGRASYON   kargo · e-fatura                            │
 │  6 · DAĞITIM       yayın · yedekleme · izleme                  │
 │                                                                │
 │  Kural: bir blok bitmeden sonrakine geçilmez.                  │
-│  629 test · lint · analyse · CI hepsi yeşil                    │
+│  642 test · lint · analyse · CI hepsi yeşil                    │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -4662,6 +4662,83 @@ Doğrulama için açılan geçici merkez hesabı **silindi**.
 **⚠️ Bu blokta YAPILMAYAN:** abonelik başlatma/iptal ekranı (uçları 3E'de
 var) · marka silme ekranı (`tenant:delete` komutu var, arayüzü yok —
 geri alınamaz işlem için bilinçli) · merkez kullanıcı yönetimi.
+
+---
+
+### 4G — BİTTİ ✅ (13 test)
+
+Kod: `app/Domain/Settings/ThemeLogoService.php` · `ThemeSettings` (ikinci
+düzen) · `app/Http/Panel/ThemePageController.php` ·
+`app/Http/Storefront/{StorefrontViewData,ProductPageController,HomeController}.php` ·
+`resources/views/storefront/vitrinli/` · `resources/js/Panel/Pages/Tema.vue` ·
+`routes/tenant.php` · `tests/Tenancy/PanelTemaTest.php`
+
+**Toplam 642 test** (4F sonu: 629).
+
+**★ 4-K5'İN ARAYÜZÜ: marka SEÇER, YAZMAZ.**
+
+Ekran bilerek kısıtlı — renk kutusu, sabit yazı tipi listesi, sabit düzen
+listesi, logo yükleme. **Serbest metin alanı (özel CSS/HTML) YOK.**
+
+> ⚠️ Doğrulama İKİ YERDE ve ikisi farklı iş yapıyor: **panelde** markaya
+> anlaşılır hata vermek için, **okuma yolunda** ([ThemeSettings]) güvenlik
+> için. Panelinki tek savunma olsaydı ayarın tohumlayıcı/artisan/elle SQL
+> ile girmesi kapıyı açardı (4A-K1).
+
+**4G-K1 · İkinci düzen geldi: `vitrinli`.**
+> 4A'da `DUZENLER` tek elemanlıydı ve gerekçesi *"sonradan eklemek, kavramı
+> sonradan icat etmekten kolay"* diye yazılmıştı. **Doğru çıktı:** ikinci
+> düzeni eklemek bir klasör açmak ve listeye bir satır yazmaktan ibaret oldu.
+>
+> ⚠️ Düzen yalnızca **göz alıcı** sayfaları değiştiriyor (ana sayfa, ürün).
+> Sepet, ödeme ve dönüş sayfalarının düzen kopyası YOK: düzen bir görünüm
+> tercihi, işlevsel akış değil. Kopyalansalardı iki dosya arasında bir gün
+> fark oluşur ve müşteri **seçtiği düzene göre farklı bir ödeme akışı**
+> yaşayabilirdi.
+
+**4G-K2 · Logo, ürün görselleriyle AYNI güvenlik seviyesinde.**
+> Tür dosyanın **içeriğinden** okunuyor, ad ve uzantı istemciden
+> alınmıyor, eski logo yenisi gelince siliniyor.
+> ⚠️ **SVG kabul edilmiyor:** XML belgesidir ve `<script>` taşıyabilir.
+
+---
+
+**★★ KIRMA DENEMESİ İKİNCİ SAVUNMANIN ÖLÇÜLMEDİĞİNİ GÖSTERDİ**
+
+Servisin tür kontrolünü kaldırdım — panel testi **düşmedi**, çünkü
+Laravel'in `mimes:` kuralı zaten yakalıyordu.
+
+> ⚠️ Savunma **ölü değildi, testi eksikti** — ve fark önemli. Servis
+> panelden başka yerlerden de çağrılabilir (artisan, ileride bir uç); o
+> yollarda Laravel doğrulaması yok. 2F/3E'de ölü savunmalar
+> *kaldırılmıştı*; bu **ölçüldü** ve servis düzeyinde test yazıldı.
+
+**★ TEST YARDIMCISI YİNE ÖLÇÜLECEK ŞEYİ YOK EDİYORDU.**
+`UploadedFile::fake()->createWithContent('logo.png', '<?php …')` MIME
+türünü de **uyduruyor** (uzantıdan türetiyor): doğrulama `image/png`
+görüyordu ve "içeriği PHP ama adı .png" senaryosu hiç ölçülmüyordu — test
+yeşil kalıyordu. Gerçek dosya yazılıp gerçek türüyle gönderildi.
+⚠️ 2E (`postJson` başlığı) ve 4A (`getJson` çerezi) ile **aynı aile**.
+
+**★ 4A'DAN KALAN SESSİZ BİR HATA KAPANDI.** Logo yolu doğrudan `src`'ye
+basılıyordu; 4A'da yükleme olmadığı için görünmüyordu, 4G'de **kırık
+görsel** çıkardı. Adres artık HTTP katmanında `tenant_asset()` ile
+kuruluyor — `app/Domain/` kiracılığı bilemez (M-2.7).
+
+**★ Rota yine yanlış gruba düştü.** `izin:order.refund` kalıbı iki yerde
+(panel API'si ve sayfalar); ilk eşleşme API grubuydu ve tema rotaları
+`panel/tema` olarak kaydoldu. 4D'nin dersi: **kalıp birden çok yerdeyse
+hedefi konumla daralt ve `route:list` ile doğrula.**
+
+**Doğrulandı (gerçek tarayıcı):** tema sayfası seçeneklerle açıldı ·
+`vitrinli` düzenine geçildi → vitrinde **karşılama bölümü**, mor renk ve
+serif yazı tipi göründü · geçersiz renk **reddedildi**, vitrinde enjeksiyon
+izi yok · logo yüklendi ve **kiracıya özel adresten 200** ile servis
+edildi · deneme değişiklikleri geri alındı.
+
+**⚠️ Bu blokta YAPILMAYAN:** canlı önizleme (kaydetmeden görme) · ana sayfa
+blok sırası ayarı · marka başına özel yazı tipi yükleme (dosya yükleme
+yüzeyi genişletmek demek, ölçüm olmadan eklenmiyor).
 
 ---
 

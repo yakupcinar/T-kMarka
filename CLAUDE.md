@@ -207,6 +207,19 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   valid cache path`). Veritabanı testte ayrı (`tikmarka_test`) ama **disk
   ayrı değil**. Kural: dosya silen her servis **kök parametresi** almalı ve
   test kendi geçici klasöründe çalışmalı.
+- **`UploadedFile::fake()` MIME TÜRÜNÜ DE UYDURUYOR.** Uzantıdan
+  türetiyor; yani "içeriği PHP ama adı .png" senaryosunu **ölçemezsin** —
+  doğrulama `image/png` görür ve test yeşil kalır. İçerik tabanlı tür
+  kontrolünü sınayan testte **gerçek dosya** yaz ve `new UploadedFile(...)`
+  ile gönder (4G'de ölçüldü).
+- **SVG LOGO/GÖRSEL KABUL EDİLMEZ.** XML belgesidir ve `<script>`
+  taşıyabilir; tarayıcı `<img>` içinde çalıştırmasa da doğrudan açıldığında
+  çalıştırır. Marka kendi vitrininde betik çalıştırabilseydi 4-K5'in
+  kapattığı kapı yeniden açılırdı.
+- **`tenant_asset()` `app/Domain/` İÇİNDEN ÇAĞRILAMAZ** (M-2.7): Domain
+  doğrulanmış YOLU döndürür, adresi HTTP katmanı kurar. 4A'da logo yolu
+  doğrudan `src`'ye basılıyordu; 4G'de yükleme gelince o hâliyle **kırık
+  görsel** çıkardı.
 - **VERİ DÖKÜMÜNDE TABLO LİSTESİNİ DARALTMAK YETMEZ — KOLON da temizlenir.**
   4F'de ölçüldü: marka dökümüne `customers.password` üzerinden **bcrypt
   hash'leri** girmişti. Sorun tablonun kendisi değil içindeki kolondu.

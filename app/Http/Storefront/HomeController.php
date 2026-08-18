@@ -75,6 +75,7 @@ class HomeController extends Controller
         | 4G'de yeni düzen eklenince buraya bir kol eklenecek.
         */
         $gorunum = match ($this->tema->duzen()) {
+            'vitrinli' => 'storefront.vitrinli.anasayfa',
             default => 'storefront.sade.anasayfa',
         };
 

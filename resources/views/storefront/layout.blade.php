@@ -174,6 +174,12 @@
         .onay { flex-direction: row !important; align-items: flex-start; gap: 8px; margin: 16px 0; }
         .onay input { margin-top: 4px; }
 
+        /* "VİTRİNLİ" DÜZENİ (4G) — yalnızca yerleşim farkı, ayrı tema değil */
+        .karsilama { padding: 48px 0 8px; text-align: center; }
+        .karsilama h1 { font-size: 34px; margin: 0 0 8px; }
+        .karsilama p { color: #78716c; margin: 0; }
+        .urun-genis { grid-template-columns: 1fr; max-width: 720px; margin: 0 auto; }
+
         /* SONUÇ */
         .sonuc { padding: 56px 0; text-align: center; }
         .siparis-no { font-size: 17px; }

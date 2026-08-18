@@ -1690,3 +1690,57 @@ BİTİŞ ÖLÇÜTÜ  marka HİÇ curl kullanmadan mağazasını kurar; müşteri
         doğrulama için açılan geçici merkez hesabı SİLİNDİ
       ⚠️ YAPILMAYAN: abonelik başlatma/iptal ekranı · marka silme ekranı
         (geri alınamaz işlem için bilinçli) · merkez kullanıcı yönetimi
+
+4G ✅  TEMA EKRANI — 13 test (toplam 642)
+      4-K5'in arayüzü: marka SEÇER, ŞABLON YAZMAZ
+
+      ekran bilerek KISITLI: renk kutusu · sabit yazı tipi listesi ·
+      sabit düzen listesi · logo yükleme
+      SERBEST METİN ALANI (özel CSS/HTML) YOK
+      ⚠️ doğrulama İKİ YERDE, farklı iş: panelde ANLAŞILIR HATA için,
+        okuma yolunda GÜVENLİK için (ayar artisan/SQL ile de girebiliyor)
+
+      4G-K1 İKİNCİ DÜZEN GELDİ: `vitrinli`
+        4A'da liste tek elemanlıydı; gerekçesi "sonradan eklemek, kavramı
+        sonradan icat etmekten kolay"dı — DOĞRU ÇIKTI: bir klasör + bir satır
+        ⚠️ düzen yalnızca GÖZ ALICI sayfaları değiştiriyor (ana sayfa, ürün)
+          sepet/ödeme/dönüş kopyası YOK: kopyalansalardı iki dosya arasında
+          bir gün fark oluşur ve müşteri SEÇTİĞİ DÜZENE GÖRE FARKLI BİR
+          ÖDEME AKIŞI yaşayabilirdi
+
+      4G-K2 logo, ürün görselleriyle AYNI güvenlik seviyesinde
+        tür DOSYANIN İÇERİĞİNDEN · ad/uzantı istemciden alınmıyor ·
+        eski logo yenisi gelince siliniyor
+        ⚠️ SVG KABUL EDİLMİYOR: XML belgesidir, <script> taşıyabilir
+
+      ★★ KIRMA DENEMESİ İKİNCİ SAVUNMANIN ÖLÇÜLMEDİĞİNİ GÖSTERDİ
+        servisin tür kontrolünü kaldırdım, panel testi DÜŞMEDİ —
+        Laravel'in mimes: kuralı zaten yakalıyordu
+        ⚠️ savunma ÖLÜ DEĞİLDİ, TESTİ EKSİKTİ — fark önemli: servis
+          artisan'dan da çağrılabilir, orada Laravel doğrulaması yok
+        2F/3E'de ölü savunmalar KALDIRILMIŞTI; bu ÖLÇÜLDÜ
+
+      ★ TEST YARDIMCISI YİNE ÖLÇÜLECEK ŞEYİ YOK EDİYORDU
+        UploadedFile::fake() MIME TÜRÜNÜ DE UYDURUYOR (uzantıdan)
+        "içeriği PHP ama adı .png" senaryosu hiç ölçülmüyordu, test yeşildi
+        → gerçek dosya yazıldı
+        ⚠️ 2E (postJson başlığı) ve 4A (getJson çerezi) ile AYNI AİLE
+
+      ★ 4A'DAN KALAN SESSİZ HATA KAPANDI
+        logo yolu doğrudan src'ye basılıyordu; 4A'da yükleme olmadığı için
+        görünmüyordu, 4G'de KIRIK GÖRSEL çıkardı
+        adres artık HTTP katmanında tenant_asset() ile (Domain kiracılığı
+        bilemez, M-2.7)
+
+      ★ ROTA YİNE YANLIŞ GRUBA DÜŞTÜ
+        izin:order.refund kalıbı iki yerde; ilk eşleşme API grubuydu ve
+        tema rotaları panel/tema olarak kaydoldu → route:list ile yakalandı
+        4D'nin dersi tekrarlandı
+
+      DOĞRULANDI (gerçek tarayıcı)
+        tema sayfası seçeneklerle açıldı · vitrinli düzenine geçildi →
+        KARŞILAMA BÖLÜMÜ + mor renk + serif göründü · geçersiz renk
+        REDDEDİLDİ, enjeksiyon izi yok · logo yüklendi, kiracıya özel
+        adresten 200 · deneme değişiklikleri GERİ ALINDI
+      ⚠️ YAPILMAYAN: canlı önizleme · ana sayfa blok sırası · marka başına
+        özel yazı tipi yükleme

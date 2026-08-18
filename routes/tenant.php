@@ -23,6 +23,7 @@ use App\Http\Panel\RoleController;
 use App\Http\Panel\SettingsController;
 use App\Http\Panel\StaffController;
 use App\Http\Panel\StoreController;
+use App\Http\Panel\ThemePageController;
 use App\Http\Storefront\AddressController;
 use App\Http\Storefront\AuthController as VitrinAuth;
 use App\Http\Storefront\CartController;
@@ -705,6 +706,21 @@ Route::middleware([
 
             Route::delete('/siparisler/{siparis:uuid}/paketler/{paket:uuid}', [OrderPageController::class, 'paketIptal'])
                 ->withoutScopedBindings()->name('panel.paket.iptal');
+        });
+
+        /*
+        | TEMA (4G) — markanın vitrinini biçimlendirdiği ekran.
+        |
+        | ⚠️ `settings.write` izni: tema mağazanın YÜZÜ ve onu değiştirmek
+        | ayarları değiştirmektir. Ayrı bir izin açılsaydı "temayı
+        | değiştirebilen ama iletişim bilgisini değiştiremeyen" gibi
+        | pratikte hiç kullanılmayan bir rol türü doğardı.
+        */
+        Route::middleware('izin:settings.write')->group(function () {
+            Route::get('/tema', [ThemePageController::class, 'index'])->name('panel.tema');
+            Route::post('/tema', [ThemePageController::class, 'kaydet'])->name('panel.tema.kaydet');
+            Route::post('/tema/logo', [ThemePageController::class, 'logoYukle'])->name('panel.tema.logo');
+            Route::delete('/tema/logo', [ThemePageController::class, 'logoKaldir'])->name('panel.tema.logo.sil');
         });
 
         Route::middleware('izin:order.refund')->group(function () {

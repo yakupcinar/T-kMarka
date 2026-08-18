@@ -29,8 +29,25 @@ class StorefrontViewData
 
     public function compose(View $gorunum): void
     {
+        $goruntu = $this->tema->goruntu();
+
+        /*
+        | ★ LOGO ADRESİ BURADA ÜRETİLİYOR — [ThemeSettings]'te DEĞİL. (4G)
+        |
+        | ⚠️ `tenant_asset()` bir KİRACILIK yardımcısı; `app/Domain/`
+        | altındaki hiçbir sınıf "hangi kiracıdayım" diye soramaz (M-2.7,
+        | ölçülüyor). Domain doğrulanmış YOLU veriyor, adresi HTTP katmanı
+        | kuruyor.
+        |
+        | ⚠️ 4A'da logo yükleme yoktu ve yol doğrudan `src`'ye basılıyordu;
+        | 4G'de yükleme gelince o hâliyle KIRIK GÖRSEL çıkardı.
+        */
+        $goruntu['logo'] = $goruntu['logo'] === null
+            ? null
+            : tenant_asset($goruntu['logo']);
+
         $gorunum->with([
-            'tema' => $this->tema->goruntu(),
+            'tema' => $goruntu,
             'sepetAdedi' => $this->sepetAdedi(),
         ]);
     }
