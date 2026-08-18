@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\EnsureSessionTenant;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Panel\AuthController as PanelAuth;
 use App\Http\Panel\CategoryController;
@@ -23,6 +24,7 @@ use App\Http\Panel\RoleController;
 use App\Http\Panel\SettingsController;
 use App\Http\Panel\StaffController;
 use App\Http\Panel\StoreController;
+use App\Http\Panel\StorePageController;
 use App\Http\Panel\ThemePageController;
 use App\Http\Storefront\AddressController;
 use App\Http\Storefront\AuthController as VitrinAuth;
@@ -601,6 +603,13 @@ Route::middleware([
     // daraltıldı): kontrol düzleminin kendi yüzeyi var ve ikisi global
     // olsaydı kök görünümü sonuncusu belirlerdi.
     HandleInertiaRequests::class,
+
+    /*
+    | ★ OTURUM AÇILDIĞI MARKAYA BAĞLI (4H) — gerçek bir açığı kapatıyor:
+    | A markasının oturum çerezi B'nin panelini açıyordu. Gerekçenin
+    | tamamı [EnsureSessionTenant]'da.
+    */
+    EnsureSessionTenant::class,
 ])->prefix('yonetim')->group(function () {
 
     /*
@@ -717,6 +726,17 @@ Route::middleware([
         | pratikte hiç kullanılmayan bir rol türü doğardı.
         */
         Route::middleware('izin:settings.write')->group(function () {
+            /*
+            | MAĞAZA AYARLARI VE YAYINA ALMA (4H).
+            |
+            | ★ Bitiş ölçütünün eksik halkasıydı: marka `curl` olmadan
+            | mağazasını AÇAMIYORDU.
+            */
+            Route::get('/magaza', [StorePageController::class, 'index'])->name('panel.magaza');
+            Route::post('/magaza', [StorePageController::class, 'kaydet'])->name('panel.magaza.kaydet');
+            Route::post('/magaza/yayinla', [StorePageController::class, 'yayinla'])->name('panel.magaza.yayinla');
+            Route::post('/magaza/kapat', [StorePageController::class, 'kapat'])->name('panel.magaza.kapat');
+
             Route::get('/tema', [ThemePageController::class, 'index'])->name('panel.tema');
             Route::post('/tema', [ThemePageController::class, 'kaydet'])->name('panel.tema.kaydet');
             Route::post('/tema/logo', [ThemePageController::class, 'logoYukle'])->name('panel.tema.logo');

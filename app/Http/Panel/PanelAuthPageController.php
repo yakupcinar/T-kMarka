@@ -4,6 +4,7 @@ namespace App\Http\Panel;
 
 use App\Domain\Identity\StaffAuthService;
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\EnsureSessionTenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -48,6 +49,16 @@ class PanelAuthPageController extends Controller
         | oturumla panele girerdi.
         */
         $istek->session()->regenerate();
+
+        /*
+        | ★ OTURUMA MARKANIN KİMLİĞİ DAMGALANIYOR. (4H)
+        |
+        | ⚠️ Damga olmadan oturum yalnızca kullanıcı `id`'si tutuyor ve
+        | guard onu İSTEĞİN kiracısından çözüyor — yani A markasının
+        | çerezi B'nin panelini açabiliyordu (ölçüldü). Gerekçenin tamamı
+        | [EnsureSessionTenant]'da.
+        */
+        $istek->session()->put(EnsureSessionTenant::ANAHTAR, (string) tenant('id'));
 
         return redirect()->intended(route('panel.pano'));
     }

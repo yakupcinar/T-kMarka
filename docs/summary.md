@@ -1744,3 +1744,88 @@ BİTİŞ ÖLÇÜTÜ  marka HİÇ curl kullanmadan mağazasını kurar; müşteri
         adresten 200 · deneme değişiklikleri GERİ ALINDI
       ⚠️ YAPILMAYAN: canlı önizleme · ana sayfa blok sırası · marka başına
         özel yazı tipi yükleme
+
+4H ✅  MAĞAZA YAYINA ALMA + KAPANIŞ — 6 test
+
+      ★ BİTİŞ ÖLÇÜTÜNÜN EKSİK HALKASI BULUNDU
+        kapanışa başlarken ölçütü madde madde denetledim:
+        4C-4G giriş/ürün/sipariş/temayı getirmişti ama MAĞAZAYI YAYINA
+        ALMA EKRANI YOKTU — marka curl olmadan mağazasını AÇAMIYORDU
+        → kapanış özeti yerine önce o ekran yazıldı
+
+      ★★★ GERÇEK BİR AÇIK: A'NIN OTURUMU B'NİN PANELİNİ AÇIYORDU
+        A'da giriş yap → çerez → aynı çerezle B'nin paneli → 200
+        sebep: oturum yalnızca kullanıcı id'sini tutuyor, guard onu
+        İSTEĞİN KİRACISININ şemasından çözüyor; iki markada da id=1
+        olan birer kullanıcı var
+        ⚠️ bugün tarayıcı yapmaz (SESSION_DOMAIN=null) AMA 3D'deki kayıt
+          markalara ALT ALAN ADI veriyor; biri SESSION_DOMAIN'i
+          .tikmarka.com yaparsa HER MARKA HER PANELİ AÇAR
+          → tek savunma bir ORTAM DEĞİŞKENİYDİ
+        çözüm: girişte oturuma marka damgası, her istekte doğrulama
+
+      ★★ ÇÖZÜMÜN İLK HÂLİ ÇALIŞMADI — SEBEBİ ÇOK SİNSİ
+        LARAVEL MIDDLEWARE'LERİ ÖNCELİK LİSTESİNE GÖRE SIRALIYOR:
+        kontrol `auth`tan ÖNCE yazılıydı ama SONRA koştu
+        belirti tuzak: middleware çalışıyor, uyuşmazlığı görüyor,
+        logout() işini yapıyor, controller'a check()===false ile
+        giriliyor — AMA SAYFA YİNE 200 DÖNÜYOR
+        prependToPriorityList denendi, TUTMADI
+        doğrusu: uyuşmazlıkta $next HİÇ ÇAĞRILMASIN, middleware kendi
+        cevabını döndürsün → zincirin neresinde olduğu fark etmez
+
+      DOĞRULANDI: bitiş ölçütünün tamamı TEK TESTTE yürüyor; her adım
+      BİR ÖNCEKİ EKRANDAN gelen bilgiyle (kimlikler modelden okunmuyor)
+
+════════════ ✅ FAZ 4 TAMAMLANDI ════════════
+648 test · lint · analyse · CI hepsi yeşil     (Faz 3 sonu: 549 → +99)
+
+Faz 3'te ürün kendi kendini satıyordu ama HER ŞEY CURL İLEYDİ.
+Artık üç yüzeyin de ekranı var:
+  müşteri tarayıcıdan alışveriş yapıyor
+  marka panelden mağazasını yönetiyor
+  biz kontrol düzleminden markaları görüyoruz
+
+FAZ 4'ÜN TAŞIYICI DERSİ — Faz 3'ün üstüne:
+
+  ★ ARAYÜZ KATMANI SESSİZ HATANIN YENİ EVİ
+    sunucu 200, testler yeşil, veri doğru — kullanıcı BOŞ SAYFA görüyor
+    bu fazda ÜÇ KEZ oldu:
+      4C  panel boş sayfa    asset_helper_tenancy betiği kiracı yoluna
+                             yazıyordu (testler withoutVite ile yeşil)
+      4D  bütün sayfalar 500 Inertia DevTools storage'a yazıyordu; hata
+                             file_put_contents'ten, yığın izinde sayfa yok
+      4H  oturum kontrolü    middleware doğru çalışıyor ama öncelik
+          hiç işlemiyordu    listesi onu Authenticate'ten sonraya atıyor
+
+  ★★ TEST YARDIMCISI ÜÇÜNCÜ KEZ ÖLÇÜLECEK ŞEYİ YOK ETTİ
+    2E  postJson            Accept başlığını SESSİZCE ekliyor
+    4A  getJson             şifresiz çerezi SESSİZCE düşürüyor
+    4G  UploadedFile::fake  MIME türünü SESSİZCE uyduruyor
+    üçünde de test yeşildi ve HİÇBİR ŞEY ÖLÇMÜYORDU
+
+  ★★ KIRMA DENEMESİ ÜÇ AYRI ŞEY BULUYOR
+    yalan test (2C…4A) · hiç yazılmamış test (4E) ·
+    ölçülmemiş ikinci savunma (4G)
+    ⚠️ ve 4D'de dördüncüsü: KIRMA DENEMESİNİN KENDİSİ YANLIŞ YERİ
+      KIRABİLİR — aynı kalıp iki dosyada geçiyordu, ilk eşleşme bozuldu,
+      test "geçti" ve YANLIŞ GÜVEN doğdu → artık grep/route:list ile
+      değişikliğin uygulandığı doğrulanıyor
+
+  ★ AYNI PROJEDE İKİ FARKLI TEST YÖNTEMİ
+    vitrin  sunucuda render → METİN aranır      (assertSee)
+    panel   tarayıcıda render → PROP incelenir  (component + props)
+    karıştırmak testi yalancı yapıyor (4D'de oldu)
+
+  ★ ARAYÜZ, ALTINDAKİ KARARLARI YENİDEN GÜNDEME GETİRDİ
+    ForceJson global (2E)      → api grubuna daraltıldı
+    sepet kimliği başlıkta     → çerez eklendi, başlık kaldı
+    "oturum kullanmıyoruz"     → gerekçe geçersiz, staff-web açıldı
+    route() merkezde           → göreli yola geçildi
+
+AÇIK BORÇLAR — FAZ 5'E
+  IyzicoSubscriptionProvider (Faz 3'ten) · müşteri hesabı ekranları ·
+  görsel yükleme ekranı · kategori/koleksiyon ekranları ·
+  abonelik ekranı · declare(strict_types=1)
+
+FAZ 5 SIRADA — entegrasyonlar: kargo firmaları · e-fatura/e-arşiv

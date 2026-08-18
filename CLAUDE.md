@@ -207,6 +207,25 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   valid cache path`). Veritabanı testte ayrı (`tikmarka_test`) ama **disk
   ayrı değil**. Kural: dosya silen her servis **kök parametresi** almalı ve
   test kendi geçici klasöründe çalışmalı.
+- **OTURUM TABANLI KİMLİK ÇOK KİRACILIKTA KENDİLİĞİNDEN GÜVENLİ DEĞİL.**
+  Oturum yalnızca kullanıcı `id`'sini tutuyor; guard onu **isteğin
+  kiracısının** şemasından çözüyor. İki markada da `id = 1` olan birer
+  kullanıcı varsa **A'nın oturum çerezi B'nin panelini açar** — 4H'de
+  ölçüldü, 200 dönüyordu. Bugün tarayıcı bunu yapmaz (`SESSION_DOMAIN=null`
+  → çerez alan adına bağlı) ama koruma ona bırakılamaz: 3D'deki kayıt
+  markalara **alt alan adı** veriyor ve biri `SESSION_DOMAIN`'i
+  `.tikmarka.com` yaparsa her marka her paneli açar. Çözüm: girişte
+  oturuma marka kimliği damgalanıyor, her istekte doğrulanıyor
+  (`EnsureSessionTenant`).
+- **LARAVEL MIDDLEWARE'LERİ ÖNCELİK LİSTESİNE GÖRE YENİDEN SIRALIYOR —
+  rota grubunda yazdığın sıra SESSİZCE geçersiz olabilir.** 4H'de ısırdı:
+  kontrol middleware'i `auth:staff-web`'den önce yazılıydı ama sonra koştu
+  (`Authenticate` öncelik listesinde, bizimki değildi). Belirti çok
+  yanıltıcı — middleware çalışıyor, uyuşmazlığı doğru görüyor, `logout()`
+  işini yapıyor, controller'a `check() === false` ile giriliyor, **ama
+  sayfa yine 200 dönüyor**. ⚠️ `prependToPriorityList` denendi, tutmadı.
+  Doğrusu: kontrol middleware'i uyuşmazlıkta `$next`'i **çağırmayıp kendi
+  cevabını döndürsün** — o zaman zincirin neresinde olduğu fark etmez.
 - **`UploadedFile::fake()` MIME TÜRÜNÜ DE UYDURUYOR.** Uzantıdan
   türetiyor; yani "içeriği PHP ama adı .png" senaryosunu **ölçemezsin** —
   doğrulama `image/png` görür ve test yeşil kalır. İçerik tabanlı tür

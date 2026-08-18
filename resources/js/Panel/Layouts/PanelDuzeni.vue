@@ -22,6 +22,7 @@ const menu = [
   { ad: 'Ürünler', yol: '/yonetim/urunler', izin: 'product.write' },
   { ad: 'Siparişler', yol: '/yonetim/siparisler', izin: 'order.view' },
   { ad: 'İadeler', yol: '/yonetim/iadeler', izin: 'order.view' },
+  { ad: 'Mağaza', yol: '/yonetim/magaza', izin: 'settings.write' },
   { ad: 'Tema', yol: '/yonetim/tema', izin: 'settings.write' },
 ]
 

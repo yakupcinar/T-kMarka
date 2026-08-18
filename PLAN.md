@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ────────────── şu an: FAZ 4 · 4A bitti ──────┐
+┌─ YOL HARİTASI ─────────── şu an: FAZ 4 BİTTİ, FAZ 5 SIRADA ┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -29,15 +29,15 @@
 │                    ╰ çıktı: ürün kendi kendini satıyor         │
 │                      ✅ borç 4F'de kapandı: veri dışa aktarma  │
 │                                                                │
-│  4 · ARAYÜZ  ◀ AÇILDI — M-3 verildi: yüzeye göre bölünmüş      │
+│  4 · ARAYÜZ ✅ M-3: yüzeye göre bölünmüş yığın                 │
 │     vitrin Blade · panel+yönetim Inertia+Vue · SSR YOK         │
-│     ✅ 4A vitrin → ✅ 4B akış → ✅ 4C panel → ✅ 4D katalog     │
-│     ✅ 4E sipariş → ✅ 4F yönetim → ✅ 4G tema → 4H kapanış     │
-│  5 · ENTEGRASYON   kargo · e-fatura                            │
+│     ✅ 4A vitrin → ✅ 4B akış → ✅ 4C panel → ✅ 4D katalog    │
+│     ✅ 4E sipariş → ✅ 4F yönetim → ✅ 4G tema → ✅ 4H kapanış │
+│  5 · ENTEGRASYON ◀ SIRADA — kargo · e-fatura                  │
 │  6 · DAĞITIM       yayın · yedekleme · izleme                  │
 │                                                                │
 │  Kural: bir blok bitmeden sonrakine geçilmez.                  │
-│  642 test · lint · analyse · CI hepsi yeşil                    │
+│  648 test · lint · analyse · CI hepsi yeşil                    │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -4739,6 +4739,167 @@ edildi · deneme değişiklikleri geri alındı.
 **⚠️ Bu blokta YAPILMAYAN:** canlı önizleme (kaydetmeden görme) · ana sayfa
 blok sırası ayarı · marka başına özel yazı tipi yükleme (dosya yükleme
 yüzeyi genişletmek demek, ölçüm olmadan eklenmiyor).
+
+---
+
+### 4H — BİTTİ ✅ (6 test)
+
+Kod: `app/Http/Panel/StorePageController.php` ·
+`app/Http/Middleware/EnsureSessionTenant.php` · `PanelAuthPageController`
+(oturum damgası) · `resources/js/Panel/Pages/Magaza.vue` ·
+`routes/tenant.php` · `tests/Tenancy/Faz4KapanisTest.php`
+
+**★ BİTİŞ ÖLÇÜTÜNÜN EKSİK HALKASI BULUNDU: yayına alma ekranı yoktu.**
+
+Kapanışa başlarken ölçütü madde madde denetledim. 4C-4G giriş, ürün,
+sipariş ve temayı getirmişti ama **mağazayı yayına alma ekranı yoktu** —
+yani marka `curl` olmadan mağazasını **açamıyordu**. Kapanış özeti yazmak
+yerine önce o ekran yazıldı (`/yonetim/magaza`).
+
+> ⚠️ Eksikler **tek seferde** listeleniyor; tek tek bildirilseydi marka
+> altı kez "yayınla → eksik" turu atardı. Düğme eksik varken de
+> gösteriliyor ama sunucu reddedip **sebebini yazıyor**: gizlemek, markaya
+> neden açamadığını söylemeden yolu kapatmak olurdu.
+
+---
+
+**★★★ GERÇEK BİR AÇIK BULUNDU VE KAPANDI: bir markanın oturumu başka
+markanın panelini açıyordu.**
+
+```
+A markasında giriş yap        → oturum çerezi
+aynı çerezle B'nin paneline   → 200, PANEL AÇILIYOR
+```
+
+Sebep: oturum yalnızca kullanıcı `id`'sini tutuyor ve guard onu **isteğin
+kiracısının** şemasından çözüyor. İki markada da `id = 1` olan birer
+kullanıcı olduğu için A'nın oturumu B'de geçerli sayılıyordu.
+
+> ⚠️ **Bugün tarayıcı bunu yapmaz** — oturum çerezi alan adına bağlı
+> (`SESSION_DOMAIN=null`). Ama koruma buna bırakılamaz: **3D'deki
+> self-servis kayıt markalara alt alan adı veriyor** (`marka.tikmarka.com`)
+> ve biri `SESSION_DOMAIN`'i `.tikmarka.com` yaparsa — ki alt alan adları
+> arasında oturum paylaşmak için yapılan tek şey budur — **her markanın
+> oturumu her markanın panelini açar**. Yani tek savunma bir ortam
+> değişkeniydi.
+
+Çözüm: girişte oturuma marka kimliği damgalanıyor, her istekte
+doğrulanıyor (`EnsureSessionTenant`).
+
+**★★ VE ÇÖZÜMÜN İLK HÂLİ ÇALIŞMADI — sebebi çok sinsiydi.**
+
+Middleware rota grubunda `auth:staff-web`'den **önce** yazılıydı ama
+çalışma sırasında **sonra** koştu: **Laravel middleware'leri öncelik
+listesine göre yeniden sıralıyor** ve `Authenticate` o listede, bizimki
+değildi.
+
+> ⚠️ Belirti tam bir tuzaktı: middleware çalışıyor, uyuşmazlığı doğru
+> görüyor, `logout()` işini yapıyor, controller'a `check() === false` ile
+> giriliyor — **ama sayfa yine 200 dönüyordu**. Kimlik doğrulama kapıyı
+> zaten açmıştı.
+>
+> `prependToPriorityList` ile sırayı düzeltmeyi denedim, **tutmadı**.
+> Doğrusu: uyuşmazlıkta `$next` hiç çağrılmıyor, middleware kendi
+> cevabını döndürüyor — o zaman zincirin neresinde olduğu fark etmiyor.
+
+**★★ Üç kırma denemesi, üçü de düştü:** oturum damgasını kaldırma ·
+middleware'in isteği kesmesini kaldırma · yayın kontrolünü atlama.
+
+**Doğrulandı:** bitiş ölçütünün tamamı **tek testte** yürüyor — marka
+giriş yapıyor, ürün ekliyor, temasını seçiyor, mağazasını yayına alıyor;
+müşteri tarayıcıdan ürünü buluyor, sepete atıyor, ödüyor; marka siparişi
+panelden görüp kargolıyor. ⚠️ Her adım **bir önceki ekrandan gelen**
+bilgiyle yürüyor, kimlikler modelden okunmuyor (1D.6'nın dersi).
+
+---
+
+## ✅ FAZ 4 KAPANIŞ — arayüz
+
+**648 test · lint · analyse · CI hepsi yeşil.** (Faz 3 sonu 549 → **+99**)
+
+| blok | ne getirdi | test |
+|---|---|---|
+| 4A | vitrin iskeleti — Blade, tema ayarı beyaz listeyle, sepet çerezi | 15 |
+| 4B | vitrin akışı — ürün · sepet · ödeme, JS'siz formlar | 12+1 |
+| 4C | panel iskeleti — Inertia + Vue, oturum kimliği, yetki köprüsü | 12 |
+| 4D | katalog yönetimi — ürün ekleme görünür hâle geldi | 10 |
+| 4E | sipariş ve iade ekranları — üç katmanlı yetki | 15 |
+| 4F | kontrol düzlemi — ve Faz 3'ün veri dışa aktarma borcu | 15 |
+| 4G | tema — renk, yazı tipi, ikinci düzen, logo | 13 |
+| 4H | mağaza yayına alma + kapanış | 6 |
+
+Faz 3'te ürün kendi kendini satıyordu ama **her şey `curl` ileydi**.
+Artık üç yüzeyin de ekranı var: müşteri tarayıcıdan alışveriş yapıyor,
+marka panelden mağazasını yönetiyor, biz kontrol düzleminden markaları
+görüyoruz.
+
+### ★ FAZIN TAŞIYICI DERSİ
+
+**Faz 3'te "yeşil kod yetmiyor" demiştik; Faz 4 bunu bir adım öteye
+taşıdı: ARAYÜZ KATMANI SESSİZ HATANIN YENİ EVİ.**
+
+Sunucu 200 dönüyor, testler yeşil, veri doğru — ve kullanıcı bomboş bir
+sayfa görüyor. Bu blokta **üç kez** oldu:
+
+| ne oldu | neden görünmedi |
+|---|---|
+| 4C · panel **boş sayfa** açılıyordu | `asset_helper_tenancy` betiği kiracı yoluna yazıyordu; sunucu 200, HTML doğru, testler `withoutVite()` |
+| 4D · panelin **bütün sayfaları 500** | Inertia DevTools storage'a yazıyordu; hata `file_put_contents`'ten, yığın izinde sayfa kodu yok |
+| 4H · oturum kontrolü **hiç çalışmıyordu** | middleware doğru çalışıyor ama öncelik listesi onu `Authenticate`'ten sonraya atıyordu |
+
+**★★ TEST YARDIMCISI ÜÇÜNCÜ KEZ ÖLÇÜLECEK ŞEYİ YOK ETTİ**
+
+```
+2E  postJson            Accept başlığını SESSİZCE ekliyor
+4A  getJson             şifresiz çerezi SESSİZCE düşürüyor
+4G  UploadedFile::fake  MIME türünü SESSİZCE uyduruyor
+```
+
+Üçünde de test yeşildi ve **hiçbir şey ölçmüyordu**. Kural artık net:
+*yardımcının kolaylığı, ölçtüğün şeyin ta kendisini ortadan
+kaldırıyor olabilir.*
+
+**★★ KIRMA DENEMESİ ÜÇ AYRI ŞEY BULUYOR**
+
+| ne bulur | örnek |
+|---|---|
+| **yalan test** — yeşil ama ölçmüyor | 2C…4A |
+| **hiç yazılmamış test** | 4E · stok açığı sıralaması |
+| **ölçülmemiş ikinci savunma** | 4G · logo tür kontrolü |
+
+⚠️ Ve 4D'de bir dördüncüsü: **kırma denemesinin kendisi yanlış yeri
+kırabilir.** Aynı kalıp iki dosyada geçiyordu; ilk eşleşme bozuldu, test
+"geçti" ve testin sağlamlığı hakkında **yanlış güven** doğdu. Artık
+değişikliğin uygulandığı `grep`/`route:list` ile doğrulanıyor.
+
+**★ AYNI PROJEDE İKİ FARKLI TEST YÖNTEMİ**
+
+```
+vitrin  sunucuda render → METİN aranır       (assertSee)
+panel   tarayıcıda render → PROP incelenir   (component + props)
+```
+
+Karıştırmak testi yalancı yapıyor (4D'de oldu).
+
+**★ ARAYÜZ, ALTINDAKİ KARARLARI YENİDEN GÜNDEME GETİRDİ**
+
+| karar | ne oldu |
+|---|---|
+| `ForceJson` global (2E) | arayüz gelince her sayfa "JSON istiyorum" sayılıyordu → `api` grubuna daraltıldı |
+| sepet kimliği başlıkta (1C-K1) | tarayıcı düz gezinmede başlık gönderemiyor → çerez eklendi, başlık kaldı |
+| "oturum kullanmıyoruz" (1A.0) | panel markanın kendi alan adında → gerekçe geçersiz, `staff-web` açıldı |
+| `route()` merkezde | çok alan adlı merkezde ilkini üretiyor → göreli yola geçildi |
+
+### Açık borçlar — Faz 5'e gidiyor
+
+| borç | not |
+|---|---|
+| `IyzicoSubscriptionProvider` | Faz 3'ten devrediyor — gerçek sağlayıcı + sandbox doğrulaması |
+| müşteri hesabı ekranları | giriş/kayıt · adres defteri · sipariş geçmişi · yorum yazma (uçları var, sayfaları yok) |
+| görsel yükleme ekranı | ürün görselleri (uç var, panel ekranı yok) |
+| kategori ve koleksiyon ekranları | uçları var |
+| abonelik ekranı | 3E'nin uçları var, kontrol düzleminde ekranı yok |
+| `declare(strict_types=1)` | tek Pint kuralı, 0.3'ten devrediyor |
 
 ---
 
