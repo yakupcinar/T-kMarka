@@ -2091,3 +2091,32 @@ AÇIK BORÇLAR → FAZ 5
   toplu işlemler · declare(strict_types=1)
 
 FAZ 5 SIRADA — kargo firmaları · e-fatura/e-arşiv
+
+4.5G ✅ KULLANIMDAN ÇIKAN DÜZELTMELER — 724 test
+      ⚠️ üçü de TESTLER YEŞİLKEN vardı
+
+      ✅ ADRES FORMUNDA `title` ALANI YOKTU
+        AddressRequest zorunlu tutuyor, ekranda karşılığı yok →
+        ADRES DEFTERİ HİÇ KULLANILAMIYORDU
+        ⚠️ testler göremezdi: hepsi ornekAdres() ile TAM veri gönderiyordu
+          eksik olan sunucu değil EKRANDI
+        yeni test FORMUN HTML'İNE bakıyor
+
+      ℹ️ ürün oluşturma yönlendirmesi: ölçüldü, ZATEN doğru çalışıyor
+
+      ✅ ÖDEME — İKİ AYRI SORUN
+        1) DOĞRULAMAMIZ SAĞLAYICIDAN GEVŞEKTİ
+           a@a bizim email kuralımızı geçiyor, iyzico reddediyor
+           ⚠️ bedeli ZAMANLAMA: sipariş OLUŞUYOR, stok bağlanıyor,
+             ödeme SONRA patlıyor → stok 60 dk kimseye satılamıyor
+           DeliverableEmail: nokta + en az iki harflik TLD
+           ⚠️ DNS SORGUSU YOK: ödeme akışında ağa çıkmak isteği
+             yavaşlatır, ağ kesintisinde satışı durdururdu
+        2) PaymentProviderException TARAYICIYA JSON DÖNÜYORDU
+           4A ve 4B'de düzeltilen hatanın ÜÇÜNCÜSÜ
+           sağlayıcının mesajı hâlâ müşteriye gitmiyor, yalnızca SUNUM
+           biçimi ayrıldı
+
+      DOĞRULANDI (gerçek tarayıcı)
+        a@a → 302 → /odeme, "alan adı geçersiz görünüyor", SİPARİŞ YOK
+        geçerli e-posta → sipariş → GERÇEK iyzico sandbox formu

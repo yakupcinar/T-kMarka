@@ -6,6 +6,8 @@ use App\Domain\Legal\LegalDocumentService;
 use App\Domain\Order\CheckoutService;
 use App\Domain\Payment\FakePaymentProvider;
 use App\Domain\Payment\PaymentInitiation;
+use App\Domain\Payment\PaymentProviderException;
+use App\Domain\Payment\PaymentService;
 use App\Domain\Settings\StorePublication;
 use App\Enums\LegalDocumentType;
 use App\Enums\ProductStatus;
@@ -232,4 +234,93 @@ it('★ SAHTE saglayici da gomulebilir — gelistirmede iframe yolu olculuyor', 
     ['referans' => $referans] = bildirimeHazirSiparis('marka-b.test');
 
     expect($referans)->toStartWith('FAKE-');
+});
+
+/*
+|--------------------------------------------------------------------------
+| ★★ 4.5G — GERÇEK KULLANIMDA BULUNAN İKİ HATA
+|--------------------------------------------------------------------------
+*/
+
+it('★★ DOGRULAMAMIZ SAGLAYICIDAN GEVSEK OLAMAZ — a@a reddediliyor', function () {
+    ['token' => $token, 'sozlesme' => $sozlesme] = odemeyeHazirSepet($this);
+
+    /*
+    | ★ GERÇEK KULLANIMDA BULUNDU. Laravel'in `email` kuralı `a@a`'yı
+    | kabul ediyor, iyzico reddediyor:
+    |
+    |     [iyzico] email hatalı format ile gönderilmiştir
+    |
+    | ⚠️ Bedeli sadece çirkin bir hata değil, ZAMANLAMASI: doğrulama
+    | geçtiği için SİPARİŞ OLUŞUYOR, stok bağlanıyor ve ödeme ondan sonra
+    | patlıyordu — bağlı stok 60 dakika kimseye satılamıyordu.
+    */
+    foreach (['a@a', 'a@aa', 'musteri@localhost'] as $gecersiz) {
+        $cevap = $this->withUnencryptedCookie(CartToken::CEREZ, $token)
+            ->post('http://marka-a.test/odeme', [
+                'email' => $gecersiz,
+                'legal_version_id' => $sozlesme->id,
+                'sozlesme_onay' => '1',
+                'shipping' => [
+                    'full_name' => 'Ayse Yilmaz', 'phone' => '+905551112233',
+                    'city' => 'Istanbul', 'district' => 'Kadikoy', 'line1' => 'Test Cad. No:1',
+                ],
+            ]);
+
+        $cevap->assertSessionHasErrors('email');
+    }
+
+    // ⚠️ ASIL ÖLÇÜM: hiçbir sipariş OLUŞMAMALI.
+    expect(Order::count())->toBe(0);
+});
+
+it('★ GECERLI alan adi kabul ediliyor', function () {
+    ['token' => $token, 'sozlesme' => $sozlesme] = odemeyeHazirSepet($this);
+
+    siparisVer($this, $token, $sozlesme->id)->assertRedirect();
+
+    expect(Order::count())->toBe(1);
+});
+
+it('★★ ODEME HATASI tarayiciya HTML donuyor, JSON degil', function () {
+    ['token' => $token, 'sozlesme' => $sozlesme] = odemeyeHazirSepet($this);
+
+    siparisVer($this, $token, $sozlesme->id);
+    $siparis = Order::query()->latest('id')->firstOrFail();
+
+    /*
+    | Sağlayıcı reddediyormuş gibi davranalım.
+    |
+    | ⚠️ ÜÇÜNCÜ KEZ AYNI HATA: 4A'da kapalı mağaza, 4B'de ödeme dönüşü
+    | için düzeltilmişti; bu uç gözden kaçmıştı. Müşteri ödeme sayfasında
+    | HAM JSON görüyordu.
+    */
+    $this->mock(PaymentService::class, function ($sahte) {
+        $sahte->shouldReceive('baslat')
+            ->andThrow(new PaymentProviderException('fake', 'sağlayıcı reddetti', []));
+    });
+
+    $cevap = $this->get("http://marka-a.test/odeme/ode/{$siparis->uuid}");
+
+    $cevap->assertRedirect();
+    $cevap->assertSessionHas('hata');
+
+    // ⚠️ Sağlayıcının kendi mesajı MÜŞTERİYE GİTMİYOR (yapılandırma sızar).
+    expect(session('hata'))->not->toContain('sağlayıcı reddetti');
+});
+
+it('★ ODEME HATASI API istemcisine hala JSON donuyor', function () {
+    ['token' => $token, 'sozlesme' => $sozlesme] = odemeyeHazirSepet($this);
+
+    siparisVer($this, $token, $sozlesme->id);
+    $siparis = Order::query()->latest('id')->firstOrFail();
+
+    $this->mock(PaymentService::class, function ($sahte) {
+        $sahte->shouldReceive('baslat')
+            ->andThrow(new PaymentProviderException('fake', 'sağlayıcı reddetti', []));
+    });
+
+    $this->postJson("http://marka-a.test/api/orders/{$siparis->uuid}/pay")
+        ->assertStatus(502)
+        ->assertJsonStructure(['message']);
 });

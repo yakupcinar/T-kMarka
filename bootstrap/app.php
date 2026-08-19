@@ -398,8 +398,28 @@ return Application::configure(basePath: dirname(__DIR__))
         | yapabileceği bir şey yok. Ayrıntı istisnada duruyor ve günlüğe
         | düşüyor.
         */
-        $exceptions->render(function (PaymentProviderException $e) {
-            return response()->json(['message' => 'Ödeme başlatılamadı, lütfen tekrar deneyin.'], 502)
+        $exceptions->render(function (PaymentProviderException $e, Request $istek) {
+            $mesaj = 'Ödeme başlatılamadı, lütfen tekrar deneyin.';
+
+            /*
+            | ★ TARAYICIYA HTML, API'YE JSON. (4.5G'de eklendi)
+            |
+            | ⚠️ ÜÇÜNCÜ KEZ aynı hata: 4A'da kapalı mağaza, 4B'de ödeme
+            | dönüşü için düzeltilmişti; bu uç gözden kaçmıştı. Müşteri
+            | ödeme sayfasında ham JSON görüyordu:
+            |
+            |     {"message":"\u00d6deme ba\u015flat\u0131lamad\u0131…"}
+            |
+            | ⚠️ Sağlayıcının mesajı MÜŞTERİYE GİTMİYOR (yukarıdaki gerekçe
+            | değişmedi) — yalnızca SUNUM biçimi ayrılıyor.
+            */
+            if (! $istek->expectsJson()) {
+                return back()
+                    ->with('hata', $mesaj)
+                    ->setStatusCode(303);
+            }
+
+            return response()->json(['message' => $mesaj], 502)
                 ->header('Retry-After', '10');
         });
 

@@ -156,5 +156,7 @@ The connection is blocked because it was initiated by a public page to connect t
 * Vitrinde siparişlere bakıyorum ama göremiyorum yeni verdiğim siparişleri kullanıcı olarak ve iade seçeneği de yok şu anda 
 * Açılan yeni Markaları tekrar elle eklemek gerekiyor Caddy üzerinden, ben o işlemi de yönetim paneline koyalım diyorum yeni gelen Marka isteğini onay/red yapayım olur mu.
 
+* a@a bizim doğrulamamızı geçiyor, iyzico reddediyor. Bedeli: sipariş oluşuyor, stok bağlanıyor, sonra ödeme patlıyor ve stok 60 dakika kilitli kalıyor.
+PaymentProviderException tarayıcıya JSON dönüyor.
 ---
 

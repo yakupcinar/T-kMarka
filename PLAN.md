@@ -5495,15 +5495,37 @@ neyi dolduracağını göremiyordu.
 `POST /yonetim/urunler` → `302 → /yonetim/urunler/{uuid}` ve düzenleme
 sayfası varyant bölümüyle açılıyor (4D'de yazılmıştı).
 
-**⏳ Ödeme hatası — İKİ AYRI SORUN, henüz düzeltilmedi:**
+**✅ Ödeme hatası — İKİ AYRI SORUN, ikisi de düzeltildi:**
 
-1. **Doğrulamamız sağlayıcıdan gevşek.** `a@a` bizim `email` kuralımızı
-   geçiyor, iyzico reddediyor (*"email hatalı format ile gönderilmiştir"*).
-   ⚠️ Bedeli sessiz değil ama geç: **sipariş oluşuyor**, stok bağlanıyor,
-   sonra ödeme patlıyor ve stok 60 dakika kimseye satılamıyor.
-2. **`PaymentProviderException` tarayıcıya JSON dönüyor.** 4A (kapalı
-   mağaza) ve 4B (ödeme dönüşü) için düzeltilen hatanın **üçüncüsü**; bu
-   uç gözden kaçmış. Müşteri ham JSON görüyor.
+**1 · Doğrulamamız sağlayıcıdan gevşekti.** `a@a` bizim `email` kuralımızı
+geçiyor, iyzico reddediyordu (*"email hatalı format ile gönderilmiştir"*).
+
+> ⚠️ **Bedeli sessiz değil ama GEÇ:** doğrulama geçtiği için **sipariş
+> oluşuyor**, stok bağlanıyor ve ödeme ondan SONRA patlıyordu — bağlı stok
+> 60 dakika kimseye satılamıyordu.
+>
+> `App\Rules\DeliverableEmail` yazıldı: alan adında nokta + en az iki
+> harflik TLD. [AsciiEmail]'le aynı felsefe — teknik olarak geçerli ama
+> **pratikte teslim edilemez** adresi kabul etmek, "siparişin alındı"
+> deyip onay postasını hiç gönderememek demek.
+>
+> ⚠️ **DNS sorgusu yapılmıyor** (`email:dns` gibi): ödeme akışının
+> ortasında ağa çıkmak isteği yavaşlatır ve ağ kesintisinde satışı
+> tamamen durdururdu — 4.5C'de test tarafında ölçülen maliyetin aynısı
+> (tek sorgu 24 saniye). Yalnızca biçim kontrol ediliyor; sağlayıcıların
+> istediği de bu.
+
+**2 · `PaymentProviderException` tarayıcıya JSON dönüyordu.** 4A (kapalı
+mağaza) ve 4B (ödeme dönüşü) için düzeltilen hatanın **ÜÇÜNCÜSÜ**; bu uç
+gözden kaçmıştı. Müşteri ödeme sayfasında ham JSON görüyordu.
+
+> ⚠️ Sağlayıcının kendi mesajı hâlâ **müşteriye gitmiyor** (içinde hesap
+> yapılandırması olabilir) — yalnızca SUNUM biçimi ayrıldı.
+
+**Dört kırma denemesi, dördü de düştü.** **Doğrulandı (gerçek tarayıcı):**
+`a@a` → **302 → /odeme**, ekranda *"alan adı geçersiz görünüyor (örnek:
+ad@ornek.com)"*, **sipariş oluşmadı** · geçerli e-posta → sipariş →
+gömülü ödeme sayfası → **gerçek iyzico sandbox formu**.
 
 ---
 

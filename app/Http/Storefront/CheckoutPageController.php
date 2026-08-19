@@ -12,6 +12,7 @@ use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Order;
+use App\Rules\DeliverableEmail;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -60,7 +61,13 @@ class CheckoutPageController extends Controller
     public function gonder(Request $istek): RedirectResponse
     {
         $veri = $istek->validate([
-            'email' => ['required', 'email', 'max:190'],
+            /*
+            | ⚠️ `DeliverableEmail` ŞART (4.5G): Laravel'in `email` kuralı
+            | `a@a` kabul ediyor, iyzico reddediyor. Kural olmadan sipariş
+            | OLUŞUYOR, stok bağlanıyor ve ödeme sonradan patlıyordu —
+            | stok 60 dakika kimseye satılamıyordu.
+            */
+            'email' => ['required', 'email', 'max:190', new DeliverableEmail],
             'legal_version_id' => ['required', 'integer'],
 
             /*

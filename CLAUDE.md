@@ -214,6 +214,14 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   — PHP sessizce sistem geçici klasörüne düşüyor, sonra `rename()` dosya
   sistemleri arasında patlıyor. Düzeltme `Dockerfile`'a yazılır; elle
   `chmod` taze kurulumda kaybolur.
+- **DOĞRULAMAMIZ DIŞ SERVİSTEN GEVŞEK OLAMAZ.** Laravel'in `email` kuralı
+  `a@a` ve `a@aa` kabul ediyor; iyzico reddediyor (*"email hatalı format
+  ile gönderilmiştir"*). ⚠️ Bedeli ZAMANLAMA: doğrulama geçtiği için
+  **sipariş oluşuyor**, stok bağlanıyor ve ödeme ondan SONRA patlıyor —
+  bağlı stok 60 dakika kimseye satılamıyor. `App\Rules\DeliverableEmail`
+  alan adında nokta + en az iki harflik TLD arıyor. ⚠️ DNS sorgusu
+  YAPILMIYOR: ödeme akışında ağa çıkmak isteği yavaşlatır ve ağ
+  kesintisinde satışı durdururdu (4.5C'de tek sorgu 24 sn sürmüştü).
 - **FORM ALANLARI DOĞRULAMAYLA HİZALI OLMALI — testler bunu GÖREMEZ.**
   4.5D'de adres formuna `title` alanı konmamıştı ama `AddressRequest` onu
   zorunlu tutuyordu: **adres defteri hiç kullanılamıyordu.** Müşteri
