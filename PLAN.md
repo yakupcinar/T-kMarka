@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ──────── şu an: 4.5I BİTTİ, 4.5J SIRADA ┐
+┌─ YOL HARİTASI ──────── şu an: 4.5I BİTTİ, 4.5J SIRADA (kalan bloklar planlandı) ┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -5690,6 +5690,32 @@ giriş → sepete ekle → ödeme sayfasında kayıtlı adres görünüyor →
 **743 test.**
 
 ---
+
+### Faz 4.5'in kalan blokları  *(gerçek kullanımdan çıktı)*
+
+4.5I'den sonra kullanıcı listesi yeniden düzenlendi (`README.md` →
+İyileştirme / Yapıldı). Kalanlar bağımlılık sırasına göre:
+
+| Blok | İş | Neden bu sırada |
+|---|---|---|
+| **4.5J** | Sipariş sayacı + terk edilmiş sipariş görünürlüğü | Sayaç sepeti değil siparişi sayıyor gibi görünüyor; müşteri kendi verisine güvenemiyor |
+| **4.5K** | Vitrinde iade talebi ekranı | 4.5I bitmeden çalışamazdı (müşteri siparişini göremiyordu) |
+| **4.5L** | Panel katalog cilası: manuel koleksiyona ürün ekleme · varyant eksenleri · ikinci varyantta bozulan sayfa · oluşturmadan sonra varyant/görsel bölümü | Dördü de aynı ekranlar; birlikte yapılması daha ucuz |
+| **4.5M** | Ödeme akışının **tünel üzerinden** uçtan uca doğrulanması + panele düşen sipariş/saat kontrolü | Chrome'un yerel ağ engeli yüzünden `.localhost`'ta ölçülemiyor (`make kaldir`) |
+| **4.5N** | Marka başvuru/onay akışı + alan adı otomasyonu | En büyüğü, diğerlerinden bağımsız |
+
+> ⚠️ **4.5M'in bir yarısı bizim kusurumuz değil.**
+> `ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`, Chrome'un genel ağdaki bir
+> sayfanın yerel ağa dönmesini engellemesi. Gerçek alan adında olmaz.
+> Çerçeveden çıkış betiği yazılı ve doğru; sayfa hiç yüklenmediği için
+> çalışamıyor. **"Müşteriye mesaj dönmüyor" da bunun sonucu** — mesajı
+> gösteren ekran dönüş sayfası ve o da engelleniyor.
+>
+> ⚠️ Ama **öteki yarısı bizim**: "vitrinde ödendi yazıyor, panele düşmemiş
+> ya da saati yanlış" iddiası ölçülmedi. Saat farkı ihtimali ciddiye
+> alınmalı — `timestampsTz` ve `TimeZone` tuzağı bu projede zaten bir kez
+> yaşandı.
+
 
 ## Faz 5 — Entegrasyonlar  *(henüz açılmadı)*
 

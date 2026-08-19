@@ -128,7 +128,7 @@ veya dağıtım için izin gerekir.
 * https://localhost/yonetim // yakup@tikmarka.test / 123
 
 
-* Iyzico Örnek Hesaplar: Test Kullanıcısı (isim soyisim)
+* Iyzico Örnek Hesaplar: Test Kullanıcısı (isim soyisim) test@gmail.com (mail)
 * Numara / ccv / tarih
 * 5168 8800 0000 0002 / 123 / 12/29 (master)
 * 
@@ -139,26 +139,70 @@ veya dağıtım için izin gerekir.
 
 ## İyileştirme
 
-* Ürün sayfasının altında benzer ürünler, beğenilenler (hepsiburada gibi)
-* Ürünlere tıklamayı sayma arkada kullanıcı başına data tutma bunu marka panelinde düzgün formatta bölüm açalım
-* Vitrinde kullanıcı için ürün favorileme yok, eski siparişlerim olmalı
-* Hepsiburada gibi büyük e-ticaret sitelerinin bu tarz niş özelliklerini tespit edip liste oluşturalım
+> Açık kusurlar ve fikirler. Biten maddeler **silinmiyor** — aşağıdaki
+> "Yapıldı" bölümüne taşınıyor ki tekrar kontrol edilebilsin.
 
-* Vitrinde sepet ödemesine giderken kayıtlı adres seçili olunca hata veriyor line uyarıları falan ödemeye gitmiyor.
-* Sepete ürün koydum ödeme kısmına kadar geldim ama sonra geri çıktım baktım siparişlerimde ödeme durumunda diye duruyor öyle belki de sepetim o yüzden 2 gözüküyor ben bakınca sağ üstteki kısımda içine girince boş olmasına rağmen bir daha yaptım aynı işlemi yine siparişlerde ödeme bekleniyor diye geldi sayıları arttı ama sipariş 2 de sabit kaldı sağ üstte
-* Marka Panelinde yeni koleksiyon oluşturdum elle seç özelliği ile ama seçtirmiyor ürün ya ürünler kısmında ya da başka bir yerde koleksiyona koyabilmeli
-* Marka panelinde varyant ekleyebiliyorum üründe ama ikinci bir varyant eklemeye çalışınca saçma bir sayfa açılıyor kusurlu burası ayrıca varyantlara varyant eksenlerini ekliyemiyorum Renk, Beden etc.
-* Marka panelinde ürün eklemede ürünü ekliyorum şimdi varyantları ekleyebilirsin yazısı geliyor ama varyant ve görsel kısmı gelmiyor, bir sayfa değiştirip oluşmuş ürüne tıklıyorum o zaman bu varyant ve görsel kısım gelmiş oluyor; ilk ürünü oluşturmaya tıkladığım zaman sayfa değiştirmek zorunda kalmayayım varyant eklemek için istersen sayfayı yenile varyant ve görsel de gelsin oraya
-* "https://marka-a.localhost/odeme/ode/" da ödeme için sandbox değeri girdim ve çalıştı ama sms'i girince buraya attı "Test Kullanıcı" isimli bir hesapla yaptım ve ürün gidiyor stoğa bakınca, geçersiz kartları denediğimde stok azalmıyor ama iki geçerli veya geçersiz olsun sonucunda bir mesaj döndürmüyor vitrinde kullanıcıya aynı zamanda sayfanın içindeki sayfa kalıyor bu aşağıdaki yazıya dönüşüyor web in web yani
-"
+### Açık kusurlar
+
+**Vitrin — sipariş / ödeme**
+
+* Vitrinden sipariş ödemesini yaptım, vitrinde "ödendi, hazırlanıyor" yazıyor; marka paneline baktım oraya ya düşmemiş ya da saati yanlış düşmüş — bunun testini yap.
+* Sepete ürün koydum, ödeme kısmına kadar geldim, sonra geri çıktım. Siparişlerimde "ödeme bekleniyor" diye duruyor. Sağ üstteki sayaç 2 gösteriyor ama içine girince boş. İşlemi tekrarlayınca siparişler arttı, sağ üstteki sayı 2'de sabit kaldı.
+* Vitrinde **iade seçeneği yok** — uçları var (`api/orders/{siparis}/returns`), ekranı yok.
+* `https://marka-a.localhost/odeme/ode/` — sandbox değeriyle ödeme çalıştı, SMS'i girince aşağıdaki hataya düştü. Geçerli/geçersiz kart fark etmeksizin vitrinde kullanıcıya **mesaj dönmüyor** ve sayfanın içindeki sayfa (web in web) kalıyor.
+* Kayıtlı a "shipping.full name metin olmalıdır. shipping.phone metin olmalıdır. shipping.city metin olmalıdır. shipping.district metin olmalıdır. shipping.line1 metin olmalıdır." uyarısı alıyor ve ödeme ekranına gitmiyor butona basınca
+
+```
 ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS
 marka-a.localhost is blocked
-The connection is blocked because it was initiated by a public page to connect to devices or servers on your local network.
-"
-* Vitrinde siparişlere bakıyorum ama göremiyorum verdiğim siparişleri kullanıcı olarak görmem gerekiyor ve iade seçeneği de yok şu anda 
-* Açılan yeni Markaları tekrar elle eklemek gerekiyor Caddy üzerinden, ben o işlemi de yönetim paneline koyalım diyorum yeni gelen Marka isteğini onay/red yapayım olur mu.
+The connection is blocked because it was initiated by a public page
+to connect to devices or servers on your local network.
+```
 
-* a@a bizim doğrulamamızı geçiyor, iyzico reddediyor. Bedeli: sipariş oluşuyor, stok bağlanıyor, sonra ödeme patlıyor ve stok 60 dakika kilitli kalıyor.
-PaymentProviderException tarayıcıya JSON dönüyor.
+> ⚠️ Bu hatanın kendisi **bizim kusurumuz değil**: Chrome, genel ağdaki bir
+> sayfanın (iyzico) yerel ağa (`.localhost`) dönmesini engelliyor. Gerçek
+> alan adında olmaz. Ölçmek için tünel gerekiyor — `make kaldir`.
+> Çerçeveden çıkış betiği yazılı ve doğru; sayfa hiç yüklenmediği için
+> çalışamıyor. "Mesaj dönmüyor" da bunun sonucu.
+
+**Marka paneli — katalog**
+
+* Yeni koleksiyonu "elle seç" ile oluşturdum ama ürün seçtirmiyor. Ürünler kısmında ya da başka bir yerde ürün koleksiyona konabilmeli.
+* Varyant ekleyebiliyorum ama **ikinci varyantta bozuk bir sayfa** açılıyor. Ayrıca varyantlara **eksen** ekleyemiyorum (Renk, Beden…).
+* Ürünü ekleyince "şimdi varyantları ekleyebilirsin" yazısı geliyor ama **varyant ve görsel bölümü gelmiyor**; sayfa değiştirip ürüne tekrar tıklayınca geliyor. Oluşturmaya bastığım anda o bölümler de gelsin.
+
+**Merkez yönetim**
+
+* Açılan yeni markaları Caddy'ye **elle eklemek** gerekiyor. Bu işi yönetim paneline koyalım: gelen marka isteğini onay/red edeyim.
+
+### Fikirler
+
+* Ürün sayfasının altında benzer ürünler, beğenilenler (Hepsiburada gibi)
+* Ürüne tıklamayı sayma, kullanıcı başına veri tutma; marka panelinde düzgün formatta bir bölüm
+* Vitrinde ürün favorileme yok
+* Hepsiburada gibi büyük e-ticaret sitelerinin niş özelliklerini tespit edip liste oluşturalım
+
 ---
 
+## Yapıldı
+
+> ⚠️ Buradaki maddeler **ölçüldü ve kırma denemesinden geçti**, ama liste
+> silinmiyor: kendin de kontrol edebilesin diye nerede sınayacağın yazılı.
+
+| Kusur | Nerede kontrol edilir | Blok |
+|---|---|---|
+| Kurallı koleksiyon "kural bir nesne olmalı" diyordu | Panel → Koleksiyonlar → tür "Kurallı" seç, koşul editörü **oluşturma formunda** açılır | 4.5H |
+| Koleksiyonların vitrinde kullanıldığı yer yoktu | `/koleksiyonlar` ve `/koleksiyon/{slug}`; başlıktaki bağlantı yalnızca aktif koleksiyon varsa görünür | 4.5H |
+| Kategori kuralı yazınca koleksiyon 404 veriyordu | Kural değerinde kategori artık **listeden seçiliyor**; kategorisi silinse bile sayfa düşmüyor | 4.5H.1 |
+| Adres kaydı "başlık alanı zorunludur" diyordu, ekranda yeri yoktu | Vitrin → Hesabım → Adresler → "Ev, İş…" alanı | 4.5G |
+| `a@a` doğrulamayı geçiyor, iyzico reddediyordu | Ödemede `a@a` yaz → **sipariş oluşmaz**, "alan adı geçersiz görünüyor" | 4.5G |
+| Ödeme hatası tarayıcıya ham JSON dönüyordu | Ödeme başlatılamadığında ekranda **Türkçe mesaj**; API'ye hâlâ JSON | 4.5G |
+| Vitrinde verdiğim siparişleri göremiyordum | Giriş yap → sipariş ver → Hesabım → **Siparişlerim**'de görünür | 4.5I |
+| Kayıtlı adres ödemede sorulmuyordu / "line" uyarıları veriyordu | Adres kaydet → Ödeme → **liste + seçim**, "Başka adrese gönder" formu açar | 4.5I |
+| Ürün oluşturunca varyant sayfasına gitmiyor | `POST /yonetim/urunler` → `302 → /yonetim/urunler/{uuid}` — **ölçüldü, zaten doğruydu** | 4.5G |
+
+> ⚠️ "Vitrinde siparişleri göremiyorum" maddesinin **iade yarısı hâlâ
+> açık** — o yüzden yukarıdaki listede duruyor.
+>
+> ⚠️ Ürün oluşturma yönlendirmesi doğru çalışıyor ama **açılan sayfada
+> varyant/görsel bölümü gelmiyor** — o ayrı bir kusur ve açık listede.
