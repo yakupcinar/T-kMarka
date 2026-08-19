@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ──────── şu an: 4.5H BİTTİ, FAZ 5 SIRADA ┐
+┌─ YOL HARİTASI ──────── şu an: 4.5H.1 BİTTİ, FAZ 5 SIRADA ┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -5581,6 +5581,47 @@ birlikte yüklenince PHP *"cannot redeclare"* ile ölürdü. Larastan gösterdi.
 **Doğrulandı (gerçek `curl`):** `/koleksiyonlar` **200** ve koleksiyon
 listeleniyor · `/koleksiyon/yaz-seckisi` **200**, üç ürün · olmayan slug
 **404** · başlıkta bağlantı görünüyor. **734 test.**
+
+---
+
+#### 4.5H.1 — kategori kuralı: 404'ün üç sebebi
+
+4.5H'nin ekranı kullanıldı ve **hemen kırıldı**: marka kural değeri olarak
+kategorinin **görünen adını** yazdı ("Giyim", "Tişört"), alan ise `slug`
+bekliyordu. Kural sorunsuz kaydedildi, sonra koleksiyon **404** verdi.
+
+> ⚠️ **404'ün kaynağı beklenmedik yerdeydi:** `CollectionQuery` kategoriyi
+> `firstOrFail()` ile arıyordu. Bulunamayınca `ModelNotFoundException`
+> çıkıyor ve Laravel onu **404**'e çeviriyor — yani bir VERİ sorunu
+> "sayfa yok" diye görünüyordu. Dahası panelde üye sayısı aynı sorgudan
+> geldiği için **tek bozuk kural koleksiyon listesinin tamamını**
+> düşürüyordu.
+
+**Üç katmanın üçü de düzeltildi** — çünkü hiçbiri tek başına yetmiyor:
+
+| Katman | Düzeltme | Neden tek başına yetmez |
+|---|---|---|
+| **Ekran** | kategori değeri artık **listeden seçiliyor**, serbest metin değil | ekran doğru olsa da kural API'den/eski kayıttan bozuk gelebilir |
+| **Yazma** | `CollectionService` kategorinin **varlığını** doğruluyor | kategori kural yazıldıktan **sonra** silinebilir |
+| **Okuma** | bulunamayan kategori **404 değil, boş eşleşme** | tek başına bozuk kuralı sessiz bırakırdı |
+
+> ⚠️ Okuma yolunda koşul **sessizce atlanmıyor**, hiçbir şeyle eşleşiyor.
+> Atlansaydı `all` eşleşmesinde kural gevşer ve koleksiyon **fazla ürün**
+> gösterirdi — 2D'nin "bilinmeyen alan atlanmaz" kararının aynısı.
+>
+> ⚠️ Varlık kontrolü [CollectionRules]'a **konmadı**: o sınıf okuma
+> yolunda da çalışıyor ve veritabanına hiç bakmıyor. Oraya konsaydı
+> kategorisi silinmiş kural sayfayı yine düşürürdü — yalnızca istisnanın
+> adı değişirdi.
+
+**Ayrıca ekran ham anahtarları gösteriyordu** (`category`, `in_tree`);
+marka ne seçtiğini anlamıyordu ve yanlış değer yazmasının bir sebebi
+buydu. Adlar artık **sunucudan** geliyor (arayüzde kopyalanmadı: liste
+büyüyünce iki taraf ayrışır ve etiket boş çıkardı).
+
+**Üç kırma denemesi, üçü de düştü.** **Doğrulandı (gerçek `curl`):** iki
+bozuk koleksiyon **404 → 200** · onarıldıktan sonra 1 ve 2 ürün
+listeliyor. **737 test.**
 
 ---
 

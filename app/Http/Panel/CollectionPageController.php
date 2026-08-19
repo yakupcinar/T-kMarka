@@ -10,6 +10,7 @@ use App\Domain\Quota\QuotaExceededException;
 use App\Enums\CollectionType;
 use App\Http\Controllers\Controller;
 use App\Http\Panel\Requests\CollectionRequest;
+use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductCollection;
 use Illuminate\Http\RedirectResponse;
@@ -63,6 +64,7 @@ class CollectionPageController extends Controller
             | olmalı" ile düşüyordu. Gerçek kullanımda bulundu.
             */
             'kuralAlanlari' => $this->kuralAlanlari(),
+            'kategoriler' => $this->kategoriler(),
             'eslesmeler' => CollectionRules::ESLESMELER,
 
             /*
@@ -106,6 +108,7 @@ class CollectionPageController extends Controller
             | marka olmayan bir alanı seçebilirdi.
             */
             'kuralAlanlari' => $this->kuralAlanlari(),
+            'kategoriler' => $this->kategoriler(),
 
             'eslesmeler' => CollectionRules::ESLESMELER,
 
@@ -118,20 +121,73 @@ class CollectionPageController extends Controller
     }
 
     /**
-     * Kural alanları ve destekledikleri işleçler.
+     * Kural alanları, destekledikleri işleçler ve TÜRKÇE adları.
      *
      * ⚠️ SUNUCUDAN geliyor, arayüzde kopyalanmıyor: 2D'de listeye yeni
      * alan eklenirse ekran kendiliğinden öğreniyor.
      *
-     * @return list<array{alan: string, islecler: list<string>}>
+     * ⚠️ Adlar da BURADAN geliyor. Ekranda ham anahtarlar (`category`,
+     * `in_tree`) yazıyordu ve marka ne seçtiğini anlamıyordu — kural
+     * değerini yanlış biçimde yazmasının bir sebebi buydu. Ad eşlemesi
+     * arayüzde tutulsaydı yeni alan eklendiğinde liste ile adlar ayrışır
+     * ve ekranda boş etiket çıkardı.
+     *
+     * @return list<array{alan: string, ad: string, islecler: list<array{deger: string, ad: string}>}>
      */
     private function kuralAlanlari(): array
     {
-        /** @var list<array{alan: string, islecler: list<string>}> $liste */
+        $alanAdlari = [
+            'brand' => 'Marka',
+            'title' => 'Ürün adı',
+            'category' => 'Kategori',
+            'price' => 'Fiyat',
+        ];
+
+        $islecAdlari = [
+            'eq' => 'eşittir',
+            'contains' => 'içeriyor',
+            'in_tree' => 'bu kategoride (alt kategoriler dâhil)',
+            'lte' => 'en fazla',
+            'gte' => 'en az',
+        ];
+
+        /** @var list<array{alan: string, ad: string, islecler: list<array{deger: string, ad: string}>}> $liste */
         $liste = collect(CollectionRules::ALANLAR)
-            ->map(fn (array $islecler, string $alan) => ['alan' => $alan, 'islecler' => $islecler])
+            ->map(fn (array $islecler, string $alan) => [
+                'alan' => $alan,
+                'ad' => $alanAdlari[$alan] ?? $alan,
+                'islecler' => array_map(
+                    fn (string $islec) => ['deger' => $islec, 'ad' => $islecAdlari[$islec] ?? $islec],
+                    $islecler,
+                ),
+            ])
             ->values()
             ->all();
+
+        return $liste;
+    }
+
+    /**
+     * Kural değeri olarak seçilebilecek kategoriler.
+     *
+     * ⚠️ Kural `slug` saklıyor ama marka kategoriyi ADIYLA tanıyor. Ekran
+     * serbest metin kutusu gösterdiği sürece marka adı yazıyor, kural
+     * kaydediliyor ve koleksiyon vitrinde HİÇ ÇALIŞMIYORDU. Liste
+     * gönderilerek yanlış değer yazma ihtimali ortadan kaldırıldı.
+     *
+     * ⚠️ Girinti için derinlik de gidiyor — ayraç `/` (ltree yolu
+     * `/1/2/` biçiminde; nokta sayılsaydı derinlik hep 0 çıkardı).
+     *
+     * @return list<array{slug: string, ad: string, derinlik: int}>
+     */
+    private function kategoriler(): array
+    {
+        /** @var list<array{slug: string, ad: string, derinlik: int}> $liste */
+        $liste = Category::orderBy('path')->get()->map(fn (Category $k) => [
+            'slug' => (string) $k->slug,
+            'ad' => (string) $k->name,
+            'derinlik' => max(0, substr_count((string) $k->path, '/') - 2),
+        ])->values()->all();
 
         return $liste;
     }

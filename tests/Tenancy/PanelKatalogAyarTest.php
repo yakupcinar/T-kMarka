@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Catalog\CategoryService;
+use App\Domain\Catalog\CollectionQuery;
 use App\Domain\Catalog\CollectionService;
 use App\Domain\Catalog\OptionService;
 use App\Domain\Catalog\ProductService;
@@ -335,4 +336,94 @@ it('★ OLUSTURMA EKRANI kural secenklerini de gonderiyor', function () {
     */
     expect($sayfa['props']['kuralAlanlari'])->not->toBeEmpty()
         ->and($sayfa['props']['eslesmeler'])->toBe(['all', 'any']);
+});
+
+/*
+| KATEGORİ KURALI (4.5H düzeltmesi) — gerçek kullanımda bulundu.
+|
+| ★ Marka kural değerine kategorinin GÖRÜNEN ADINI yazdı ("Giyim"); alan
+| `slug` bekliyordu. Kural sorunsuz kaydedildi ve koleksiyon vitrinde
+| 404 verdi — dahası panelde üye sayısı aynı sorgudan geldiği için TEK
+| bozuk kural koleksiyon listesinin TAMAMINI düşürüyordu.
+*/
+
+it('★★★ VAR OLMAYAN kategoriye kural YAZILAMIYOR', function () {
+    ['sahip' => $sahip] = markaKur('marka-a.test');
+
+    app(CategoryService::class)->olustur('Giyim');
+
+    /*
+    | ⚠️ "Giyim" kategorinin ADI, slug'ı `giyim`. Marka tam olarak bunu
+    | yazmıştı ve kural kabul edilmişti.
+    */
+    $this->actingAs($sahip, 'staff-web')
+        ->post('http://marka-a.test/yonetim/koleksiyonlar', [
+            'title' => 'Giyimler',
+            'type' => 'rule',
+            'rules' => [
+                'match' => 'all',
+                'conditions' => [['field' => 'category', 'op' => 'in_tree', 'value' => 'Giyim']],
+            ],
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('hata');
+
+    expect(ProductCollection::where('title', 'Giyimler')->exists())->toBeFalse();
+
+    // Doğru değer (slug) kabul ediliyor.
+    $this->actingAs($sahip, 'staff-web')
+        ->post('http://marka-a.test/yonetim/koleksiyonlar', [
+            'title' => 'Giyimler',
+            'type' => 'rule',
+            'rules' => [
+                'match' => 'all',
+                'conditions' => [['field' => 'category', 'op' => 'in_tree', 'value' => 'giyim']],
+            ],
+        ])->assertSessionMissing('hata');
+
+    expect(ProductCollection::where('title', 'Giyimler')->exists())->toBeTrue();
+});
+
+it('★★★ KATEGORISI SILINMIS kural sayfayi DUSURMUYOR', function () {
+    ['sahip' => $sahip] = markaKur('marka-a.test');
+
+    $kategori = app(CategoryService::class)->olustur('Giyim');
+
+    $koleksiyon = app(CollectionService::class)->olustur(
+        ['title' => 'Giyimler'],
+        CollectionType::Rule,
+        ['match' => 'all', 'conditions' => [['field' => 'category', 'op' => 'in_tree', 'value' => 'giyim']]],
+    );
+
+    /*
+    | ⚠️ Kural YAZILDIKTAN SONRA kategori siliniyor — yazma anındaki
+    | doğrulama bu durumu kapatmaz, okuma yolu dayanıklı olmak zorunda.
+    | Eskiden `firstOrFail()` vardı: 404 fırlıyordu.
+    */
+    $kategori->delete();
+
+    $this->actingAs($sahip, 'staff-web')
+        ->get('http://marka-a.test/yonetim/koleksiyonlar')
+        ->assertOk();
+
+    // Koşul hiçbir şeyle eşleşiyor — SESSİZCE ATLANMIYOR.
+    expect(app(CollectionQuery::class)->urunler($koleksiyon)->count())->toBe(0);
+});
+
+it('★★ OLUSTURMA EKRANI KATEGORI LISTESINI de gonderiyor', function () {
+    ['sahip' => $sahip] = markaKur('marka-a.test');
+
+    app(CategoryService::class)->olustur('Giyim');
+
+    $veri = inertiaVerisi(
+        $this->actingAs($sahip, 'staff-web')->get('http://marka-a.test/yonetim/koleksiyonlar')->getContent() ?: '',
+    );
+
+    /*
+    | ⚠️ Liste gitmezse ekran serbest metin kutusuna düşer ve marka
+    | kategori ADINI yazar — düzeltilen hatanın ta kendisi.
+    */
+    expect($veri['props']['kategoriler'])->toHaveCount(1)
+        ->and($veri['props']['kategoriler'][0]['slug'])->toBe('giyim')
+        ->and($veri['props']['kuralAlanlari'][0]['ad'])->not->toBeEmpty();
 });

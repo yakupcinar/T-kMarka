@@ -100,15 +100,7 @@ class CollectionQuery
 
             'title' => $sorgu->where('title', 'ilike', '%'.$this->kacir($deger).'%'),
 
-            /*
-            | ⚠️ ALT AĞAÇ DÂHİL — kategoriyle aynı davranış (1B-K6).
-            | Yalnızca birebir kategori bakılsaydı "Giyim" koleksiyonu
-            | "Giyim > Tişört"teki ürünleri kaçırırdı.
-            */
-            'category' => $sorgu->whereIn(
-                'category_id',
-                Category::query()->altAgac(Category::where('slug', $deger)->firstOrFail())->select('id'),
-            ),
+            'category' => $this->kategoriKosulu($sorgu, $deger),
 
             /*
             | ⚠️ Fiyat VARYANTTA. `whereHas` içindeki `satinAlinabilir()`
@@ -123,6 +115,45 @@ class CollectionQuery
             // CollectionRules kapalı liste tuttuğu için buraya düşülmez.
             default => throw new CollectionRuleException(sprintf('Bilinmeyen kural alanı: %s', $alan)),
         };
+    }
+
+    /**
+     * Kategori koşulu — ALT AĞAÇ DÂHİL (1B-K6).
+     *
+     * ⚠️ Yalnızca birebir kategori bakılsaydı "Giyim" koleksiyonu
+     * "Giyim > Tişört"teki ürünleri kaçırırdı.
+     *
+     * ⚠️ KATEGORİ BULUNAMAZSA İSTİSNA FIRLATILMIYOR — koşul hiçbir ürünle
+     * eşleşmiyor. Önce `firstOrFail()` yazılıydı ve bedeli ağırdı: kural
+     * var olmayan bir slug'a bakınca `ModelNotFoundException` çıkıyor,
+     * Laravel onu **404**'e çeviriyordu. Yani müşteri, DURAN bir
+     * koleksiyonun sayfasında "sayfa bulunamadı" görüyordu; dahası panelde
+     * üye sayısı bu sorgudan geldiği için **tek bozuk kural koleksiyon
+     * listesinin tamamını** düşürüyordu.
+     *
+     * ⚠️ Bu yol yalnızca ONARIM değil: kategori kural yazıldıktan SONRA da
+     * silinebilir. Yazarken doğrulamak (bkz. [CollectionRules]) o durumu
+     * kapatmaz — okuma yolu da dayanıklı olmak zorunda.
+     *
+     * @param  Builder<Product>  $sorgu
+     */
+    private function kategoriKosulu(Builder $sorgu, string $slug): void
+    {
+        $kategori = Category::where('slug', $slug)->first();
+
+        if ($kategori === null) {
+            /*
+            | ⚠️ Koşul SESSİZCE ATLANMIYOR, hiçbir şeyle eşleşiyor.
+            | Atlansaydı `all` eşleşmesinde kural gevşer ve koleksiyon
+            | FAZLA ürün gösterirdi — 2D'nin "bilinmeyen alan atlanmaz"
+            | kararının aynısı.
+            */
+            $sorgu->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $sorgu->whereIn('category_id', Category::query()->altAgac($kategori)->select('id'));
     }
 
     /**

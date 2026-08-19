@@ -443,6 +443,24 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   adları elle sayılı; `tenant:create` başarılı görünür ama site açılmaz.
   Alan adını ekleyip `docker compose restart caddy`. (Faz 3: on-demand TLS.)
 
+- **`firstOrFail()` OKUMA YOLUNDA veri sorununu 404'e ÇEVİRİR.** Laravel
+  `ModelNotFoundException`'ı 404'e eşliyor; yani "kuralın gösterdiği kategori
+  yok" gibi bir VERİ sorunu ekranda **"sayfa bulunamadı"** diye görünüyor ve
+  gerçek sebep hiç anlaşılmıyor. 4.5H.1'de ısırdı: koleksiyon kuralı var
+  olmayan kategori slug'ına bakıyordu — vitrinde koleksiyon 404 verdi, üstelik
+  panelde üye sayısı aynı sorgudan geldiği için **tek bozuk kural koleksiyon
+  listesinin tamamını** düşürdü. Kural: türetilmiş/başvurulan kayıt okuma
+  yolunda bulunamıyorsa **istisna değil boş sonuç** üret — ama koşulu
+  **sessizce atlama**, hiçbir şeyle eşleştir (atlanırsa `all` eşleşmesi gevşer
+  ve fazla kayıt döner).
+- **Kullanıcının GÖRDÜĞÜ ad ile sistemin SAKLADIĞI değer aynı değilse, serbest
+  metin kutusu koymak hatayı GARANTİ eder.** 4.5H.1: kural `slug` saklıyor,
+  marka kategoriyi adıyla tanıyor; kutu boş bırakıldığı için "Giyim" yazdı ve
+  kural **geçerli sayılıp kaydedildi**. Doğrusu listeden seçtirmek + yazma
+  yolunda varlığı doğrulamak. ⚠️ Varlık kontrolü **biçim doğrulayan** sınıfa
+  konmaz (o sınıf okuma yolunda da çalışıyor ve veritabanına bakmıyor);
+  yazma yoluna ait.
+
 ## Yapı
 
 ```

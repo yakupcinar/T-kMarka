@@ -4,6 +4,7 @@ namespace App\Domain\Catalog;
 
 use App\Domain\Quota\QuotaGuard;
 use App\Enums\CollectionType;
+use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductCollection;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -150,7 +151,11 @@ class CollectionService
     {
         if ($tip === CollectionType::Rule) {
             // Doğrulanmış ve normalleştirilmiş hâli saklanıyor.
-            $koleksiyon->rules = CollectionRules::dogrula($kural);
+            $temiz = CollectionRules::dogrula($kural);
+
+            $this->kategorileriDogrula($temiz['conditions']);
+
+            $koleksiyon->rules = $temiz;
             $koleksiyon->type = $tip;
 
             return;
@@ -163,6 +168,39 @@ class CollectionService
         */
         $koleksiyon->rules = null;
         $koleksiyon->type = $tip;
+    }
+
+    /**
+     * Kategori koşullarının GERÇEK bir kategoriyi gösterdiğini doğrular.
+     *
+     * ⚠️ [CollectionRules] BİÇİMİ doğruluyor, VARLIĞI değil — çünkü orası
+     * veritabanına hiç bakmıyor (aynı sınıf okuma yolunda, her sayfa
+     * açılışında da çalışıyor). Varlık kontrolü YAZMA yoluna ait.
+     *
+     * ⚠️ Gerçek kullanımda bulundu: marka kural değeri olarak kategorinin
+     * GÖRÜNEN ADINI yazdı ("Giyim"), alan ise `slug` bekliyordu. Kural
+     * sorunsuz kaydedildi ve koleksiyon vitrinde **404** verdi. Buradaki
+     * kontrol o kuralın hiç kaydedilmesine izin vermiyor; ekran tarafında
+     * ise değer artık serbest metin değil, kategori listesinden seçiliyor.
+     *
+     * @param  list<array{field: string, op: string, value: string}>  $kosullar
+     *
+     * @throws CollectionRuleException
+     */
+    private function kategorileriDogrula(array $kosullar): void
+    {
+        foreach ($kosullar as $kosul) {
+            if ($kosul['field'] !== 'category') {
+                continue;
+            }
+
+            if (! Category::where('slug', $kosul['value'])->exists()) {
+                throw new CollectionRuleException(sprintf(
+                    'Kategori bulunamadı: "%s". Değer kategorinin adresi (slug) olmalı.',
+                    $kosul['value'],
+                ));
+            }
+        }
     }
 
     /** @throws CollectionRuleException */

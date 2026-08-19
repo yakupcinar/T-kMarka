@@ -12,7 +12,7 @@ import PanelDuzeni from '../Layouts/PanelDuzeni.vue'
 
 const props = defineProps({
   koleksiyonlar: Array, turler: Array,
-  kuralAlanlari: Array, eslesmeler: Array,
+  kuralAlanlari: Array, eslesmeler: Array, kategoriler: Array,
 })
 
 /*
@@ -27,10 +27,20 @@ const form = useForm({
 
 function kosulEkle() {
   const ilk = props.kuralAlanlari[0]
-  form.rules.conditions.push({ field: ilk.alan, op: ilk.islecler[0], value: '' })
+  form.rules.conditions.push({ field: ilk.alan, op: ilk.islecler[0].deger, value: '' })
 }
 
 function kosulSil(i) { form.rules.conditions.splice(i, 1) }
+
+/*
+ | ⚠️ İşleçler artık {deger, ad} nesnesi — adlar SUNUCUDAN geliyor.
+ | Ekranda ham anahtar (`in_tree`) yazıyordu ve marka ne seçtiğini
+ | anlamıyordu.
+ */
+function islecler(alan) {
+  return props.kuralAlanlari.find((a) => a.alan === alan)?.islecler ?? []
+}
+
 
 /*
  | ⚠️ Alan değişince İŞLEÇ sıfırlanıyor: her alan farklı işleç destekliyor
@@ -38,7 +48,14 @@ function kosulSil(i) { form.rules.conditions.splice(i, 1) }
  */
 function alanDegisti(k) {
   const alan = props.kuralAlanlari.find((a) => a.alan === k.field)
-  k.op = alan?.islecler[0] ?? ''
+  k.op = alan?.islecler[0]?.deger ?? ''
+
+  /*
+   | ⚠️ DEĞER de sıfırlanıyor: kategoriden fiyata geçildiğinde eski
+   | kategori slug'ı kutuda kalırdı ve "fiyat sayı olmalı" hatası
+   | markaya hiçbir şey anlatmazdı.
+   */
+  k.value = ''
 }
 
 /*
@@ -116,14 +133,24 @@ const turAdi = { manual: 'Elle seçilen', rule: 'Kurallı (otomatik)' }
 
         <div v-for="(k, i) in form.rules.conditions" :key="i" class="flex gap-2 mb-2 items-center">
           <select v-model="k.field" class="rounded-lg border border-stone-300 px-2 py-1 text-sm" @change="alanDegisti(k)">
-            <option v-for="a in kuralAlanlari" :key="a.alan" :value="a.alan">{{ a.alan }}</option>
+            <option v-for="a in kuralAlanlari" :key="a.alan" :value="a.alan">{{ a.ad }}</option>
           </select>
 
           <select v-model="k.op" class="rounded-lg border border-stone-300 px-2 py-1 text-sm">
-            <option v-for="o in (kuralAlanlari.find((a) => a.alan === k.field)?.islecler ?? [])" :key="o" :value="o">{{ o }}</option>
+            <option v-for="o in islecler(k.field)" :key="o.deger" :value="o.deger">{{ o.ad }}</option>
           </select>
 
-          <input v-model="k.value" placeholder="değer" class="flex-1 rounded-lg border border-stone-300 px-2 py-1 text-sm">
+          <!--
+            ⚠️ Kategoride SERBEST METİN YOK. Kural `slug` saklıyor, marka
+            kategoriyi adıyla tanıyor: kutu bırakıldığında marka "Giyim"
+            yazıyor, kural kaydediliyor ve koleksiyon vitrinde 404 veriyordu.
+          -->
+          <select v-if="k.field === 'category'" v-model="k.value" class="flex-1 rounded-lg border border-stone-300 px-2 py-1 text-sm">
+            <option value="">— kategori seçin —</option>
+            <option v-for="c in kategoriler" :key="c.slug" :value="c.slug">{{ '— '.repeat(c.derinlik) + c.ad }}</option>
+          </select>
+
+          <input v-else v-model="k.value" :placeholder="k.field === 'price' ? 'örn. 250' : 'değer'" class="flex-1 rounded-lg border border-stone-300 px-2 py-1 text-sm">
           <button type="button" class="text-red-700 text-sm" @click="kosulSil(i)">sil</button>
         </div>
 

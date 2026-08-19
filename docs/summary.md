@@ -2156,3 +2156,32 @@ FAZ 5 SIRADA — kargo firmaları · e-fatura/e-arşiv
       DOĞRULANDI (gerçek curl)
         /koleksiyonlar 200 · /koleksiyon/yaz-seckisi 200 üç ürün
         olmayan slug 404 · başlıkta bağlantı görünüyor
+
+4.5H.1 ✅ KATEGORİ KURALI — 404'ün ÜÇ SEBEBİ — 737 test
+      marka kural değerine kategorinin ADINI yazdı ("Giyim"), alan SLUG
+      bekliyordu → kural kaydedildi, koleksiyon 404 verdi
+
+      ⚠️ 404'ÜN KAYNAĞI BEKLENMEDİK YERDE
+        CollectionQuery kategoriyi firstOrFail() ile arıyordu
+        ModelNotFoundException → Laravel 404'e çeviriyor
+        yani VERİ sorunu "sayfa yok" diye görünüyordu
+        panelde üye sayısı aynı sorgudan → TEK bozuk kural
+        KOLEKSİYON LİSTESİNİN TAMAMINI düşürüyordu
+
+      ÜÇ KATMAN, ÜÇÜ DE (hiçbiri tek başına yetmiyor)
+        EKRAN  kategori LİSTEDEN seçiliyor, serbest metin değil
+               (kural API'den/eski kayıttan bozuk gelebilir)
+        YAZMA  CollectionService kategorinin VARLIĞINI doğruluyor
+               (kategori kural yazıldıktan SONRA silinebilir)
+        OKUMA  bulunamayan kategori 404 DEĞİL, BOŞ EŞLEŞME
+               (tek başına bozuk kuralı sessiz bırakırdı)
+
+      ⚠️ koşul SESSİZCE ATLANMIYOR, hiçbir şeyle eşleşiyor
+        atlansaydı `all`da kural gevşer, FAZLA ürün gösterirdi
+      ⚠️ varlık kontrolü CollectionRules'a KONMADI: o sınıf okuma
+        yolunda da çalışıyor ve veritabanına hiç bakmıyor
+
+      ekran ham anahtar gösteriyordu (category · in_tree)
+        adlar artık SUNUCUDAN (arayüzde kopyalansa liste ayrışırdı)
+
+      DOĞRULANDI (gerçek curl): iki bozuk koleksiyon 404 → 200
