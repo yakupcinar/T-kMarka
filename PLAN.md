@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ─────────── şu an: FAZ 4 BİTTİ, FAZ 5 SIRADA ┐
+┌─ YOL HARİTASI ───────── şu an: FAZ 4.5 BİTTİ, FAZ 5 SIRADA ┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -33,15 +33,15 @@
 │     vitrin Blade · panel+yönetim Inertia+Vue · SSR YOK         │
 │     ✅ 4A vitrin → ✅ 4B akış → ✅ 4C panel → ✅ 4D katalog    │
 │     ✅ 4E sipariş → ✅ 4F yönetim → ✅ 4G tema → ✅ 4H kapanış │
-│  4.5 · ARAYÜZ BOŞLUKLARI ◀ AÇILDI — ölçüldü: 73 uç, 34 sayfa  │
+│  4.5 · ARAYÜZ BOŞLUKLARI ✅ ekranı olmayan uç kalmadı          │
 │     ✅ 4.5A yasal → ✅ 4.5B ödeme/sözleşme → ✅ K1 iframe ödeme│
 │     ✅ 4.5C personel/alan adı → ✅ 4.5D müşteri hesabı         │
-│     ✅ 4.5E katalog ekranları → 4.5F görsel + kapanış          │
-│  5 · ENTEGRASYON   kargo · e-fatura                            │
+│     ✅ 4.5E katalog → ✅ 4.5F yorum + görsel + kapanış         │
+│  5 · ENTEGRASYON ◀ SIRADA — kargo · e-fatura                  │
 │  6 · DAĞITIM       yayın · yedekleme · izleme                  │
 │                                                                │
 │  Kural: bir blok bitmeden sonrakine geçilmez.                  │
-│  710 test · lint · analyse · CI hepsi yeşil                    │
+│  716 test · lint · analyse · CI hepsi yeşil                    │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -5343,6 +5343,127 @@ görsel yüklendi, adresi **200 `image/png`** döndü, panelden silindi.
 **⚠️ Bu blokta YAPILMAYAN:** kural düzenleme arayüzü (koleksiyon
 oluşturuluyor ama kuralları ekrandan yazılamıyor — uçtan geliyor) ·
 kategori taşıma · görsel sıralama. Üçü de uçlarda var, 4.5F'ye kalıyor.
+
+---
+
+### 4.5F — BİTTİ ✅ (6 test)
+
+Kod: `app/Http/Panel/ReviewPageController.php` ·
+`CatalogSettingsPageController` (kategori taşıma) ·
+`ProductPageController` (görsel sıralama) ·
+`CollectionPageController` (kural düzenleme) ·
+`resources/js/Panel/Pages/Yorumlar.vue` · `KoleksiyonAyrinti.vue` ·
+`resources/views/storefront/layout.blade.php` (görsel cila) ·
+`tests/Tenancy/PanelYorumTest.php` · `tests/Feature/PanelKapsamTest.php`
+
+**★ EKRANI OLMAYAN SON ALAN KAPANDI: yorum moderasyonu.**
+> Uçları 2E'de vardı; ekran olmadığı için yorumlar **hiç
+> onaylanamıyordu** — yani vitrinde hiçbir yorum görünmüyordu ve marka
+> bunu fark edemiyordu. Onay kuyruğunun tek çıkışı bu ekran.
+>
+> ⚠️ Kuyruk **eskiden yeniye** sıralanıyor — listenin geri kalanının
+> tersine. En eski yorum en çok bekleyen demek; yeniden eskiye
+> sıralansaydı ilk yazan müşteri en son sırada kalırdı.
+
+**4.5E'den kalan üç boşluk da kapandı:** kategori taşıma (döngü koruması
+1B'de) · görsel sıralama (tam liste, kısmi güncelleme değil) · koleksiyon
+kural düzenleyici.
+
+⚠️ Kural düzenleyicide **alan ve işleç listesi sunucudan** geliyor: 2D'de
+listeye yeni alan eklenirse ekran kendiliğinden öğreniyor. Kopyalansaydı
+iki liste ayrışır ve marka olmayan bir alanı seçebilirdi.
+
+**★ GÖRSEL: iskeletten çıkış, yeniden tasarım değil.**
+> Görselsiz ürün için **gerçek yer tutucu** — önce boş bir SVG veri adresi
+> basılıyordu ve tarayıcı **kırık kare** çiziyordu, yani müşteriye "bir
+> şey yüklenemedi" izlenimi veriyordu. Ayrıca kart gölgesi/hareketi,
+> düğme durumları ve **görünür odak halkası**.
+>
+> ⚠️ `outline: none` yazmak sayfayı "temiz" gösterir ama klavyeyle gezen
+> kullanıcı nerede olduğunu göremez — erişilebilirlik kaybı.
+
+**★★ BİTİŞ ÖLÇÜTÜ ARTIK YAPISAL TESTLE ÖLÇÜLÜYOR** (`PanelKapsamTest`):
+her panel API alanının bir ekran karşılığı var mı.
+> Faz 4.5 bir **ölçümle** açılmıştı (73 uç, 34 sayfa); aynı ölçüm artık
+> her koşuda yapılıyor. Elle sayılsaydı bir sonraki blokta yeni bir uç
+> eklenip ekranı unutulduğunda kimse fark etmezdi.
+>
+> ⚠️ Test uç SAYISINI değil **alan kapsamını** ölçüyor — bir ekran birden
+> çok ucu karşılayabiliyor (ürün ekranı 14 uç). `/panel/me` için eşlemede
+> **bilerek `null`** yazılı: "ben kimim" bilgisi zaten her sayfada
+> paylaşılıyor (4C).
+>
+> ★ İlk kırma denemem **yetersizdi**: yalnızca yorum listesini sildim,
+> diğer yorum rotaları alanı ayakta tuttu ve test geçti. Alanın tamamı
+> kaldırılınca düştü — **kırma denemesinin kendisi de doğrulanmalı**
+> (4D'deki dersin tekrarı).
+
+---
+
+## ✅ FAZ 4.5 KAPANIŞ — arayüz boşlukları
+
+**716 test · lint · analyse · CI hepsi yeşil.** (Faz 4 sonu 648 → **+68**)
+
+| blok | ne getirdi | test |
+|---|---|---|
+| 4.5A | vitrin yasal metin sayfaları | 8 |
+| 4.5B | panel: ödeme ayarları + yasal metin düzenleme | 11 |
+| K1 | ödeme formu iframe içinde | 8 |
+| 4.5C | personel/roller + özel alan adı | 12 |
+| 4.5D | müşteri hesabı: giriş · adres · sipariş takibi | 11 |
+| 4.5E | katalog: kategori · eksen · koleksiyon · görsel | 12 |
+| 4.5F | yorum moderasyonu + görsel cila + kapsam testi | 6 |
+
+**Açılış ölçümü:** 73 uç, 34 sayfa — arka ucun kabaca yarısına arayüzden
+erişilemiyordu. **Kapanış:** ekranı olmayan API alanı kalmadı ve bu artık
+yapısal testle korunuyor.
+
+### ★ FAZIN TAŞIYICI DERSİ
+
+**"Uç var" ile "kullanılabilir" arasındaki fark, bu fazın tamamı.**
+
+Faz 4 bitiminde sistem uçtan uca çalışıyordu ve testler yeşildi — ama
+marka **gerçek para tahsil edemiyordu** (ödeme ayarları ekranı yok),
+**sözleşmesini düzenleyemiyordu**, müşteri **sözleşmeyi okuyamıyordu**
+(bağlantı ham JSON'a gidiyordu) ve **siparişini takip edemiyordu**.
+
+| bulunan | nasıl bulundu |
+|---|---|
+| sözleşme bağlantısı ham JSON'a gidiyor | uç/ekran **ölçümü** |
+| marka ödeme sağlayıcısını kuramıyor | uç/ekran **ölçümü** |
+| müşteri oturumu çapraz markada geçerli | **test** (4H'nin müşteri karşılığı) |
+| kategori girintisi hiç oluşmayacak | **test** (`ltree` ayracı `/`, `.` değil) |
+| "personeli çıkar" düğmesi 404 verir | **test** (uuid/id karışıklığı) |
+| yorumlar hiç onaylanamıyor | uç/ekran **ölçümü** |
+
+> ★ Altısı da **kod doğru çalışırken** vardı. Hiçbiri hata vermiyordu.
+
+**★★ KORUMAYI GENİŞLETMEK ≠ DOĞRU YERE TAKMAK** (4.5D). Oturum-marka
+kontrolü müşteri guard'ını kapsayacak şekilde genişletildi ve **yetmedi**:
+middleware vitrin grubuna takılı değildi. İki ayrı kırma denemesi gerekti.
+
+**★★ TEST İSTEMCİSİ ÖLÇÜMÜ BOZUYOR — dördüncü kez.**
+```
+2E   postJson            Accept başlığını sessizce ekliyor
+4A   getJson             şifresiz çerezi sessizce düşürüyor
+4G   UploadedFile::fake  MIME türünü sessizce uyduruyor
+4.5D test istemcisi      YENİ çerezi takip ediyor → "oturum kapandı"
+                         iddiası sunucuyu değil kendini ölçüyordu
+```
+
+**★★ KIRMA DENEMESİ ÜÇ ŞEY BULDU** (Faz 4'ün üçüne ek olarak):
+yalan test · hiç yazılmamış test · **ölü savunma** (4.5E: controller'daki
+kopya kaldırıldı, gerçek koruma serviste) · ve **kendisinin yanlış yeri
+kırdığı** durum (4.5F).
+
+### Açık borçlar — Faz 5'e
+
+| borç | not |
+|---|---|
+| `IyzicoSubscriptionProvider` | Faz 3'ten devrediyor |
+| PCI DSS 4.0 betik bütünlüğü | iframe sayfası için CSP + betik envanteri (Faz 6) |
+| toplu işlemler | ürün/sipariş listesinde çoklu seçim yok |
+| `declare(strict_types=1)` | tek Pint kuralı, 0.3'ten devrediyor |
 
 ---
 

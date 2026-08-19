@@ -2,6 +2,7 @@
 
 namespace App\Http\Panel;
 
+use App\Domain\Catalog\CategoryCycleException;
 use App\Domain\Catalog\CategoryHasChildrenException;
 use App\Domain\Catalog\CategoryHasProductsException;
 use App\Domain\Catalog\CategoryService;
@@ -131,6 +132,30 @@ class CatalogSettingsPageController extends Controller
         }
 
         return back()->with('mesaj', 'Kategori silindi.');
+    }
+
+    public function kategoriTasi(Request $istek, string $kategori): RedirectResponse
+    {
+        $kayit = Category::where('uuid', $kategori)->firstOrFail();
+
+        $veri = $istek->validate(['parent_uuid' => ['nullable', 'uuid']]);
+
+        $yeniUst = isset($veri['parent_uuid'])
+            ? Category::where('uuid', $veri['parent_uuid'])->first()
+            : null;
+
+        try {
+            $this->kategoriler->tasi($kayit, $yeniUst);
+        } catch (CategoryCycleException $hata) {
+            /*
+            | ⚠️ Kategori KENDİ ALTINA taşınamıyor (1B): taşınabilseydi
+            | `ltree` yolu döngüye girer ve ağaç sorgusu sonsuza kadar
+            | dönerdi. 500 değil, ekranda sebep.
+            */
+            return back()->with('hata', $hata->getMessage());
+        }
+
+        return back()->with('mesaj', 'Kategori taşındı.');
     }
 
     public function eksenEkle(Request $istek): RedirectResponse

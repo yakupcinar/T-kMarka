@@ -46,7 +46,8 @@
                     @if ($urun->images->first())
                         <img src="{{ $urun->images->first()->url() }}" alt="{{ $urun->title }}">
                     @else
-                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" alt="">
+                        {{-- ⚠️ Boş SVG kırık kare çiziyordu; gerçek yer tutucu (4.5F). --}}
+                        <div class="yok">Görsel yok</div>
                     @endif
 
                     <div class="govde">

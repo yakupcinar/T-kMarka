@@ -20,6 +20,7 @@ use App\Enums\TenantStatus;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use App\Platform\Models\Tenant;
@@ -522,4 +523,36 @@ function iadeyeHazirSiparis(string $alanAdi): Order
     bildirimGonder($alanAdi, $siparis->order_number, (string) $deneme->provider_ref, (string) $siparis->grand_total);
 
     return $siparis->refresh();
+}
+
+/**
+ * Yorum yazmaya hazır durum: teslim edilmiş sipariş + müşteri + ürün.
+ *
+ * ⚠️ Pest.php'de: 4.5F'de ikinci dosya kullanmaya başladı.
+ *
+ * @return array{siparis: Order, musteri: Customer, urun: Product}
+ */
+function yorumaHazir(string $alanAdi = 'marka-a.test'): array
+{
+    $siparis = iadeyeHazirSiparis($alanAdi);
+
+    /** @var Customer $musteri */
+    $musteri = Customer::create([
+        'name' => 'Ayse Yilmaz',
+        'email' => 'yorumcu@example.com',
+        'password' => 'sifre1234',
+    ]);
+
+    /** @var int<0, max> $musteriId */
+    $musteriId = $musteri->id;
+
+    $siparis->customer_id = $musteriId;
+    $siparis->save();
+
+    $satir = $siparis->items->firstOrFail();
+
+    /** @var Product $urun */
+    $urun = Product::whereHas('variants', fn ($q) => $q->where('sku', $satir->sku))->firstOrFail();
+
+    return ['siparis' => $siparis, 'musteri' => $musteri, 'urun' => $urun];
 }

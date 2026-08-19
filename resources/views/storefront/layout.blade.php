@@ -120,12 +120,46 @@
             flex-direction: column;
         }
 
-        .kart img { width: 100%; aspect-ratio: 1; object-fit: cover; background: #f5f5f4; }
+        .kart img { width: 100%; aspect-ratio: 1; object-fit: cover; background: #f5f5f4; display: block; }
+
+        /*
+        | ⚠️ GÖRSELSİZ ÜRÜN için gerçek bir yer tutucu. Önce boş bir SVG
+        | veri adresi basılıyordu ve tarayıcı KIRIK KARE çiziyordu —
+        | müşteriye "bir şey yüklenemedi" izlenimi veriyordu.
+        */
+        .kart .yok, .bos-gorsel {
+            aspect-ratio: 1;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg, #f5f5f4, #e7e5e4);
+            color: #a8a29e;
+            font-size: 13px;
+        }
         .kart .govde { padding: 12px; display: flex; flex-direction: column; gap: 4px; }
         .kart .ad { font-weight: 600; font-size: 15px; }
         .kart .fiyat { color: var(--marka); font-weight: 700; }
 
         .bos { padding: 64px 0; text-align: center; color: #78716c; }
+
+        /* GÖRSEL İYİLEŞTİRME (4.5F) — yeni yapı değil, mevcut yapının cilası */
+        .kart { transition: box-shadow .15s, transform .15s; }
+        .kart:hover { box-shadow: 0 6px 20px rgb(0 0 0 / .08); transform: translateY(-2px); }
+        .dugme { transition: filter .15s; }
+        .dugme:hover { filter: brightness(.93); }
+        .dugme:disabled { opacity: .6; cursor: not-allowed; }
+
+        /*
+        | ⚠️ ODAK HALKASI görünür bırakılıyor. `outline: none` yazmak
+        | sayfayı "temiz" gösterir ama klavyeyle gezen kullanıcı nerede
+        | olduğunu göremez — erişilebilirlik kaybı.
+        */
+        a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+            outline: 2px solid var(--marka);
+            outline-offset: 2px;
+        }
+
+        h1, h2 { line-height: 1.25; }
+        table { border-collapse: collapse; }
 
         /* ÜRÜN SAYFASI */
         .urun { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; padding: 32px 0; }

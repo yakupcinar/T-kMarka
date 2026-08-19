@@ -200,6 +200,26 @@ class ProductPageController extends Controller
         return back()->with('mesaj', 'Görsel yüklendi.');
     }
 
+    public function gorselSirala(Request $istek, Product $urun): RedirectResponse
+    {
+        $veri = $istek->validate([
+            'uuids' => ['present', 'array'],
+            'uuids.*' => ['uuid'],
+        ]);
+
+        /** @var list<string> $sira */
+        $sira = $veri['uuids'];
+
+        /*
+        | ⚠️ TAM LİSTE gönderiliyor, tek tek "yukarı/aşağı" değil: kısmi
+        | güncelleme iki isteğin arasında sıralamayı tutarsız bırakabilir.
+        | Kural servisin içinde — burada yalnızca çevriliyor.
+        */
+        $this->gorseller->sirala($urun, $sira);
+
+        return back()->with('mesaj', 'Görsel sırası güncellendi.');
+    }
+
     public function gorselSil(Product $urun, string $gorsel): RedirectResponse
     {
         /*

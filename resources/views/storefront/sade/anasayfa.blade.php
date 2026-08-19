@@ -34,7 +34,12 @@
                     @if ($urun->images->first())
                         <img src="{{ $urun->images->first()->url() }}" alt="{{ $urun->title }}">
                     @else
-                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" alt="">
+                        {{--
+                            ⚠️ Boş SVG veri adresi yerine GERÇEK yer tutucu:
+                            tarayıcı boş görseli kırık kare olarak çiziyordu
+                            ve müşteriye "yüklenemedi" izlenimi veriyordu.
+                        --}}
+                        <div class="yok">Görsel yok</div>
                     @endif
 
                     <div class="govde">

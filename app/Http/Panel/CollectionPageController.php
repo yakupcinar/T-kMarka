@@ -4,6 +4,7 @@ namespace App\Http\Panel;
 
 use App\Domain\Catalog\CollectionQuery;
 use App\Domain\Catalog\CollectionRuleException;
+use App\Domain\Catalog\CollectionRules;
 use App\Domain\Catalog\CollectionService;
 use App\Domain\Quota\QuotaExceededException;
 use App\Enums\CollectionType;
@@ -85,6 +86,19 @@ class CollectionPageController extends Controller
             | Kurallıda gönderilmiyor: orada üyelik SORGUYLA belirleniyor
             | ve elle ekleme yanlış beklenti yaratırdı.
             */
+            /*
+            | ⚠️ Alan ve işleç listesi SUNUCUDAN geliyor, arayüzde
+            | kopyalanmıyor: 2D'de listeye yeni alan eklenirse ekran
+            | kendiliğinden öğreniyor. Kopyalansaydı iki liste ayrışır ve
+            | marka olmayan bir alanı seçebilirdi.
+            */
+            'kuralAlanlari' => collect(CollectionRules::ALANLAR)
+                ->map(fn (array $islecler, string $alan) => ['alan' => $alan, 'islecler' => $islecler])
+                ->values()
+                ->all(),
+
+            'eslesmeler' => CollectionRules::ESLESMELER,
+
             'eklenebilir' => $koleksiyon->type === CollectionType::Manual
                 ? Product::query()->orderBy('title')->limit(200)
                     ->get()->map(fn (Product $u) => ['uuid' => $u->uuid, 'title' => $u->title])
@@ -109,6 +123,37 @@ class CollectionPageController extends Controller
         }
 
         return back()->with('mesaj', 'Koleksiyon oluşturuldu.');
+    }
+
+    public function kuralKaydet(Request $istek, ProductCollection $koleksiyon): RedirectResponse
+    {
+        $veri = $istek->validate([
+            'match' => ['required', 'string'],
+            'conditions' => ['present', 'array'],
+            'conditions.*.field' => ['required', 'string'],
+
+            // ⚠️ Anahtar `op` — `operator` DEĞİL (2D). Yanlış anahtar
+            // sessizce atlanmıyor, istisna fırlıyor.
+            'conditions.*.op' => ['required', 'string'],
+            'conditions.*.value' => ['required'],
+        ]);
+
+        try {
+            $this->koleksiyonlar->guncelle($koleksiyon, [], null, [
+                'match' => $veri['match'],
+                'conditions' => $veri['conditions'],
+            ]);
+        } catch (CollectionRuleException $hata) {
+            /*
+            | ⚠️ Bilinmeyen alan ya da desteklenmeyen işleç SESSİZCE
+            | ATLANMIYOR (2D): atlansaydı üç koşullu bir kuralın ikisi
+            | uygulanır, koleksiyon FAZLA ürün gösterir ve kimse fark
+            | etmezdi.
+            */
+            return back()->with('hata', $hata->getMessage());
+        }
+
+        return back()->with('mesaj', 'Kural kaydedildi.');
     }
 
     public function sil(ProductCollection $koleksiyon): RedirectResponse

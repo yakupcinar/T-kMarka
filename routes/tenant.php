@@ -25,6 +25,7 @@ use App\Http\Panel\ProductPageController as PanelUrunSayfasi;
 use App\Http\Panel\ReturnController as PanelIade;
 use App\Http\Panel\ReturnPageController;
 use App\Http\Panel\ReviewController;
+use App\Http\Panel\ReviewPageController;
 use App\Http\Panel\RoleController;
 use App\Http\Panel\SettingsController;
 use App\Http\Panel\StaffController;
@@ -747,6 +748,7 @@ Route::middleware([
             */
             Route::post('/urunler/{urun:uuid}/gorseller', [PanelUrunSayfasi::class, 'gorselYukle'])->name('panel.gorsel.yukle');
             Route::delete('/urunler/{urun:uuid}/gorseller/{gorsel}', [PanelUrunSayfasi::class, 'gorselSil'])->name('panel.gorsel.sil');
+            Route::post('/urunler/{urun:uuid}/gorseller/sirala', [PanelUrunSayfasi::class, 'gorselSirala'])->name('panel.gorsel.sirala');
 
             /*
             | KATALOG ALTYAPISI (4.5E): kategoriler ve varyant eksenleri.
@@ -757,6 +759,7 @@ Route::middleware([
             Route::get('/katalog', [CatalogSettingsPageController::class, 'index'])->name('panel.katalog');
             Route::post('/katalog/kategoriler', [CatalogSettingsPageController::class, 'kategoriEkle'])->name('panel.kategori.ekle');
             Route::delete('/katalog/kategoriler/{kategori}', [CatalogSettingsPageController::class, 'kategoriSil'])->name('panel.kategori.sil');
+            Route::post('/katalog/kategoriler/{kategori}/tasi', [CatalogSettingsPageController::class, 'kategoriTasi'])->name('panel.kategori.tasi');
             Route::post('/katalog/eksenler', [CatalogSettingsPageController::class, 'eksenEkle'])->name('panel.eksen.ekle');
             Route::delete('/katalog/eksenler/{eksen}', [CatalogSettingsPageController::class, 'eksenSil'])->name('panel.eksen.sil');
             Route::post('/katalog/eksenler/{eksen}/degerler', [CatalogSettingsPageController::class, 'degerEkle'])->name('panel.deger.ekle');
@@ -769,10 +772,21 @@ Route::middleware([
             | belirleniyor ve elle eklenen ürün bir sonraki sorguda
             | kaybolurdu. Kontrol controller'da, 422.
             */
+            /*
+            | YORUM MODERASYONU (4.5F) — EKRANI OLMAYAN SON ALANDI.
+            |
+            | ⚠️ Yorum onaylanmadan vitrinde görünmüyor (2E); ekran
+            | olmadığı için o kuyruğun ÇIKIŞI YOKTU.
+            */
+            Route::get('/yorumlar', [ReviewPageController::class, 'index'])->name('panel.yorumlar');
+            Route::post('/yorumlar/{yorum:uuid}/onayla', [ReviewPageController::class, 'onayla'])->name('panel.yorum.onayla');
+            Route::post('/yorumlar/{yorum:uuid}/reddet', [ReviewPageController::class, 'reddet'])->name('panel.yorum.reddet');
+
             Route::get('/koleksiyonlar', [CollectionPageController::class, 'index'])->name('panel.koleksiyonlar');
             Route::post('/koleksiyonlar', [CollectionPageController::class, 'ekle'])->name('panel.koleksiyon.ekle');
             Route::get('/koleksiyonlar/{koleksiyon:uuid}', [CollectionPageController::class, 'goster'])->name('panel.koleksiyon');
             Route::delete('/koleksiyonlar/{koleksiyon:uuid}', [CollectionPageController::class, 'sil'])->name('panel.koleksiyon.sil');
+            Route::post('/koleksiyonlar/{koleksiyon:uuid}/kural', [CollectionPageController::class, 'kuralKaydet'])->name('panel.koleksiyon.kural');
             Route::post('/koleksiyonlar/{koleksiyon:uuid}/urunler', [CollectionPageController::class, 'urunEkle'])->name('panel.koleksiyon.urunekle');
             Route::delete('/koleksiyonlar/{koleksiyon:uuid}/urunler/{urun}', [CollectionPageController::class, 'urunCikar'])->name('panel.koleksiyon.uruncikar');
 

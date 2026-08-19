@@ -24,6 +24,7 @@ const menu = [
   { ad: 'Katalog ayarları', yol: '/yonetim/katalog', izin: 'product.write' },
   { ad: 'Siparişler', yol: '/yonetim/siparisler', izin: 'order.view' },
   { ad: 'İadeler', yol: '/yonetim/iadeler', izin: 'order.view' },
+  { ad: 'Yorumlar', yol: '/yonetim/yorumlar', izin: 'product.write' },
   { ad: 'Mağaza', yol: '/yonetim/magaza', izin: 'settings.write' },
   { ad: 'Ödeme', yol: '/yonetim/odeme-ayarlari', izin: 'settings.write' },
   { ad: 'Yasal', yol: '/yonetim/yasal', izin: 'settings.write' },

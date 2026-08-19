@@ -1,10 +1,40 @@
 <script setup>
 /* Koleksiyon ayrıntısı ve üyeleri. (4.5E) */
 import { ref } from 'vue'
-import { Head, Link, router } from '@inertiajs/vue3'
+import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import PanelDuzeni from '../Layouts/PanelDuzeni.vue'
 
-const props = defineProps({ koleksiyon: Object, uyeler: Array, eklenebilir: Array })
+const props = defineProps({
+  koleksiyon: Object, uyeler: Array, eklenebilir: Array,
+  kuralAlanlari: Array, eslesmeler: Array,
+})
+
+/* KURAL DÜZENLEYİCİ (4.5F) */
+const kural = useForm({
+  match: props.koleksiyon.rules?.match ?? 'all',
+  conditions: props.koleksiyon.rules?.conditions
+    ? JSON.parse(JSON.stringify(props.koleksiyon.rules.conditions))
+    : [],
+})
+
+function kosulEkle() {
+  const ilk = props.kuralAlanlari[0]
+  kural.conditions.push({ field: ilk.alan, op: ilk.islecler[0], value: '' })
+}
+
+function kosulSil(i) { kural.conditions.splice(i, 1) }
+
+/*
+ | ⚠️ Alan değişince İŞLEÇ de sıfırlanıyor: her alan farklı işleç
+ | destekliyor (2D) ve eskisi kalırsa sunucu "desteklemiyor" diye
+ | reddeder — marka sebebini anlamaz.
+ */
+function alanDegisti(k) {
+  const alan = props.kuralAlanlari.find((a) => a.alan === k.field)
+  k.op = alan?.islecler[0] ?? ''
+}
+
+function kuralKaydet() { kural.post(`/yonetim/koleksiyonlar/${props.koleksiyon.uuid}/kural`) }
 
 const secilen = ref('')
 
@@ -36,6 +66,43 @@ function urunCikar(u) {
     <div v-if="koleksiyon.type === 'rule'" class="rounded-lg bg-stone-100 border border-stone-200 px-4 py-3 text-sm mb-4">
       Bu koleksiyonun üyeleri kurala göre <strong>otomatik</strong> belirlenir; ürün elle eklenmez.
       Fiyat ya da etiket değişince liste kendiliğinden güncellenir.
+    </div>
+
+    <!-- KURAL DÜZENLEYİCİ — yalnızca kurallı koleksiyonda -->
+    <div v-if="koleksiyon.type === 'rule'" class="rounded-xl bg-white border border-stone-200 p-5 mb-4">
+      <h2 class="font-semibold mb-3">Kural</h2>
+
+      <label class="block text-sm mb-3">
+        Koşullardan
+        <select v-model="kural.match" class="ml-2 rounded-lg border border-stone-300 px-2 py-1">
+          <option v-for="e in eslesmeler" :key="e" :value="e">{{ e === 'all' ? 'hepsi' : 'herhangi biri' }}</option>
+        </select>
+        sağlanmalı
+      </label>
+
+      <div v-for="(k, i) in kural.conditions" :key="i" class="flex gap-2 mb-2 items-center">
+        <select v-model="k.field" class="rounded-lg border border-stone-300 px-2 py-1 text-sm" @change="alanDegisti(k)">
+          <option v-for="a in kuralAlanlari" :key="a.alan" :value="a.alan">{{ a.alan }}</option>
+        </select>
+
+        <!-- ⚠️ İşleç listesi ALANA göre değişiyor (2D): sabit liste
+             gösterilseydi marka desteklenmeyen bir işleç seçebilirdi. -->
+        <select v-model="k.op" class="rounded-lg border border-stone-300 px-2 py-1 text-sm">
+          <option v-for="o in (kuralAlanlari.find((a) => a.alan === k.field)?.islecler ?? [])" :key="o" :value="o">{{ o }}</option>
+        </select>
+
+        <input v-model="k.value" placeholder="değer" class="flex-1 rounded-lg border border-stone-300 px-2 py-1 text-sm">
+        <button type="button" class="text-red-700 text-sm" @click="kosulSil(i)">sil</button>
+      </div>
+
+      <div class="flex gap-2 mt-3">
+        <button type="button" class="rounded-lg border border-stone-300 px-3 py-2 text-sm" @click="kosulEkle">Koşul ekle</button>
+        <button type="button" class="rounded-lg bg-orange-600 text-white px-4 py-2 text-sm font-semibold" @click="kuralKaydet">
+          Kuralı kaydet
+        </button>
+      </div>
+
+      <p v-for="(h, alan) in kural.errors" :key="alan" class="text-sm text-red-700 mt-2">{{ h }}</p>
     </div>
 
     <div class="rounded-xl bg-white border border-stone-200 p-5">

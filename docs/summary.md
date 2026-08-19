@@ -2025,3 +2025,69 @@ FAZ 4.5 AÇILDI — ARAYÜZ BOŞLUKLARI
         görsel yüklendi → adresi 200 image/png → panelden silindi
       ⚠️ YAPILMAYAN: kural düzenleme arayüzü · kategori taşıma ·
         görsel sıralama (üçü de uçlarda var, 4.5F'ye)
+
+4.5F ✅ YORUM MODERASYONU + GÖRSEL CİLA + KAPSAM TESTİ — 6 test
+      ★ EKRANI OLMAYAN SON ALAN KAPANDI: yorum moderasyonu
+        uçları 2E'de vardı; ekran olmadığı için yorumlar HİÇ
+        ONAYLANAMIYORDU — vitrinde hiç yorum görünmüyordu ve marka
+        bunu fark edemiyordu
+        ⚠️ kuyruk ESKİDEN YENİYE (listenin geri kalanının tersine):
+          en eski yorum EN ÇOK BEKLEYEN demek
+
+      4.5E'den kalan üç boşluk da kapandı: kategori taşıma · görsel
+      sıralama · koleksiyon kural düzenleyici
+      ⚠️ kural düzenleyicide alan/işleç listesi SUNUCUDAN: kopyalansaydı
+        iki liste ayrışır, marka olmayan bir alanı seçebilirdi
+
+      ★ GÖRSEL: iskeletten çıkış, YENİDEN TASARIM DEĞİL
+        görselsiz ürün için GERÇEK yer tutucu — önce boş SVG basılıyordu
+        ve tarayıcı KIRIK KARE çiziyordu
+        kart gölgesi/hareketi · düğme durumları · GÖRÜNÜR ODAK HALKASI
+        ⚠️ outline:none sayfayı "temiz" gösterir ama klavyeyle gezen
+          kullanıcı nerede olduğunu göremez
+
+      ★★ BİTİŞ ÖLÇÜTÜ ARTIK YAPISAL TESTLE (PanelKapsamTest)
+        Faz 4.5 bir ÖLÇÜMLE açılmıştı (73 uç, 34 sayfa); aynı ölçüm
+        artık her koşuda yapılıyor
+        ⚠️ uç SAYISI değil ALAN KAPSAMI ölçülüyor (bir ekran 14 ucu
+          karşılayabiliyor) · /panel/me için eşlemede BİLEREK null
+        ★ ilk kırma denemem YETERSİZDİ: yalnızca listeyi sildim, diğer
+          rotalar alanı ayakta tuttu → alanın tamamı kaldırılınca düştü
+
+════════════ ✅ FAZ 4.5 TAMAMLANDI ════════════
+716 test · lint · analyse · CI hepsi yeşil     (Faz 4 sonu: 648 → +68)
+
+açılış ölçümü : 73 uç, 34 sayfa — arka ucun yarısına erişilemiyordu
+kapanış       : ekranı olmayan API alanı kalmadı, yapısal testle korunuyor
+
+FAZIN TAŞIYICI DERSİ
+
+  ★ "UÇ VAR" İLE "KULLANILABİLİR" ARASINDAKİ FARK
+    Faz 4 bitiminde sistem uçtan uca çalışıyordu ve testler yeşildi —
+    ama marka GERÇEK PARA TAHSİL EDEMİYORDU, sözleşmesini
+    düzenleyemiyordu, müşteri sözleşmeyi OKUYAMIYORDU (bağlantı ham
+    JSON'a gidiyordu) ve siparişini takip edemiyordu
+
+    ölçümle bulunan : sözleşme bağlantısı · ödeme ayarları ekranı ·
+                      yorum moderasyonu
+    testle bulunan  : çapraz marka müşteri oturumu · kategori girintisi
+                      (ltree ayracı `/`, `.` değil) · "personeli çıkar"
+                      düğmesi 404 (uuid/id)
+    ★ altısı da KOD DOĞRU ÇALIŞIRKEN vardı; hiçbiri hata vermiyordu
+
+  ★★ KORUMAYI GENİŞLETMEK ≠ DOĞRU YERE TAKMAK (4.5D)
+    guard listesi genişletildi ama middleware vitrin grubunda yoktu
+
+  ★★ TEST İSTEMCİSİ ÖLÇÜMÜ BOZUYOR — DÖRDÜNCÜ KEZ
+    2E postJson · 4A getJson · 4G UploadedFile::fake ·
+    4.5D test istemcisinin ÇEREZ TAKİBİ
+
+  ★★ KIRMA DENEMESİ DÖRT ŞEY BULUYOR ARTIK
+    yalan test · hiç yazılmamış test · ÖLÜ SAVUNMA (4.5E) ·
+    kendisinin YANLIŞ YERİ KIRDIĞI durum (4D · 4.5F)
+
+AÇIK BORÇLAR → FAZ 5
+  IyzicoSubscriptionProvider · PCI DSS 4.0 betik bütünlüğü (Faz 6) ·
+  toplu işlemler · declare(strict_types=1)
+
+FAZ 5 SIRADA — kargo firmaları · e-fatura/e-arşiv
