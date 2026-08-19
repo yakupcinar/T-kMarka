@@ -4,6 +4,7 @@ namespace App\Http\Storefront;
 
 use App\Domain\Cart\CartService;
 use App\Domain\Settings\ThemeSettings;
+use App\Models\ProductCollection;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -49,6 +50,16 @@ class StorefrontViewData
         $gorunum->with([
             'tema' => $goruntu,
             'sepetAdedi' => $this->sepetAdedi(),
+
+            /*
+            | ⚠️ Üst bardaki "Koleksiyonlar" bağlantısı YALNIZCA yayında
+            | koleksiyon varsa çiziliyor (4.5H). Her zaman gösterilseydi
+            | yeni mağazanın menüsü boş bir sayfaya götürürdü.
+            |
+            | ⚠️ `exists()` kullanılıyor, `count()` değil: soru "var mı",
+            | "kaç tane" değil — PostgreSQL ilkinde ilk satırda duruyor.
+            */
+            'koleksiyonVar' => ProductCollection::where('is_active', true)->exists(),
         ]);
     }
 

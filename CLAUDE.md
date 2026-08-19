@@ -325,6 +325,12 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   "tanımsız fonksiyon" verir — tüm süitte görünmeyen, dosya yükleme sırasına
   bağlı sessiz bağımlılık. 4E'de `iadeyeHazirSiparis` ve `inertiaVerisi`
   bu yüzden taşındı.
+  ⚠️ **Aynı madalyonun öteki yüzü: ADI ÇAKIŞMASIN.** Test dosyasındaki
+  fonksiyonlar **global** — başka bir test dosyasında aynı ad varsa iki dosya
+  birlikte yüklenince PHP *"cannot redeclare"* ile ölür. 4.5H'de yaşandı
+  (`koleksiyonluMagaza` iki dosyada); **tek dosya koşarken testler yeşildi**,
+  gösteren Larastan oldu (`invoked with 0 parameters, 1 required` — imza
+  ÖTEKİ dosyadan okunuyordu). Yardımcı yazmadan önce `grep -rn "function ad" tests/`.
 - **`sevkiyatlikSiparis()` PARA İADESİNE HAZIR DEĞİL.** Ödemeyi servisten
   yapıyor, **tahsil edilmiş `Payment` kaydı açmıyor**; `RefundService`
   `firstOrFail()` ile onu arıyor ve bulamayınca **404** dönüyor. ⚠️ Belirti

@@ -11,6 +11,7 @@ use App\Enums\Permission;
 use App\Enums\ProductStatus;
 use App\Models\Category;
 use App\Models\Option;
+use App\Models\ProductCollection;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 
@@ -270,4 +271,68 @@ it('★★ IZINSIZ personel katalog ayarlarina GIREMIYOR', function () {
             ->get('http://marka-a.test'.$yol)
             ->assertForbidden();
     }
+});
+
+it('★★★ KURALLI KOLEKSIYON PANELDEN OLUSTURULABILIYOR', function () {
+    ['sahip' => $sahip] = markaKur('marka-a.test');
+
+    /*
+    | ★ GERÇEK KULLANIMDA BULUNDU: form `type: rule` gönderiyor ama kural
+    | göndermiyordu ve HER DENEME "Kural bir nesne olmalı" ile düşüyordu.
+    |
+    | Tasarım hatasıydı: "önce oluştur, sonra kuralını ayrıntı sayfasından
+    | yaz" akışı yazmıştım. Ama 2D'de BOŞ KURAL BİLEREK YASAK — izin
+    | verilseydi koleksiyon TÜM KATALOĞU gösterirdi, sessizce. Yani o akış
+    | hiç çalışamazdı; kural düzenleyici OLUŞTURMA FORMUNDA olmak zorunda.
+    */
+    $this->actingAs($sahip, 'staff-web')
+        ->post('http://marka-a.test/yonetim/koleksiyonlar', [
+            'title' => 'Pahalilar',
+            'type' => 'rule',
+            'rules' => [
+                'match' => 'all',
+                'conditions' => [['field' => 'price', 'op' => 'gte', 'value' => '100']],
+            ],
+        ])->assertRedirect();
+
+    $koleksiyon = ProductCollection::where('title', 'Pahalilar')->firstOrFail();
+
+    expect($koleksiyon->type)->toBe(CollectionType::Rule)
+        ->and($koleksiyon->rules['conditions'] ?? [])->toHaveCount(1);
+});
+
+it('★★ KURALSIZ kurallı koleksiyon ANLASILIR mesajla reddediliyor', function () {
+    ['sahip' => $sahip] = markaKur('marka-a.test');
+
+    $cevap = $this->actingAs($sahip, 'staff-web')
+        ->post('http://marka-a.test/yonetim/koleksiyonlar', [
+            'title' => 'Kuralsiz',
+            'type' => 'rule',
+        ]);
+
+    /*
+    | ⚠️ Servise kuralsız gidilse "Kural bir nesne olmalı" diyor —
+    | teknik olarak doğru ama markaya NE YAPACAĞINI söylemiyor.
+    | Kontrol controller'da erken yapılıyor ve mesaj markanın dilinde.
+    */
+    $cevap->assertRedirect()->assertSessionHas('hata');
+
+    expect(session('hata'))->toContain('en az bir koşul');
+    expect(ProductCollection::where('title', 'Kuralsiz')->exists())->toBeFalse();
+});
+
+it('★ OLUSTURMA EKRANI kural secenklerini de gonderiyor', function () {
+    ['sahip' => $sahip] = markaKur('marka-a.test');
+
+    $sayfa = inertiaVerisi(
+        $this->actingAs($sahip, 'staff-web')->get('http://marka-a.test/yonetim/koleksiyonlar')->getContent(),
+    );
+
+    /*
+    | ⚠️ Kural düzenleyici oluşturma formunda olduğu için alan/işleç
+    | listesi LİSTE ekranına da gitmek zorunda. Gitmezse form kuralı
+    | çizemez ve kurallı koleksiyon yine oluşturulamaz.
+    */
+    expect($sayfa['props']['kuralAlanlari'])->not->toBeEmpty()
+        ->and($sayfa['props']['eslesmeler'])->toBe(['all', 'any']);
 });

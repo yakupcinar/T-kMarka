@@ -42,6 +42,7 @@ use App\Http\Storefront\CatalogController;
 use App\Http\Storefront\CheckoutController as VitrinCheckout;
 use App\Http\Storefront\CheckoutPageController;
 use App\Http\Storefront\CollectionController as StorefrontCollectionController;
+use App\Http\Storefront\CollectionPageController as StorefrontKoleksiyonSayfa;
 use App\Http\Storefront\CouponController;
 use App\Http\Storefront\HomeController;
 use App\Http\Storefront\LegalController as VitrinLegal;
@@ -572,6 +573,15 @@ Route::middleware([
 
     Route::get('/', HomeController::class)->name('vitrin.anasayfa');
     Route::get('/urun/{slug}', ProductPageController::class)->name('vitrin.urun');
+
+    /*
+    | KOLEKSİYONLAR (4.5H) — 2D'nin vitrin karşılığı.
+    |
+    | ⚠️ Uçları vardı (`/api/collections`) ama SAYFASI YOKTU: marka
+    | koleksiyon kuruyor, müşteri hiçbir yerden göremiyordu.
+    */
+    Route::get('/koleksiyonlar', [StorefrontKoleksiyonSayfa::class, 'index'])->name('vitrin.koleksiyonlar');
+    Route::get('/koleksiyon/{slug}', [StorefrontKoleksiyonSayfa::class, 'show'])->name('vitrin.koleksiyon');
 
     /*
     | SEPET SAYFASI VE İŞLEMLERİ

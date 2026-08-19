@@ -84,3 +84,80 @@ it('★★★ PANELDE EKRANI OLMAYAN API ALANI KALMADI', function () {
 
     expect($eksikler)->toBe([], "Ekranı olmayan uç alanları:\n".implode("\n", $eksikler));
 });
+
+it('★★★ VİTRİN API ALANLARININ DA EKRAN KARŞILIĞI VAR', function () {
+    /*
+    | ★ BU TESTİ GERÇEK KULLANIM DOĞURDU. 4.5F'nin kapsam testi yalnızca
+    | PANEL uçlarına bakıyordu; vitrin API'sinin ekran karşılığı hiç
+    | ölçülmüyordu.
+    |
+    | Sonuç: marka koleksiyon kuruyordu ama müşteri onu HİÇBİR YERDEN
+    | göremiyordu — uçlar (`/api/collections`) vardı, sayfa yoktu ve
+    | hiçbir test bunu göremezdi.
+    */
+    $ucAlanlari = [];
+    $sayfaAlanlari = [];
+
+    foreach (Route::getRoutes()->getRoutes() as $rota) {
+        $yol = $rota->uri();
+
+        if (str_starts_with($yol, 'api/')) {
+            $ucAlanlari[] = explode('/', substr($yol, strlen('api/')))[0];
+        }
+
+        /*
+        | ⚠️ Vitrin sayfaları KÖKTE duruyor (`/sepet`, `/urun/{slug}`),
+        | önek yok — panel gibi ayırt edilemiyor. Bu yüzden `yonetim/`
+        | ve `api/` dışındaki HER rota vitrin sayfası sayılıyor.
+        */
+        if (! str_starts_with($yol, 'api/') && ! str_starts_with($yol, 'yonetim/') && ! str_starts_with($yol, 'panel/')) {
+            $sayfaAlanlari[] = explode('/', $yol)[0];
+        }
+    }
+
+    $ucAlanlari = array_values(array_unique($ucAlanlari));
+    $sayfaAlanlari = array_values(array_unique($sayfaAlanlari));
+
+    /*
+    | Vitrin API alanı → onu karşılayan sayfa.
+    |
+    | ⚠️ `null` = BİLEREK ekranı yok, gerekçesiyle.
+    */
+    $esleme = [
+        'products' => 'urun',
+        'categories' => null,     // ⚠️ kategori gezinme sayfası YOK — bilinen borç
+        'collections' => 'koleksiyonlar',
+        'cart' => 'sepet',
+        'checkout' => 'odeme',
+        'orders' => 'hesabim',
+        'addresses' => 'hesabim',
+        'legal' => 'yasal',
+        'login' => 'giris',
+        'register' => 'kayit',
+        'logout' => 'cikis',
+
+        // ⚠️ "ben kimim" — vitrinde her sayfada zaten paylaşılıyor.
+        'me' => null,
+
+        // ⚠️ KVKK veri talebi: bağlantı e-postadan geliyor, sayfası yok (2G).
+        'privacy' => null,
+    ];
+
+    $eksikler = [];
+
+    foreach ($ucAlanlari as $alan) {
+        if (! array_key_exists($alan, $esleme)) {
+            $eksikler[] = "{$alan} → eşlemede YOK (yeni uç mu eklendi?)";
+
+            continue;
+        }
+
+        $ekran = $esleme[$alan];
+
+        if ($ekran !== null && ! in_array($ekran, $sayfaAlanlari, true)) {
+            $eksikler[] = "{$alan} → '{$ekran}' sayfası bulunamadı";
+        }
+    }
+
+    expect($eksikler)->toBe([], "Ekranı olmayan vitrin uç alanları:\n".implode("\n", $eksikler));
+});

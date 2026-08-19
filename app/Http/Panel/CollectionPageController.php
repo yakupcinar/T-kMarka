@@ -53,6 +53,19 @@ class CollectionPageController extends Controller
             ])->values()->all(),
 
             /*
+            | ⚠️ Kural seçenekleri LİSTE ekranına da gidiyor — yalnızca
+            | ayrıntıya değil. Sebep: kurallı koleksiyon KURAL OLMADAN
+            | oluşturulamıyor (2D: boş kural tüm kataloğu gösterirdi), yani
+            | kural düzenleyici OLUŞTURMA FORMUNDA olmak zorunda.
+            |
+            | ⚠️ İlk hâlde "önce oluştur, sonra kuralını yaz" akışı
+            | yazılmıştı ve HİÇ ÇALIŞMIYORDU: her deneme "Kural bir nesne
+            | olmalı" ile düşüyordu. Gerçek kullanımda bulundu.
+            */
+            'kuralAlanlari' => $this->kuralAlanlari(),
+            'eslesmeler' => CollectionRules::ESLESMELER,
+
+            /*
             | ⚠️ Tür adları GÖRÜNÜM için burada: enum'da `etiket()` yok ve
             | eklemek iş mantığına sunum kararı sokmak olurdu.
             */
@@ -92,10 +105,7 @@ class CollectionPageController extends Controller
             | kendiliğinden öğreniyor. Kopyalansaydı iki liste ayrışır ve
             | marka olmayan bir alanı seçebilirdi.
             */
-            'kuralAlanlari' => collect(CollectionRules::ALANLAR)
-                ->map(fn (array $islecler, string $alan) => ['alan' => $alan, 'islecler' => $islecler])
-                ->values()
-                ->all(),
+            'kuralAlanlari' => $this->kuralAlanlari(),
 
             'eslesmeler' => CollectionRules::ESLESMELER,
 
@@ -107,10 +117,43 @@ class CollectionPageController extends Controller
         ]);
     }
 
+    /**
+     * Kural alanları ve destekledikleri işleçler.
+     *
+     * ⚠️ SUNUCUDAN geliyor, arayüzde kopyalanmıyor: 2D'de listeye yeni
+     * alan eklenirse ekran kendiliğinden öğreniyor.
+     *
+     * @return list<array{alan: string, islecler: list<string>}>
+     */
+    private function kuralAlanlari(): array
+    {
+        /** @var list<array{alan: string, islecler: list<string>}> $liste */
+        $liste = collect(CollectionRules::ALANLAR)
+            ->map(fn (array $islecler, string $alan) => ['alan' => $alan, 'islecler' => $islecler])
+            ->values()
+            ->all();
+
+        return $liste;
+    }
+
     public function ekle(CollectionRequest $istek): RedirectResponse
     {
         /** @var array<string, mixed>|null $kural */
         $kural = $istek->validated('rules');
+
+        /*
+        | ⚠️ KURALLI KOLEKSİYON KURALSIZ OLUŞTURULAMAZ ve bu kontrol
+        | erken burada: servise kuralsız gidilse `CollectionRules::dogrula`
+        | "Kural bir nesne olmalı" diyor — teknik olarak doğru ama markaya
+        | ne yapacağını söylemeyen bir mesaj.
+        |
+        | Boş kural 2D'de bilerek yasaklandı: izin verilseydi koleksiyon
+        | TÜM KATALOĞU gösterirdi — sessizce.
+        */
+        if ($istek->validated('type') === CollectionType::Rule->value
+            && ($kural === null || ($kural['conditions'] ?? []) === [])) {
+            return back()->with('hata', 'Kurallı koleksiyon en az bir koşul içermeli.');
+        }
 
         try {
             $this->koleksiyonlar->olustur(

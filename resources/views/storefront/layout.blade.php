@@ -269,6 +269,12 @@
             @endif
         </a>
 
+        {{-- ⚠️ Koleksiyon YOKSA bağlantı da yok: boş sayfaya götüren bir
+             menü maddesi müşteriyi yanıltırdı. --}}
+        @if (($koleksiyonVar ?? false))
+            <a class="sepet" href="{{ route('vitrin.koleksiyonlar') }}">Koleksiyonlar</a>
+        @endif
+
         <form class="ara" method="get" action="{{ route('vitrin.anasayfa') }}">
             <input type="search" name="q" value="{{ $arama ?? '' }}" placeholder="Ürün ara" aria-label="Ürün ara">
             <button class="dugme" type="submit">Ara</button>

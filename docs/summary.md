@@ -2120,3 +2120,39 @@ FAZ 5 SIRADA — kargo firmaları · e-fatura/e-arşiv
       DOĞRULANDI (gerçek tarayıcı)
         a@a → 302 → /odeme, "alan adı geçersiz görünüyor", SİPARİŞ YOK
         geçerli e-posta → sipariş → GERÇEK iyzico sandbox formu
+
+4.5H ✅ KOLEKSİYON: VİTRİNDE SAYFA, PANELDE KURAL EDİTÖRÜ — 734 test
+      kullanıcının bildirdiği iki sorun, ikisi de "UÇ VAR ≠ KULLANILABİLİR"
+
+      ✅ 1) VİTRİNDE KOLEKSİYON SAYFASI YOKTU
+        marka koleksiyon kurabiliyordu (2D, /api/collections)
+        müşteri HİÇBİR YERDEN göremiyordu
+        /koleksiyonlar (liste) + /koleksiyon/{slug} (detay) + başlık bağlantısı
+        ⚠️ bağlantı KOŞULLU (koleksiyonVar): aktif koleksiyonu olmayan
+          markada görünmüyor — yoksa müşteriye BOŞ SAYFAYA giden menü
+        ⚠️ ürünler CollectionQuery::urunler() üzerinden — manuel ve kurallı
+          AYNI yoldan, forStorefront() kapsamı korunuyor
+          doğrudan products() yazılsaydı manuel koleksiyon TASLAK ürünü
+          müşteriye gösterirdi (kırma denemesiyle ölçüldü)
+        kapalı koleksiyon (is_active=false) detayda 404
+
+      ✅ 2) PANELDE KURAL EDİTÖRÜ OLUŞTURMA FORMUNDA YOKTU
+        "kural bir nesne olmalı" → 2D'de BOŞ KURAL BİLEREK YASAK
+          (izin verilseydi koleksiyon TÜM KATALOĞU gösterirdi)
+        yani SUNUCU HAKLIYDI, EKRAN EKSİKTİ
+        kuralAlanlari + eslesmeler artık HER İKİ ekrana da gidiyor
+        ⚠️ controller'da ERKEN KONTROL: koşulsuz istek servise gitmeden
+          ANLAŞILIR mesajla dönüyor (servisin mesajı doğruydu ama teknikti)
+
+      ✅ 3) KAPSAM TESTİ VİTRİNİ DE KAPSIYOR
+        4.5F'nin testi yalnızca PANELE bakıyordu → bu eksiği YAKALAYAMAZDI
+        bilerek null: categories · privacy · me (gerekçeler testin içinde)
+
+      ⚠️ ANALİZ GERÇEK TUZAK YAKALADI
+        yeni test yardımcısı koleksiyonluMagaza, CollectionTest'tekiyle
+        ÇAKIŞIYORDU → iki dosya birlikte yüklenince PHP "cannot redeclare"
+        Larastan gösterdi, testler tek dosya koşarken YEŞİLDİ
+
+      DOĞRULANDI (gerçek curl)
+        /koleksiyonlar 200 · /koleksiyon/yaz-seckisi 200 üç ürün
+        olmayan slug 404 · başlıkta bağlantı görünüyor

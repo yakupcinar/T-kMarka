@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ───────── şu an: FAZ 4.5 BİTTİ, FAZ 5 SIRADA ┐
+┌─ YOL HARİTASI ──────── şu an: 4.5H BİTTİ, FAZ 5 SIRADA ┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -5526,6 +5526,61 @@ gözden kaçmıştı. Müşteri ödeme sayfasında ham JSON görüyordu.
 `a@a` → **302 → /odeme**, ekranda *"alan adı geçersiz görünüyor (örnek:
 ad@ornek.com)"*, **sipariş oluşmadı** · geçerli e-posta → sipariş →
 gömülü ödeme sayfası → **gerçek iyzico sandbox formu**.
+
+---
+
+### 4.5H — koleksiyon: vitrinde sayfası, panelde kural editörü  ◀ AÇIK
+
+Gerçek kullanımda bulundu: *"Koleksiyonlar kurallı tanımlarken uyarı veriyor
+kural bir nesne olmalı diye, kullanıcı panelinde koleksiyonların kullanıldığı
+bir yer görmedim eksik var."* — **iki ayrı sorun**, ikisi de 4.5'in temel
+tezinin örneği: **uç var ≠ kullanılabilir.**
+
+**✅ 1 · Vitrinde koleksiyon SAYFASI yoktu.** Marka koleksiyon kurabiliyordu
+(2D, `/api/collections`) ama müşteri onu **hiçbir yerden göremiyordu**.
+Eklendi: `/koleksiyonlar` (liste) + `/koleksiyon/{slug}` (detay), başlıkta
+bağlantı.
+
+> ⚠️ Başlıktaki bağlantı **koşullu**: aktif koleksiyonu olmayan markada
+> görünmüyor (`koleksiyonVar`). Koşulsuz yazılsaydı her marka, müşterisine
+> boş bir sayfaya giden bir menü maddesi gösterirdi.
+>
+> ⚠️ Ürünler `CollectionQuery::urunler()` üzerinden geliyor — manuel ve
+> kurallı koleksiyon **aynı yoldan** çözülüyor ve `forStorefront()`
+> kapsamı korunuyor: taslak/arşiv ürün koleksiyonda da çıkmıyor.
+> Doğrudan `$koleksiyon->products()` yazılsaydı manuel koleksiyon taslak
+> ürünü **müşteriye gösterirdi** (kırma denemesiyle ölçüldü).
+>
+> Kapalı koleksiyon (`is_active = false`) detay sayfasında **404**.
+
+**✅ 2 · Panelde kural editörü OLUŞTURMA formunda yoktu.** Kurallı
+koleksiyon seçilip kaydedilince sunucu *"kural bir nesne olmalı"* diyordu —
+çünkü 2D'de **boş kural bilerek yasak** (izin verilseydi koleksiyon TÜM
+KATALOĞU gösterirdi). Yani sunucu haklıydı, **ekran eksikti**: kural
+seçenekleri yalnızca detay sayfasına gönderiliyordu.
+
+> Kural alanları (`kuralAlanlari`) ve eşleşme türleri artık **her iki**
+> ekrana da gidiyor; oluşturma formunda tür "kurallı" seçilince koşul
+> editörü açılıyor.
+>
+> ⚠️ Ayrıca controller'a **erken kontrol** kondu: koşulsuz kurallı
+> koleksiyon isteği, servise gitmeden **anlaşılır mesajla** geri dönüyor.
+> Servisin mesajı doğruydu ama teknikti; kullanıcı ne yapacağını
+> anlamıyordu.
+
+**✅ 3 · Kapsam testi VİTRİNİ de kapsıyor.** 4.5F'nin testi yalnızca panel
+uçlarına bakıyordu — bu yüzden eksiği **yakalayamazdı**. Genişletildi:
+vitrinin `api/*` alanları için sayfa rotası var mı. Bilerek `null` işaretli
+üç alan var (`categories`, `privacy`, `me`) — gerekçeleri testin içinde.
+
+**Üç kırma denemesi, üçü de düştü.** Ayrıca analiz aşamasında **gerçek bir
+tuzak** yakalandı: yeni test yardımcısının adı (`koleksiyonluMagaza`)
+`CollectionTest.php`'deki bir yardımcıyla **çakışıyordu** — iki dosya
+birlikte yüklenince PHP *"cannot redeclare"* ile ölürdü. Larastan gösterdi.
+
+**Doğrulandı (gerçek `curl`):** `/koleksiyonlar` **200** ve koleksiyon
+listeleniyor · `/koleksiyon/yaz-seckisi` **200**, üç ürün · olmayan slug
+**404** · başlıkta bağlantı görünüyor. **734 test.**
 
 ---
 
