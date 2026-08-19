@@ -13,7 +13,8 @@
         @else
             @foreach ($adresler as $a)
                 <div class="adres-kart">
-                    <strong>{{ $a->full_name }}</strong>
+                    <strong>{{ $a->title }}</strong>
+                    <div>{{ $a->full_name }}</div>
                     <div class="ipucu">{{ $a->phone }}</div>
                     <div>{{ $a->line1 }}</div>
                     <div class="ipucu">{{ $a->district }} / {{ $a->city }}</div>
@@ -31,6 +32,20 @@
 
         <form method="post" action="{{ route('vitrin.adres.ekle') }}">
             @csrf
+
+            {{--
+                ⚠️ BAŞLIK ALANI 4.5D'de UNUTULMUŞTU ve form hiç
+                kaydedilemiyordu: `AddressRequest` `title`'ı zorunlu
+                tutuyor, form onu hiç göndermiyordu. Müşteri "başlık alanı
+                zorunludur" uyarısını alıyor ama ekranda öyle bir alan
+                YOKTU — düzeltilemez bir hata.
+
+                ⚠️ Bu müşterinin KENDİ ETİKETİ ("Ev", "İş", "Annemler"),
+                adresteki kişinin adı değil — o `full_name`.
+            --}}
+            <label>Adres başlığı
+                <input type="text" name="title" value="{{ old('title') }}" placeholder="Ev, İş…" required>
+            </label>
 
             <label>Ad soyad <input type="text" name="full_name" value="{{ old('full_name') }}" required></label>
             <label>Telefon <input type="tel" name="phone" value="{{ old('phone') }}" required></label>

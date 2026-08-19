@@ -223,6 +223,7 @@
         .hesap-cikis { margin-left: auto; }
         .onay-satiri { flex-direction: row !important; align-items: flex-start; gap: 8px; }
         .adres-kart { border: 1px solid #e7e5e4; border-radius: 10px; padding: 14px; margin-bottom: 12px; background: #fff; }
+        .adres-baslik { display: inline-block; background: #f5f5f4; border-radius: 999px; padding: 1px 10px; font-size: 12px; margin-bottom: 4px; }
 
         /* YASAL METİN (4.5A) */
         .yasal { max-width: 760px; margin: 0 auto; padding: 32px 0; }

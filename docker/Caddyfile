@@ -57,7 +57,12 @@
 #    oldu.
 # ─────────────────────────────────────────────────────────────────────
 
-marka-a.localhost, marka-b.localhost, localhost {
+# ⚠️ HER YENİ MARKA BURAYA ELLE EKLENİR — geliştirmede.
+#    Let's Encrypt `.localhost` adreslerine sertifika veremediği için
+#    on-demand TLS (3H) burada devreye giremiyor; üretimde bu liste
+#    gerekmiyor. `tenant:create` başarılı görünür ama alan adı eklenmezse
+#    site AÇILMAZ — bağlantı TLS el sıkışmasına bile gelmez.
+marka-a.localhost, marka-b.localhost, c.localhost, localhost {
 
 	# Let's Encrypt .localhost adreslerine sertifika veremez.
 	# Caddy kendi iç otoritesiyle üretir. (M-4)

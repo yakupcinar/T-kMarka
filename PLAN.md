@@ -5476,6 +5476,37 @@ metinlerini **panelden** kurabilir.
 
 ---
 
+### 4.5G — kullanımdan çıkan düzeltmeler  ◀ AÇIK
+
+Faz 4.5 kapandıktan sonra gerçek kullanımda bulunan hatalar. ⚠️ Üçü de
+**testler yeşilken** vardı.
+
+**✅ Adres formunda `title` alanı yoktu.** `AddressRequest` onu zorunlu
+tutuyor; ekranda karşılığı olmadığı için **adres defteri hiç
+kullanılamıyordu**. Müşteri "başlık alanı zorunludur" uyarısı alıyor ama
+neyi dolduracağını göremiyordu.
+
+> ⚠️ **Testler bunu göremezdi:** hepsi `ornekAdres()` ile TAM veri
+> gönderiyordu. Eksik olan sunucu değil **ekrandı**. Yeni test formun
+> HTML'ine bakıyor: doğrulamanın zorunlu tuttuğu her alanın ekranda bir
+> girdisi var mı. (720 test)
+
+**ℹ️ Ürün oluşturma yönlendirmesi** — ölçüldü, **zaten doğru çalışıyor**:
+`POST /yonetim/urunler` → `302 → /yonetim/urunler/{uuid}` ve düzenleme
+sayfası varyant bölümüyle açılıyor (4D'de yazılmıştı).
+
+**⏳ Ödeme hatası — İKİ AYRI SORUN, henüz düzeltilmedi:**
+
+1. **Doğrulamamız sağlayıcıdan gevşek.** `a@a` bizim `email` kuralımızı
+   geçiyor, iyzico reddediyor (*"email hatalı format ile gönderilmiştir"*).
+   ⚠️ Bedeli sessiz değil ama geç: **sipariş oluşuyor**, stok bağlanıyor,
+   sonra ödeme patlıyor ve stok 60 dakika kimseye satılamıyor.
+2. **`PaymentProviderException` tarayıcıya JSON dönüyor.** 4A (kapalı
+   mağaza) ve 4B (ödeme dönüşü) için düzeltilen hatanın **üçüncüsü**; bu
+   uç gözden kaçmış. Müşteri ham JSON görüyor.
+
+---
+
 ## Faz 5 — Entegrasyonlar  *(henüz açılmadı)*
 
 Kargo firmaları · e-fatura / e-arşiv

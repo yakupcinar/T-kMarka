@@ -123,11 +123,18 @@ veya dağıtım için izin gerekir.
 
 ## Örnek Hesaplar
 
-*	https://marka-a.localhost/ · https://marka-b.localhost/
-* https://marka-a.localhost/yonetim — sahip@marka-a.localhost / 123
-* https://localhost/yonetim / unknown
+*	https://marka-a.localhost/ · https://marka-b.localhost/ // mehmet@ornek.test / 123
+* https://marka-a.localhost/yonetim // sahip@marka-a.localhost / 123
+* https://localhost/yonetim // yakup@tikmarka.test / 123
 
 
+* Iyzico Örnek Hesaplar: Test Kullanıcısı (isim soyisim)
+* Numara / ccv / tarih
+* 5168 8800 0000 0002 / 123 / 12/29 (master)
+* 
+
+* 4111 1111 1111 1129 / 123 / 12/29 (Yetersiz Bakiye)
+* 4122 1111 1111 1118 / 123 / 12/29 (Geçersiz Kart Numarası)
 ---
 
 ## İyileştirme
@@ -135,3 +142,19 @@ veya dağıtım için izin gerekir.
 * Ürün sayfasının altında benzer ürünler, beğenilenler (hepsiburada gibi)
 * Ürünlere tıklamayı sayma
 * Hepsiburada gibi büyük e-ticaret sitelerinin bu tarz niş özelliklerini tespit edip liste oluşturalım
+* Vitrinde kullanıcı için ürün favorileme yok, eski siparişlerim olmalı
+
+* Koleksiyonlar kurallı tanımlarken uyarı veriyor kural bir nesne olmalı diye, kullanıcı panelinde koleksiyonların kullanıldığı bir yer görmedim eksik var.
+* Marka panelinde varyant ekleyebiliyorum üründe ama bu varyantlara özellik ekletmiyor oraya onu da ekleyelim
+* Marka panelinde adres kaydı başlık alanı zorunludur diyor baktım ama frontda onun için yer yok.
+* "https://marka-a.localhost/odeme/ode/" da ödeme için sandbox değeri girdim ve çalıştı ama sms'i girince buraya attı "Test Kullanıcı" isimli bir hesapla yaptım ve ürün gidiyor stoğa bakınca, geçersiz kartları denediğimde stok azalmıyor ama iki geçerli veya geçersiz olsun sonucunda bir mesaj döndürmüyor vitrinde kullanıcıya aynı zamanda sayfanın içindeki sayfa kalıyor bu aşağıdaki yazıya dönüşüyor web in web yani
+"
+ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS
+marka-a.localhost is blocked
+The connection is blocked because it was initiated by a public page to connect to devices or servers on your local network.
+"
+* Vitrinde siparişlere bakıyorum ama göremiyorum yeni verdiğim siparişleri kullanıcı olarak ve iade seçeneği de yok şu anda 
+* Açılan yeni Markaları tekrar elle eklemek gerekiyor Caddy üzerinden, ben o işlemi de yönetim paneline koyalım diyorum yeni gelen Marka isteğini onay/red yapayım olur mu.
+
+---
+

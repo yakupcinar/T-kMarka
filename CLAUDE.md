@@ -214,6 +214,14 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   — PHP sessizce sistem geçici klasörüne düşüyor, sonra `rename()` dosya
   sistemleri arasında patlıyor. Düzeltme `Dockerfile`'a yazılır; elle
   `chmod` taze kurulumda kaybolur.
+- **FORM ALANLARI DOĞRULAMAYLA HİZALI OLMALI — testler bunu GÖREMEZ.**
+  4.5D'de adres formuna `title` alanı konmamıştı ama `AddressRequest` onu
+  zorunlu tutuyordu: **adres defteri hiç kullanılamıyordu.** Müşteri
+  "başlık alanı zorunludur" uyarısı alıyor ama neyi dolduracağını ekranda
+  göremiyordu. ⚠️ Testlerin hepsi `ornekAdres()` ile **tam veri**
+  gönderdiği için hiçbiri yakalamadı — eksik olan sunucu değil EKRANDI.
+  Yeni bir form yazarken doğrulamanın `required` alanlarını tek tek
+  ekranla karşılaştır; ölçen test formun HTML'ine bakmalı.
 - **Test istemcisi ÇEREZ TAKİP EDİYOR — "oturum kapandı" iddiası bununla
   ölçülemez.** 4.5D'de ölçüldü: çapraz marka denemesinden sonra test, A'nın
   da kapandığını "gösteriyordu"; `curl` ile **eski** çerez elle

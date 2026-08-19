@@ -213,6 +213,46 @@ it('★ ADRES eklenip silinebiliyor', function () {
     expect($musteri->addresses()->count())->toBe(0);
 });
 
+it('★★ ADRES FORMU dogrulamanin ISTEDIGI her alani iceriyor', function () {
+    hesapliMagaza();
+    $musteri = musteriKur();
+
+    /*
+    | ★ GERÇEK KULLANIMDA BULUNDU: `AddressRequest` `title` alanını zorunlu
+    | tutuyordu ama 4.5D'de yazdığım formda O ALAN YOKTU — yani adres
+    | defteri HİÇ KULLANILAMIYORDU. Müşteri "başlık alanı zorunludur"
+    | uyarısı alıyor, ama neyi dolduracağını ekranda göremiyordu.
+    |
+    | ⚠️ Testler bunu göremezdi: hepsi `ornekAdres()` ile TAM veri
+    | gönderiyordu. Eksik olan sunucu değil EKRANDI.
+    |
+    | Bu test formun kendisine bakıyor: doğrulamanın zorunlu tuttuğu her
+    | alanın ekranda bir girdisi var mı.
+    */
+    $sayfa = $this->actingAs($musteri, 'customer-web')
+        ->get('http://marka-a.test/hesabim/adresler')
+        ->assertOk();
+
+    $zorunlular = ['title', 'full_name', 'phone', 'city', 'district', 'line1'];
+
+    foreach ($zorunlular as $alan) {
+        $sayfa->assertSee('name="'.$alan.'"', escape: false);
+    }
+});
+
+it('★ ADRES BASLIGI kayitli adreste gorunuyor', function () {
+    hesapliMagaza();
+    $musteri = musteriKur();
+
+    $musteri->addresses()->create(ornekAdres(['title' => 'Ofis']));
+
+    // ⚠️ Müşteri hangi adres olduğunu ayırt edebilmeli.
+    $this->actingAs($musteri, 'customer-web')
+        ->get('http://marka-a.test/hesabim/adresler')
+        ->assertOk()
+        ->assertSee('Ofis');
+});
+
 it('★★ BASKA MUSTERININ adresi silinemiyor', function () {
     hesapliMagaza();
 
@@ -278,4 +318,45 @@ it('★★★ BIR MARKANIN MUSTERI OTURUMU BASKA MARKADA GECERSIZ', function () 
     | koruyor, geri almıyor.
     */
     $this->get('http://marka-a.test/hesabim')->assertRedirect();
+});
+
+it('★★ ADRES FORMU doğrulamanın istediği HER ALANI sunuyor', function () {
+    hesapliMagaza();
+    $musteri = musteriKur();
+
+    /*
+    | ★ BU TESTİ GERÇEK KULLANIM DOĞURDU. 4.5D'de forma `title` alanını
+    | koymayı unutmuştum; `AddressRequest` onu zorunlu tutuyor, yani form
+    | HİÇ KAYDEDİLEMİYORDU. Müşteri "başlık alanı zorunludur" uyarısını
+    | alıyor ama ekranda öyle bir alan YOKTU — düzeltilemez bir hata.
+    |
+    | ⚠️ Mevcut testler bunu göremezdi: hepsi `ornekAdres()` yardımcısıyla
+    | POST atıyordu, yani FORMU DEĞİL UCU ölçüyorlardı. Bu test sayfanın
+    | HTML'ine bakıyor.
+    */
+    $sayfa = $this->actingAs($musteri, 'customer-web')
+        ->get('http://marka-a.test/hesabim/adresler');
+
+    $sayfa->assertOk();
+
+    $zorunlular = ['title', 'full_name', 'phone', 'city', 'district', 'line1'];
+
+    foreach ($zorunlular as $alan) {
+        $sayfa->assertSee('name="'.$alan.'"', escape: false);
+    }
+});
+
+it('★ BASLIKLI adres kaydedilebiliyor ve baslik listede gorunuyor', function () {
+    hesapliMagaza();
+    $musteri = musteriKur();
+
+    $this->actingAs($musteri, 'customer-web')
+        ->post('http://marka-a.test/hesabim/adresler', ornekAdres(['title' => 'Ev']))
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $this->actingAs($musteri, 'customer-web')
+        ->get('http://marka-a.test/hesabim/adresler')
+        ->assertOk()
+        ->assertSee('Ev');
 });
