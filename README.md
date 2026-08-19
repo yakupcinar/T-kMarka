@@ -119,3 +119,13 @@ Arayüz teknolojisi henüz **seçilmedi** — backend çalışır hâle gelene k
 
 Tüm hakları saklıdır. Kod herkese açık olarak görüntülenebilir; kullanım, kopyalama
 veya dağıtım için izin gerekir.
+
+
+## Örnek Hesaplar
+
+*	https://marka-a.localhost/ · https://marka-b.localhost/
+* https://marka-a.localhost/yonetim — sahip@marka-a.localhost / 123
+* https://localhost/yonetim / unknown
+
+
+---

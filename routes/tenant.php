@@ -30,6 +30,7 @@ use App\Http\Panel\StaffPageController;
 use App\Http\Panel\StoreController;
 use App\Http\Panel\StorePageController;
 use App\Http\Panel\ThemePageController;
+use App\Http\Storefront\AccountPageController;
 use App\Http\Storefront\AddressController;
 use App\Http\Storefront\AuthController as VitrinAuth;
 use App\Http\Storefront\CartController;
@@ -550,6 +551,19 @@ Route::middleware([
     'web',
     InitializeTenancyByDomain::class,
     PreventAccessFromCentralDomains::class,
+
+    /*
+    | ★ OTURUM AÇILDIĞI MARKAYA BAĞLI (4H · 4.5D'de vitrine de eklendi).
+    |
+    | ⚠️ 4H'de bu middleware YALNIZCA PANEL grubuna takılmıştı. 4.5D'de
+    | müşteri oturumu gelince guard listesi genişletildi ama bu YETMEDİ:
+    | middleware vitrin grubunda hiç çalışmadığı için A markasının müşteri
+    | oturumu B'nin hesabını AÇMAYA DEVAM EDİYORDU — ve test bunu gösterdi.
+    |
+    | Ders: korumayı genişletmek, onu DOĞRU YERE TAKMAK demek değil.
+    */
+    EnsureSessionTenant::class,
+
     'magaza-acik',
 ])->group(function () {
 
@@ -579,6 +593,31 @@ Route::middleware([
     | sağlayıcı POST ediyor ve CSRF üretemez (rota zaten oradaydı).
     | Aynı uç artık tarayıcıya HTML, API'ye JSON dönüyor.
     */
+    /*
+    | MÜŞTERİ HESABI (4.5D)
+    |
+    | ⚠️ Kimlik OTURUMLA (`customer-web`), token'la değil: vitrin sunucuda
+    | render ediliyor ve formlar JavaScript'siz çalışıyor (4B-K1).
+    | `customer` (sanctum) guard'ı DURUYOR — mobil ve entegrasyonlar onu
+    | kullanacak.
+    |
+    | ⚠️ Giriş/kayıt sayfaları KİMLİKSİZ erişilebilir olmak zorunda;
+    | korumalı olanlar `auth:customer-web` arkasında.
+    */
+    Route::get('/giris', [AccountPageController::class, 'girisFormu'])->name('vitrin.giris');
+    Route::post('/giris', [AccountPageController::class, 'giris']);
+    Route::get('/kayit', [AccountPageController::class, 'kayitFormu'])->name('vitrin.kayit');
+    Route::post('/kayit', [AccountPageController::class, 'kayit']);
+
+    Route::middleware('auth:customer-web')->group(function () {
+        Route::post('/cikis', [AccountPageController::class, 'cikis'])->name('vitrin.cikis');
+        Route::get('/hesabim', [AccountPageController::class, 'hesap'])->name('vitrin.hesap');
+        Route::get('/hesabim/siparis/{siparis:uuid}', [AccountPageController::class, 'siparis'])->name('vitrin.hesap.siparis');
+        Route::get('/hesabim/adresler', [AccountPageController::class, 'adresler'])->name('vitrin.adresler');
+        Route::post('/hesabim/adresler', [AccountPageController::class, 'adresEkle'])->name('vitrin.adres.ekle');
+        Route::delete('/hesabim/adresler/{adres}', [AccountPageController::class, 'adresSil'])->name('vitrin.adres.sil');
+    });
+
     Route::get('/odeme', [CheckoutPageController::class, 'form'])->name('vitrin.odeme');
     Route::post('/odeme', [CheckoutPageController::class, 'gonder'])->name('vitrin.odeme.gonder');
 

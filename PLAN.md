@@ -35,13 +35,13 @@
 │     ✅ 4E sipariş → ✅ 4F yönetim → ✅ 4G tema → ✅ 4H kapanış │
 │  4.5 · ARAYÜZ BOŞLUKLARI ◀ AÇILDI — ölçüldü: 73 uç, 34 sayfa  │
 │     ✅ 4.5A yasal → ✅ 4.5B ödeme/sözleşme → ✅ K1 iframe ödeme│
-│     ✅ 4.5C personel/alan adı → 4.5D müşteri hesabı            │
+│     ✅ 4.5C personel/alan adı → ✅ 4.5D müşteri hesabı         │
 │     4.5E katalog ekranları → 4.5F görsel + kapanış             │
 │  5 · ENTEGRASYON   kargo · e-fatura                            │
 │  6 · DAĞITIM       yayın · yedekleme · izleme                  │
 │                                                                │
 │  Kural: bir blok bitmeden sonrakine geçilmez.                  │
-│  687 test · lint · analyse · CI hepsi yeşil                    │
+│  698 test · lint · analyse · CI hepsi yeşil                    │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -5207,6 +5207,76 @@ markaya daraltılması · son alan adı kontrolü.
 izin/personel sayılarıyla gösteriyor · alan adı ekranı iki doğrulanmış
 kaydı listeliyor · yeni alan adı eklendi ve **üç DNS seçeneği** marka
 başına rastgele belirteçle göründü, sonra silindi.
+
+---
+
+### 4.5D — BİTTİ ✅ (11 test)
+
+Kod: `app/Http/Storefront/AccountPageController.php` ·
+`config/auth.php` (`customer-web`) · `EnsureSessionTenant` (iki guard) ·
+`resources/views/storefront/hesap*.blade.php` · `routes/tenant.php` ·
+`docker/php/Dockerfile` (birim izinleri) ·
+`tests/Tenancy/MusteriHesabiTest.php`
+
+**Toplam 698 test** (4.5C sonu: 687).
+
+**★ Vitrinin en büyük boşluğu kapandı.** Uçlar 1A/1C/2G'de vardı ama
+müşterinin **hiçbir ekranı yoktu** — siparişini takip edemiyordu. ⚠️ Üstelik
+**müşteri sipariş listesi ucu hiç yoktu**: API'de yalnızca tek siparişin
+ödemesi ve iadesi vardı.
+
+**4.5D-K1 · Müşteri kimliği OTURUMLA (`customer-web`), token'la değil.**
+> Vitrin sunucuda render ediliyor ve formlar JavaScript'siz çalışıyor
+> (4B-K1). `customer` (sanctum) guard'ı **duruyor** — mobil ve
+> entegrasyonlar onu kullanacak. İki guard aynı sağlayıcıya bakıyor; ayrı
+> sağlayıcı verilseydi "aynı e-posta iki kimlik" karmaşası doğardı.
+
+⚠️ Girişte üç şey **bu sırayla** yapılıyor: misafir sepetini taşı (1C-K5,
+oturum açılmadan **önce** — sonra olsaydı istek artık müşteri sepetini
+çözerdi) · oturum kimliğini tazele (oturum sabitleme) · marka damgası (4H).
+
+---
+
+**★★ KORUMAYI GENİŞLETMEK, ONU DOĞRU YERE TAKMAK DEĞİLDİR**
+
+4H'deki oturum-marka kontrolü müşteri guard'ını da kapsayacak şekilde
+genişletildi. **Yetmedi:** middleware 4H'de yalnızca **panel grubuna**
+takılmıştı, vitrin grubunda hiç çalışmıyordu — yani A markasının müşteri
+oturumu B'nin hesabını **açmaya devam ediyordu**. Test gösterdi.
+
+> ⚠️ İki kırma denemesi ayrı ayrı düştü: guard listesinden `customer-web`
+> çıkarmak **ve** middleware'i vitrin grubundan çıkarmak. İkisi ayrı
+> savunma; biri diğerini kapatmıyor.
+
+**★★ VE BİR TESTİM YANLIŞ ŞEY İDDİA EDİYORDU — gerçek koşu gösterdi.**
+
+Test "çapraz denemeden sonra kurbanın kendi markasındaki oturumu da
+kapanır" diyordu ve yeşildi. `curl` ile eski çerez elle gönderilince
+**A'nın oturumu açık kaldı**.
+
+> Sebep: test istemcisi B'nin cevabındaki **yeni** oturum çerezini alıp
+> taşıyor. Yani test sunucunun davranışını değil, **kendi çerez takip
+> etmesini** ölçüyormuş.
+>
+> Gerçek güvence: **çalınan oturum başka markada geçmiyor.** Çerezi çalan
+> zaten A'ya erişebiliyordu; bu middleware erişimin **genişlemesini**
+> engelliyor, geri almıyor. İddia her iki testte de (4H ve 4.5D) bu
+> şekilde düzeltildi.
+
+**★ ADLANDIRILMIŞ BİRİM İZİNLERİ İMAJA YAZILDI.** 4.5C'de Blade önbelleği
+birime taşınmıştı; birim `root:root 755` doğduğu için Blade derleyici
+geçici dosyasını yazamadı. ⚠️ Belirti yanıltıcıydı — hata "izin yok"
+değil `tempnam(): file created in the system's temporary directory` idi:
+PHP sessizce sistem geçici klasörüne düşüyor, sonra `rename()` dosya
+sistemleri arasında başarısız oluyor ve **müşteri kayıt sayfası 500**
+veriyordu. Docker boş birimi imajdaki karşılığından dolduruyor
+(sahiplik dâhil), o yüzden düzeltme `Dockerfile`'a yazıldı — elle
+`chmod` taze kurulumda kaybolurdu.
+
+**Üç kırma denemesi, üçü de düştü.** **Doğrulandı (gerçek tarayıcı):**
+kayıt → **302 → /hesabim** · giriş → hesap sayfası e-posta ve "Henüz
+siparişiniz yok" ile · üst bar giriş durumuna göre "Hesabım" gösteriyor ·
+A'nın müşteri çerezi B'de **302 → B ana sayfası**.
 
 ---
 

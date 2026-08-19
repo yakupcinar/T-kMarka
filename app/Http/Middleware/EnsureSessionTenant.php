@@ -39,60 +39,79 @@ class EnsureSessionTenant
     /** Oturumda markanın kimliğini tutan anahtar. */
     public const ANAHTAR = 'panel_tenant';
 
+    /**
+     * Oturum tabanlı guard'ların hepsi.
+     *
+     * ⚠️ 4.5D'de müşteri oturumu eklendi ve bu liste O GÜN GENİŞLETİLDİ.
+     * Tek guard'a bakmaya devam etseydi aynı açık müşteri tarafında AÇIK
+     * KALIRDI — üstelik sessizce, çünkü personel testi yeşil kalıyordu.
+     *
+     * @var list<string>
+     */
+    private const GUARDLAR = ['staff-web', 'customer-web'];
+
     public function handle(Request $istek, Closure $sonraki): Response
     {
-        $guard = Auth::guard('staff-web');
+        foreach (self::GUARDLAR as $ad) {
+            $guard = Auth::guard($ad);
 
-        /*
-        | ⚠️ Kontrol YALNIZCA OTURUMDAN GELEN girişe uygulanıyor.
-        |
-        | `$guard->check()` tek başına yetmiyor: kullanıcı programatik
-        | olarak da atanmış olabilir (testlerde `actingAs`, ileride bir
-        | konsol komutu). O durumda ortada TAŞINABİLİR BİR ÇEREZ YOK,
-        | yani kapatmaya çalıştığımız saldırı da yok.
-        |
-        | `getName()` guard'ın oturumdaki anahtarını veriyor — giriş
-        | gerçekten oturuma yazıldıysa orada duruyor.
-        */
-        $oturumdanMi = $guard instanceof SessionGuard && $istek->session()->has($guard->getName());
+            /*
+            | ⚠️ Kontrol YALNIZCA OTURUMDAN GELEN girişe uygulanıyor.
+            |
+            | `$guard->check()` tek başına yetmiyor: kullanıcı programatik
+            | olarak da atanmış olabilir (testlerde `actingAs`, ileride bir
+            | konsol komutu). O durumda ortada TAŞINABİLİR BİR ÇEREZ YOK,
+            | yani kapatmaya çalıştığımız saldırı da yok.
+            */
+            if (! $guard instanceof SessionGuard || ! $istek->session()->has($guard->getName())) {
+                continue;
+            }
 
-        if ($oturumdanMi && $guard->check()) {
+            if (! $guard->check()) {
+                continue;
+            }
+
             $oturumdaki = $istek->session()->get(self::ANAHTAR);
-            $simdiki = tenant('id');
 
             /*
             | ⚠️ EKSİK DEĞER de uyuşmazlık sayılıyor: bu middleware
             | yayına girmeden önce açılmış bir oturum damgasız olur ve
             | damgasızı geçerli saymak kapıyı açık bırakırdı.
             */
-            if ($oturumdaki === null || (string) $oturumdaki !== (string) $simdiki) {
-                $guard->logout();
-
-                /*
-                | ⚠️ Oturum TAMAMEN geçersiz kılınıyor. Yalnızca `logout()`
-                | çağrılsaydı oturum verisi (ve CSRF token'ı) tarayıcıda
-                | kalır, saldırgan aynı oturumla denemeye devam ederdi.
-                */
-                $istek->session()->invalidate();
-                $istek->session()->regenerateToken();
-
-                /*
-                | ★ İSTEK BURADA KESİLİYOR — `$sonraki` ÇAĞRILMIYOR.
-                |
-                | ⚠️ Önce yalnızca `logout()` yapılıp istek devam
-                | ettiriliyordu ve BU YETMEDİ (ölçüldü): Laravel
-                | middleware'leri ÖNCELİK LİSTESİNE göre yeniden
-                | sıralıyor ve `Authenticate` bizden ÖNCE koşuyor —
-                | yani kapıyı o çoktan açmış oluyordu. Sayfa
-                | `check() === false` ile render ediliyor ama yine de
-                | **200** dönüyordu.
-                |
-                | ⚠️ `prependToPriorityList` ile sırayı düzeltmeyi denedim,
-                | tutmadı. İsteği kesmek SIRADAN BAĞIMSIZ: middleware
-                | zincirin neresinde olursa olsun aynı sonucu veriyor.
-                */
-                return redirect()->route('panel.giris');
+            if ($oturumdaki !== null && (string) $oturumdaki === (string) tenant('id')) {
+                continue;
             }
+
+            $guard->logout();
+
+            /*
+            | ⚠️ Oturum TAMAMEN geçersiz kılınıyor. Yalnızca `logout()`
+            | çağrılsaydı oturum verisi (ve CSRF token'ı) tarayıcıda
+            | kalır, saldırgan aynı oturumla denemeye devam ederdi.
+            */
+            $istek->session()->invalidate();
+            $istek->session()->regenerateToken();
+
+            /*
+            | ★ İSTEK BURADA KESİLİYOR — `$sonraki` ÇAĞRILMIYOR.
+            |
+            | ⚠️ Önce yalnızca `logout()` yapılıp istek devam
+            | ettiriliyordu ve BU YETMEDİ (4H'de ölçüldü): Laravel
+            | middleware'leri ÖNCELİK LİSTESİNE göre yeniden sıralıyor
+            | ve `Authenticate` bizden ÖNCE koşuyor — yani kapıyı o
+            | çoktan açmış oluyordu. Sayfa `check() === false` ile
+            | render ediliyor ama yine de **200** dönüyordu.
+            |
+            | ⚠️ `prependToPriorityList` ile sırayı düzeltmeyi denedim,
+            | tutmadı. İsteği kesmek SIRADAN BAĞIMSIZ.
+            |
+            | ⚠️ Müşteri panele değil VİTRİNE düşüyor: giriş sayfasına
+            | atmak, hiç giriş yapmamış bir ziyaretçiyi de oraya
+            | zorlamak olurdu.
+            */
+            return $ad === 'staff-web'
+                ? redirect()->route('panel.giris')
+                : redirect()->route('vitrin.anasayfa');
         }
 
         return $sonraki($istek);

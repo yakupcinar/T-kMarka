@@ -298,9 +298,15 @@ it('★★★ BİR MARKANIN OTURUMU BAŞKA MARKANIN PANELİNİ AÇMIYOR', functi
         ->assertRedirect('http://marka-b.test/yonetim/giris');
 
     /*
-    | ⚠️ Oturum GEÇERSİZ KILINIYOR, yalnızca yönlendirilmiyor: aksi hâlde
-    | saldırgan aynı çerezle denemeye devam ederdi. A'nın kendi paneli de
-    | artık kapalı — kullanıcı yeniden giriş yapmalı.
+    | ⚠️ SINIR — 4.5D'de gerçek koşuda ölçüldü: test istemcisi B'nin
+    | cevabındaki YENİ oturum çerezini taşıdığı için A da kapalı
+    | görünüyor. `curl` ile ESKİ çerez elle gönderildiğinde A'nın oturumu
+    | AÇIK KALIYOR.
+    |
+    | Güvence: **çalınan oturum BAŞKA MARKADA geçmiyor.** "Kurbanın kendi
+    | markasındaki oturumu da kapanır" güvencesi YOK — çerezi çalan zaten
+    | oraya erişebiliyordu; bu middleware erişimin GENİŞLEMESİNİ
+    | engelliyor, geri almıyor.
     */
     $this->get('http://marka-a.test/yonetim')
         ->assertRedirect('http://marka-a.test/yonetim/giris');

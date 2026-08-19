@@ -207,6 +207,19 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   valid cache path`). Veritabanı testte ayrı (`tikmarka_test`) ama **disk
   ayrı değil**. Kural: dosya silen her servis **kök parametresi** almalı ve
   test kendi geçici klasöründe çalışmalı.
+- **Adlandırılmış birim, imajdaki karşılığından DOLUYOR — izinler dâhil.**
+  Klasör imajda yoksa birim `root:root 755` doğuyor. 4.5D'de Blade
+  derleyici geçici dosyasını yazamadı ve belirti yanıltıcıydı: hata "izin
+  yok" değil `tempnam(): file created in the system's temporary directory`
+  — PHP sessizce sistem geçici klasörüne düşüyor, sonra `rename()` dosya
+  sistemleri arasında patlıyor. Düzeltme `Dockerfile`'a yazılır; elle
+  `chmod` taze kurulumda kaybolur.
+- **Test istemcisi ÇEREZ TAKİP EDİYOR — "oturum kapandı" iddiası bununla
+  ölçülemez.** 4.5D'de ölçüldü: çapraz marka denemesinden sonra test, A'nın
+  da kapandığını "gösteriyordu"; `curl` ile **eski** çerez elle
+  gönderilince A açık kaldı. Test, sunucunun davranışını değil kendi çerez
+  takibini ölçüyormuş. Oturum geçersizliğini ölçmek istiyorsan **eski
+  çerezi elle** gönder.
 - **Testte GERÇEK DNS SORGUSU yapılmaz.** `SystemDnsChecker` ağa çıkıp
   zaman aşımını bekliyor: tek test **24 saniye** sürdü (4.5C). Bundan
   kötüsü test **ağa bağımlı** olur — ağ yoksa kırılır ve ölçtüğü şey bizim

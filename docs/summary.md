@@ -1949,3 +1949,43 @@ FAZ 4.5 AÇILDI — ARAYÜZ BOŞLUKLARI
         alan adı ekranı: iki doğrulanmış kayıt
         yeni alan adı → ÜÇ DNS SEÇENEĞİ (CNAME·A·TXT) marka başına
         rastgele belirteçle göründü, sonra silindi
+
+4.5D ✅ MÜŞTERİ HESABI — 11 test (toplam 698)
+      vitrinin EN BÜYÜK boşluğu: uçlar 1A/1C/2G'de vardı ama müşterinin
+      HİÇBİR EKRANI yoktu — siparişini takip edemiyordu
+      ⚠️ üstelik MÜŞTERİ SİPARİŞ LİSTESİ UCU HİÇ YOKTU
+
+      4.5D-K1 kimlik OTURUMLA (customer-web), token'la değil
+        vitrin sunucuda render ediliyor, formlar JS'siz (4B-K1)
+        `customer` (sanctum) DURUYOR — mobil ve entegrasyonlar için
+        girişte üç şey BU SIRAYLA: misafir sepetini taşı (oturumdan ÖNCE)
+        · oturum kimliğini tazele · marka damgası (4H)
+
+      ★★ KORUMAYI GENİŞLETMEK ONU DOĞRU YERE TAKMAK DEĞİLDİR
+        4H'deki oturum-marka kontrolü müşteri guard'ını kapsayacak şekilde
+        genişletildi — YETMEDİ: middleware yalnızca PANEL grubuna
+        takılmıştı, vitrinde hiç çalışmıyordu
+        → A'nın müşteri oturumu B'nin hesabını AÇMAYA DEVAM EDİYORDU
+        iki kırma denemesi AYRI AYRI düştü (guard listesi · grup)
+
+      ★★ BİR TESTİM YANLIŞ ŞEY İDDİA EDİYORDU — GERÇEK KOŞU GÖSTERDİ
+        test "kurbanın kendi markasındaki oturumu da kapanır" diyordu
+        curl ile ESKİ çerez elle gönderilince A'nın oturumu AÇIK KALDI
+        sebep: test istemcisi B'nin YENİ çerezini taşıyor — yani test
+        sunucunun davranışını değil KENDİ ÇEREZ TAKİBİNİ ölçüyormuş
+        gerçek güvence: ÇALINAN OTURUM BAŞKA MARKADA GEÇMİYOR
+        (çerezi çalan zaten A'ya erişebiliyordu; middleware erişimin
+         GENİŞLEMESİNİ engelliyor, geri almıyor)
+        iddia 4H ve 4.5D testlerinde düzeltildi
+
+      ★ ADLANDIRILMIŞ BİRİM İZİNLERİ İMAJA YAZILDI
+        4.5C'de Blade önbelleği birime taşınmıştı; birim root:root 755
+        doğduğu için derleyici geçici dosyayı yazamadı
+        ⚠️ belirti yanıltıcı: "izin yok" değil tempnam() uyarısı —
+          PHP sistem geçici klasörüne düşüyor, rename() patlıyor,
+          müşteri kayıt sayfası 500 veriyordu
+
+      DOĞRULANDI (gerçek tarayıcı)
+        kayıt → 302 → /hesabim · giriş → hesap sayfası
+        üst bar giriş durumuna göre "Hesabım" gösteriyor
+        A'nın müşteri çerezi B'de → 302 → B ana sayfası

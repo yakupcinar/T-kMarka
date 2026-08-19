@@ -180,6 +180,16 @@
         .karsilama p { color: #78716c; margin: 0; }
         .urun-genis { grid-template-columns: 1fr; max-width: 720px; margin: 0 auto; }
 
+        /* MÜŞTERİ HESABI (4.5D) */
+        .hesap { max-width: 900px; margin: 0 auto; padding: 24px 0; }
+        .hesap-dar { max-width: 460px; margin: 0 auto; padding: 24px 0; }
+        .hesap-dar label, .hesap-adres label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; margin-bottom: 12px; }
+        .hesap-dar input { padding: 9px 12px; border: 1px solid #d6d3d1; border-radius: 8px; font: inherit; }
+        .hesap-bas { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .hesap-cikis { margin-left: auto; }
+        .onay-satiri { flex-direction: row !important; align-items: flex-start; gap: 8px; }
+        .adres-kart { border: 1px solid #e7e5e4; border-radius: 10px; padding: 14px; margin-bottom: 12px; background: #fff; }
+
         /* YASAL METİN (4.5A) */
         .yasal { max-width: 760px; margin: 0 auto; padding: 32px 0; }
         .yasal h1 { font-size: 26px; }
@@ -234,6 +244,17 @@
             (CartToken) tek görünür sebebi. Başlık tek yol olarak kalsaydı
             burada her zaman 0 yazardı.
         --}}
+        {{--
+            ⚠️ Bağlantı GİRİŞ DURUMUNA göre değişiyor: giriş yapmış
+            müşteriye "Giriş yap" göstermek, yapmamışa "Hesabım"
+            göstermek kadar yanlış olurdu.
+        --}}
+        @auth('customer-web')
+            <a class="sepet" href="{{ route('vitrin.hesap') }}">Hesabım</a>
+        @else
+            <a class="sepet" href="{{ route('vitrin.giris') }}">Giriş</a>
+        @endauth
+
         <a class="sepet" href="{{ route('vitrin.sepet') }}">
             Sepet @if ($sepetAdedi > 0)<span>{{ $sepetAdedi }}</span>@endif
         </a>

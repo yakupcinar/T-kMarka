@@ -37,3 +37,23 @@ COPY --from=node:22-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 
 WORKDIR /var/www/html
+
+# ─────────────────────────────────────────────────────────────────────
+# ADLANDIRILMIŞ BİRİMLERİN İZİNLERİ (4.5C · 4.5D)
+#
+# `node_modules` ve derlenmiş Blade önbelleği bağlı klasörün DIŞINDA,
+# adlandırılmış Docker birimlerinde tutuluyor — gerekçesi
+# docker-compose.yml'de (macOS bind mount'ta `errno=35` kilidi).
+#
+# ⚠️ Docker boş bir adlandırılmış birimi İLK BAĞLANDIĞINDA imajdaki
+# karşılığından dolduruyor — SAHİPLİK VE İZİNLER DÂHİL. Klasörler imajda
+# yoksa birim `root:root 755` doğuyor ve Blade derleyici geçici dosyasını
+# oraya yazamıyor.
+#
+# ⚠️ ÖLÇÜLDÜ (4.5D): belirti yanıltıcıydı — hata "izin yok" değil
+# `tempnam(): file created in the system's temporary directory` idi.
+# PHP sessizce sistem geçici klasörüne düşüyor, sonra `rename()` dosya
+# sistemleri arasında başarısız oluyor ve müşteri kayıt sayfası 500
+# veriyordu.
+RUN mkdir -p /var/www/html/storage/framework/views /var/www/html/node_modules \
+    && chmod 777 /var/www/html/storage/framework/views /var/www/html/node_modules

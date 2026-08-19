@@ -90,6 +90,28 @@ return [
         ],
 
         /*
+        | ★ MÜŞTERİNİN OTURUM KİMLİĞİ (4.5D).
+        |
+        | Vitrin sunucuda render edilen Blade (4-K1) ve formlar JavaScript'siz
+        | çalışıyor (4B-K1) — yani müşteri kimliği de çerezle taşınmak
+        | zorunda. `customer` guard'ı (sanctum) DURUYOR: mobil uygulama ve
+        | marka entegrasyonları onu kullanacak.
+        |
+        | ⚠️ İki guard AYNI sağlayıcıya bakıyor: aynı müşteri hem token hem
+        | oturumla girebiliyor. Ayrı sağlayıcı verilseydi "aynı e-posta iki
+        | kimlik" karmaşası doğardı.
+        |
+        | ⚠️ Oturum-marka damgası bu guard için de zorunlu (4H): oturum
+        | yalnızca kullanıcı `id`'sini tutuyor ve guard onu İSTEĞİN
+        | kiracısının şemasından çözüyor. [EnsureSessionTenant] iki guard'ı
+        | birden kontrol ediyor.
+        */
+        'customer-web' => [
+            'driver' => 'session',
+            'provider' => 'customers',
+        ],
+
+        /*
         | ★ ÜÇÜNCÜ KİMLİK ALANI (3C) — kontrol düzlemi.
         |
         | ⚠️ TıkMarka'yı işleten kişi; yetkisi BÜTÜN MARKALARA uzanıyor,
