@@ -2225,3 +2225,21 @@ FAZ 5 SIRADA — kargo firmaları · e-fatura/e-arşiv
         giriş → sepet → ödemede kayıtlı adres görünüyor
         shipping HİÇ GÖNDERİLMEDEN sipariş oluştu, adres defterden
         müşteriye bağlandı, "Siparişlerim"de göründü
+
+4.5I.1 ✅ BOŞ METNİ NULL'A ÇEVİREN MIDDLEWARE — 745 test
+      kayıtlı adres seçiliyken "shipping.full_name metin olmalıdır"
+      müşteri ödeme ekranına HİÇ gidemiyordu
+
+      SEBEP ConvertEmptyStringsToNull
+        tarayıcı GİZLİ formdaki alanları da gönderiyor
+        (gizlemek göndermemek DEĞİLDİR)
+        global middleware boş metni NULL'a çeviriyor
+        `string` kuralı null'da düşüyor
+
+      ⚠️ TESTİM GÖREMEZDİ: shipping anahtarlarını HİÇ göndermiyordu
+        middleware'in dönüştüreceği değer yoktu → yeşil test, kırık ekran
+        gerçek curl koşusu ortaya çıkardı
+
+      düzeltme: `nullable` kuralı `required_without`'tan ÖNCE
+      ⚠️ required_* ÖRTÜK — null'da da koşuyor, zorunluluk GEVŞEMİYOR
+        bu iddia da ölçüldü (yoksa boş adresli sipariş, kargo çıkamaz)

@@ -114,12 +114,31 @@ class CheckoutPageController extends Controller
             'adres_uuid' => ['nullable', 'uuid'],
             'adresi_kaydet' => ['nullable', 'boolean'],
 
-            'shipping.full_name' => ['required_without:adres_uuid', 'string', 'max:120'],
-            'shipping.phone' => ['required_without:adres_uuid', 'string', 'max:20'],
-            'shipping.city' => ['required_without:adres_uuid', 'string', 'max:60'],
-            'shipping.district' => ['required_without:adres_uuid', 'string', 'max:60'],
+            /*
+            | ★ `nullable` ŞART ve sırası `required_without`'tan ÖNCE.
+            |
+            | ⚠️ Gerçek kullanımda bulundu: kayıtlı adres seçiliyken ödeme
+            | düğmesi "shipping.full_name metin olmalıdır" veriyordu.
+            | Sebep `ConvertEmptyStringsToNull`: tarayıcı gizli formdaki
+            | alanları BOŞ gönderiyor, middleware boş metni **null**'a
+            | çeviriyor ve `string` kuralı null'da düşüyor.
+            |
+            | ⚠️ Testim bunu göremezdi: `shipping` anahtarlarını HİÇ
+            | göndermiyordu, tarayıcı ise BOŞ gönderiyor — arada bu
+            | middleware var. "Uçtan ölçmeyen test" ailesinin bir üyesi
+            | daha; gerçek `curl` koşusu ortaya çıkardı.
+            |
+            | ⚠️ `nullable` `required_without`'u ETKİSİZLEŞTİRMİYOR:
+            | `required_*` kuralları "örtük" (implicit) ve değer null olsa
+            | da her zaman koşuyor. Yani adres seçilmediyse alanlar hâlâ
+            | zorunlu — kırma denemesiyle ölçüldü.
+            */
+            'shipping.full_name' => ['nullable', 'required_without:adres_uuid', 'string', 'max:120'],
+            'shipping.phone' => ['nullable', 'required_without:adres_uuid', 'string', 'max:20'],
+            'shipping.city' => ['nullable', 'required_without:adres_uuid', 'string', 'max:60'],
+            'shipping.district' => ['nullable', 'required_without:adres_uuid', 'string', 'max:60'],
             'shipping.neighborhood' => ['nullable', 'string', 'max:100'],
-            'shipping.line1' => ['required_without:adres_uuid', 'string', 'max:255'],
+            'shipping.line1' => ['nullable', 'required_without:adres_uuid', 'string', 'max:255'],
             'shipping.line2' => ['nullable', 'string', 'max:255'],
             'shipping.postal_code' => ['nullable', 'string', 'max:10'],
 

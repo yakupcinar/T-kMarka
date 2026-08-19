@@ -148,9 +148,13 @@ veya dağıtım için izin gerekir.
 
 * Vitrinden sipariş ödemesini yaptım, vitrinde "ödendi, hazırlanıyor" yazıyor; marka paneline baktım oraya ya düşmemiş ya da saati yanlış düşmüş — bunun testini yap.
 * Sepete ürün koydum, ödeme kısmına kadar geldim, sonra geri çıktım. Siparişlerimde "ödeme bekleniyor" diye duruyor. Sağ üstteki sayaç 2 gösteriyor ama içine girince boş. İşlemi tekrarlayınca siparişler arttı, sağ üstteki sayı 2'de sabit kaldı.
+* Sepette stok yetmediğinde ödeme düğmesi tarayıcıya **ham JSON** döndürüyor (`{"message":"'DC-1' için yeterli stok yok…"}`). 4A/4B/4.5G'de kapatılan hatanın **dördüncüsü** — ölçüldü.
 * Vitrinde **iade seçeneği yok** — uçları var (`api/orders/{siparis}/returns`), ekranı yok.
 * `https://marka-a.localhost/odeme/ode/` — sandbox değeriyle ödeme çalıştı, SMS'i girince aşağıdaki hataya düştü. Geçerli/geçersiz kart fark etmeksizin vitrinde kullanıcıya **mesaj dönmüyor** ve sayfanın içindeki sayfa (web in web) kalıyor.
-* Kayıtlı a "shipping.full name metin olmalıdır. shipping.phone metin olmalıdır. shipping.city metin olmalıdır. shipping.district metin olmalıdır. shipping.line1 metin olmalıdır." uyarısı alıyor ve ödeme ekranına gitmiyor butona basınca
+* Sepete gittim iletişim kısmına test@gmail.com yazdım sonra ödeme kısmına gittim doğru sandbox kart bilgilerini yazdım sms geldi doğru yazdım web in web kaybolmuyor iyziconun yerine ama açılmamış bir sayfa geliyor errorlu hesabıma geri dönünce bakıyorum ödeme yapılmış hazırlanıyor diyor.
+* Şirket panelinde ürünler -> yeni ürün -> Oluştur yapınca sayfada sadece ürün bilgileri kısmı kalıyor varyant görsel gelmiyor onların da o an gelmesi lazım (Ürünü oluşturup Ürünlere gidip ürüne tıklayınca bu sefer sekmeler sayfada oluyor)
+* Vitrinde kullanıcı ödemesini yapıyor ve siparişini veriyor tamam ama Panellerden bu sipariş durumlarını güncelleyemiyorum o yüzden daha kargo bölümünü entegre etmedik ama sipariş tamamlandı çekebilelim siparişleri şimdilik öyle bir onay koy siparişlerin yanına ve iade.
+* Marka Panelinde ürünler'de arama saçma olmuş büyük küçük farketmez ama baştan sona benzeyeni listelemesi gerekiyor ama arama içinde olan harfe göre burda ve nerden başladığına bakmıyor normalde kelime başına bakması lazım.
 
 ```
 ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS
@@ -199,6 +203,7 @@ to connect to devices or servers on your local network.
 | Ödeme hatası tarayıcıya ham JSON dönüyordu | Ödeme başlatılamadığında ekranda **Türkçe mesaj**; API'ye hâlâ JSON | 4.5G |
 | Vitrinde verdiğim siparişleri göremiyordum | Giriş yap → sipariş ver → Hesabım → **Siparişlerim**'de görünür | 4.5I |
 | Kayıtlı adres ödemede sorulmuyordu / "line" uyarıları veriyordu | Adres kaydet → Ödeme → **liste + seçim**, "Başka adrese gönder" formu açar | 4.5I |
+| Kayıtlı adres seçiliyken "shipping.full_name metin olmalıdır" uyarısı | Adres seç → Öde → **doğrudan ödeme ekranına** gider | 4.5I.1 |
 | Ürün oluşturunca varyant sayfasına gitmiyor | `POST /yonetim/urunler` → `302 → /yonetim/urunler/{uuid}` — **ölçüldü, zaten doğruydu** | 4.5G |
 
 > ⚠️ "Vitrinde siparişleri göremiyorum" maddesinin **iade yarısı hâlâ

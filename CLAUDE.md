@@ -482,6 +482,17 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   (`postJson`'ın `Accept` eklemesi ve `getJson`'ın çerezi düşürmesiyle
   aynı aile: **test yardımcısı ölçmek istediğin şeyi ortadan kaldırıyor**.)
 
+- **`ConvertEmptyStringsToNull` BOŞ METNİ NULL YAPAR — `string` kuralı
+  null'da DÜŞER.** 4.5I.1'de ısırdı: ödeme formunda gizli alanlar boş
+  gönderiliyor (**gizlemek göndermemek değildir**), middleware onları
+  null'a çeviriyor ve müşteri *"shipping.full_name metin olmalıdır"*
+  uyarısıyla ödemeye hiç gidemiyordu. Koşullu zorunlulukta sıra:
+  `['nullable', 'required_without:...', 'string']`. ⚠️ `nullable`
+  zorunluluğu GEVŞETMEZ (`required_*` örtük kurallar, null'da da koşar)
+  ama bu **ölçülmeli**. ⚠️ Anahtarı HİÇ göndermeyen test bunu göremez —
+  middleware'in dönüştüreceği değer olmuyor; testin gövdesi **tarayıcının
+  gönderdiğiyle birebir** olmalı.
+
 ## Yapı
 
 ```

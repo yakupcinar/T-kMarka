@@ -183,3 +183,76 @@ it('★★ ADRESI OLMAYAN musteriye eski form gosteriliyor', function () {
         ->assertDontSee('Başka adrese gönder')
         ->assertSee('name="shipping[line1]"', escape: false);
 });
+
+it('★★★ TARAYICININ gonderdigi gibi: adres secili + BOS shipping alanlari', function () {
+    vitrinMagazasi();
+    $varyant = kimlikTestiVaryanti();
+    $musteri = vitrinMusterisi();
+
+    $this->post('http://marka-a.test/giris', ['email' => $musteri->email, 'password' => 'sifre1234']);
+    $this->post('http://marka-a.test/hesabim/adresler', ornekAdres());
+    $this->post('http://marka-a.test/sepet/ekle', ['variant_uuid' => $varyant->uuid, 'quantity' => 1]);
+
+    $adres = $musteri->addresses()->firstOrFail();
+    $sozlesme = app(LegalDocumentService::class)->guncelSurum(LegalDocumentType::DistanceSales);
+
+    /*
+    | ★ FARK BURADA: `shipping` anahtarları GÖNDERİLİYOR ama BOŞ.
+    |
+    | ⚠️ Tarayıcı gizli formdaki alanları da gönderiyor (gizlemek
+    | göndermemek değildir). `ConvertEmptyStringsToNull` boş metni
+    | **null**'a çeviriyor ve `string` kuralı null'da düşüyor — müşteri
+    | "shipping.full_name metin olmalıdır" uyarısı alıp ödemeye
+    | gidemiyordu.
+    |
+    | ⚠️ Anahtarları HİÇ göndermeyen test bunu GÖREMEZ: middleware'in
+    | dönüştüreceği bir değer olmuyor. Gerçek `curl` koşusu ortaya
+    | çıkardı; bu test o koşunun gövdesini birebir taşıyor.
+    */
+    $this->post('http://marka-a.test/odeme', [
+        'email' => $musteri->email,
+        'legal_version_id' => $sozlesme?->id,
+        'sozlesme_onay' => '1',
+        'adres_uuid' => $adres->uuid,
+        'shipping' => [
+            'full_name' => '',
+            'phone' => '',
+            'city' => '',
+            'district' => '',
+            'neighborhood' => '',
+            'line1' => '',
+            'line2' => '',
+            'postal_code' => '',
+        ],
+    ])->assertSessionHasNoErrors();
+
+    $siparis = Order::orderByDesc('id')->firstOrFail();
+
+    expect($siparis->shipping_city)->toBe($adres->city);
+});
+
+it('★★ ADRES SECILMEDIYSE alanlar HALA zorunlu — `nullable` gevsetmiyor', function () {
+    vitrinMagazasi();
+    $varyant = kimlikTestiVaryanti();
+    $musteri = vitrinMusterisi();
+
+    $this->post('http://marka-a.test/giris', ['email' => $musteri->email, 'password' => 'sifre1234']);
+    $this->post('http://marka-a.test/sepet/ekle', ['variant_uuid' => $varyant->uuid, 'quantity' => 1]);
+
+    $sozlesme = app(LegalDocumentService::class)->guncelSurum(LegalDocumentType::DistanceSales);
+
+    /*
+    | ⚠️ `nullable` eklerken korkulan şey: zorunluluğun sessizce
+    | kalkması. `required_*` kuralları ÖRTÜK olduğu için değer null olsa
+    | da koşuyor — ama bu iddia ÖLÇÜLMELİ, yoksa boş adresli sipariş
+    | oluşur ve kargo çıkamaz.
+    */
+    $this->post('http://marka-a.test/odeme', [
+        'email' => $musteri->email,
+        'legal_version_id' => $sozlesme?->id,
+        'sozlesme_onay' => '1',
+        'shipping' => ['full_name' => '', 'phone' => '', 'city' => '', 'district' => '', 'line1' => ''],
+    ])->assertSessionHasErrors(['shipping.full_name', 'shipping.city', 'shipping.line1']);
+
+    expect(Order::count())->toBe(0);
+});

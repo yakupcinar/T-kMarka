@@ -5691,6 +5691,32 @@ giriş → sepete ekle → ödeme sayfasında kayıtlı adres görünüyor →
 
 ---
 
+#### 4.5I.1 — boş metni null'a çeviren middleware
+
+4.5I'in ekranı kullanıldı ve **hemen kırıldı**: kayıtlı adres seçiliyken
+ödeme düğmesi *"shipping.full_name metin olmalıdır"* veriyor, müşteri
+ödeme ekranına hiç gidemiyordu.
+
+> ⚠️ **Sebep `ConvertEmptyStringsToNull`.** Tarayıcı gizli formdaki
+> alanları da gönderiyor — **gizlemek göndermemek değildir** — ve global
+> middleware boş metni **null**'a çeviriyor. `string` kuralı null'da
+> düşüyor.
+>
+> ⚠️ **Testim bunu göremezdi:** `shipping` anahtarlarını HİÇ
+> göndermiyordu, yani middleware'in dönüştüreceği bir değer olmuyordu.
+> Yeşil test, kırık ekran. Gerçek `curl` koşusu ortaya çıkardı.
+
+Düzeltme: `nullable` kuralı `required_without`'tan **önce**. `required_*`
+kuralları **örtük** olduğu için değer null olsa da koşuyor — yani adres
+seçilmediğinde alanlar hâlâ zorunlu. ⚠️ Bu iddia da **ölçüldü**: aksi
+hâlde boş adresli sipariş oluşur ve kargo çıkamazdı.
+
+**İki kırma denemesi, ikisi de düştü.** **Doğrulandı (gerçek `curl`,
+tarayıcının gövdesiyle birebir):** `adres_uuid` + boş `shipping` alanları
+→ **302 → /odeme/ode/...**. **745 test.**
+
+---
+
 ### Faz 4.5'in kalan blokları  *(gerçek kullanımdan çıktı)*
 
 4.5I'den sonra kullanıcı listesi yeniden düzenlendi (`README.md` →
