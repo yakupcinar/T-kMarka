@@ -2,15 +2,20 @@
 
 namespace App\Http\Panel;
 
+use App\Domain\Catalog\ProductImageService;
 use App\Domain\Catalog\ProductQuery;
 use App\Domain\Catalog\ProductService;
+use App\Domain\Catalog\TooManyImagesException;
+use App\Domain\Catalog\UnsupportedImageTypeException;
 use App\Domain\Catalog\VariantService;
 use App\Enums\ProductStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Panel\Requests\ProductImageRequest;
 use App\Http\Panel\Requests\ProductRequest;
 use App\Http\Panel\Requests\VariantRequest;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,6 +39,7 @@ class ProductPageController extends Controller
     public const SAYFA = 20;
 
     public function __construct(
+        private readonly ProductImageService $gorseller,
         private readonly ProductService $urunler,
         private readonly VariantService $varyantlar,
         private readonly ProductQuery $sorgu,
@@ -175,6 +181,38 @@ class ProductPageController extends Controller
         return back()->with('mesaj', 'Varyant silindi.');
     }
 
+    public function gorselYukle(ProductImageRequest $istek, Product $urun): RedirectResponse
+    {
+        try {
+            $this->gorseller->yukle($urun, $istek->file('image'), null, $istek->validated('alt'));
+        } catch (TooManyImagesException|UnsupportedImageTypeException $hata) {
+            /*
+            | ⚠️ Sayı sınırı ve desteklenmeyen tür 500 DEĞİL: marka bir
+            | şeyi yanlış denedi, sebebi ekranda yazmalı.
+            |
+            | ⚠️ `UnsupportedImageTypeException` İÇERİK tabanlı kontrolden
+            | geliyor (4G): adı `.png` olan bir PHP dosyası doğrulamayı
+            | geçebilir, içerik kontrolü geçemez.
+            */
+            return back()->with('hata', $hata->getMessage());
+        }
+
+        return back()->with('mesaj', 'Görsel yüklendi.');
+    }
+
+    public function gorselSil(Product $urun, string $gorsel): RedirectResponse
+    {
+        /*
+        | ⚠️ Görsel ÜRÜNE DARALTILMIŞ sorgudan çözülüyor (1A.5 deseni):
+        | başka ürünün görseli sonuç kümesine hiç girmiyor → 404.
+        */
+        $kayit = $urun->images()->where('uuid', $gorsel)->firstOrFail();
+
+        $this->gorseller->sil($kayit);
+
+        return back()->with('mesaj', 'Görsel silindi.');
+    }
+
     /** @return array<string, mixed> */
     private function satir(Product $urun): array
     {
@@ -202,6 +240,19 @@ class ProductPageController extends Controller
             'status' => $urun->status->value,
             'slug' => $urun->slug,
             'category_uuid' => $urun->category?->uuid,
+            /*
+            | GÖRSELLER (4.5E) — uçları 1B'de vardı, ekranı yoktu:
+            | ürünler görselsiz kalıyordu.
+            |
+            | ⚠️ Adres `tenant_asset()` ile HTTP katmanında kuruluyor;
+            | Domain yalnızca yolu biliyor (M-2.7).
+            */
+            'images' => $urun->images->map(fn (ProductImage $g) => [
+                'uuid' => $g->uuid,
+                'url' => $g->url(),
+                'alt' => $g->alt,
+            ])->values()->all(),
+
             'variants' => $urun->variants->map(fn (ProductVariant $v) => [
                 'uuid' => $v->uuid,
                 'sku' => $v->sku,

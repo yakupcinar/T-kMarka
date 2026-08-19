@@ -5,8 +5,10 @@ declare(strict_types=1);
 use App\Http\Middleware\EnsureSessionTenant;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Panel\AuthController as PanelAuth;
+use App\Http\Panel\CatalogSettingsPageController;
 use App\Http\Panel\CategoryController;
 use App\Http\Panel\CollectionController;
+use App\Http\Panel\CollectionPageController;
 use App\Http\Panel\DashboardController;
 use App\Http\Panel\DomainController;
 use App\Http\Panel\DomainPageController;
@@ -738,6 +740,41 @@ Route::middleware([
             Route::put('/urunler/{urun:uuid}', [PanelUrunSayfasi::class, 'update'])->name('panel.urun.guncelle');
             Route::post('/urunler/{urun:uuid}/durum', [PanelUrunSayfasi::class, 'durum'])->name('panel.urun.durum');
             Route::delete('/urunler/{urun:uuid}', [PanelUrunSayfasi::class, 'destroy'])->name('panel.urun.sil');
+
+            /*
+            | ÜRÜN GÖRSELLERİ (4.5E) — uçları 1B'de vardı, ekranı yoktu:
+            | ürünler görselsiz kalıyordu.
+            */
+            Route::post('/urunler/{urun:uuid}/gorseller', [PanelUrunSayfasi::class, 'gorselYukle'])->name('panel.gorsel.yukle');
+            Route::delete('/urunler/{urun:uuid}/gorseller/{gorsel}', [PanelUrunSayfasi::class, 'gorselSil'])->name('panel.gorsel.sil');
+
+            /*
+            | KATALOG ALTYAPISI (4.5E): kategoriler ve varyant eksenleri.
+            |
+            | ⚠️ Tek ekranda ikisi birden — ikisi de ürün eklemeden ÖNCE
+            | yapılan hazırlık işi.
+            */
+            Route::get('/katalog', [CatalogSettingsPageController::class, 'index'])->name('panel.katalog');
+            Route::post('/katalog/kategoriler', [CatalogSettingsPageController::class, 'kategoriEkle'])->name('panel.kategori.ekle');
+            Route::delete('/katalog/kategoriler/{kategori}', [CatalogSettingsPageController::class, 'kategoriSil'])->name('panel.kategori.sil');
+            Route::post('/katalog/eksenler', [CatalogSettingsPageController::class, 'eksenEkle'])->name('panel.eksen.ekle');
+            Route::delete('/katalog/eksenler/{eksen}', [CatalogSettingsPageController::class, 'eksenSil'])->name('panel.eksen.sil');
+            Route::post('/katalog/eksenler/{eksen}/degerler', [CatalogSettingsPageController::class, 'degerEkle'])->name('panel.deger.ekle');
+            Route::delete('/katalog/eksenler/{eksen}/degerler/{deger}', [CatalogSettingsPageController::class, 'degerSil'])->name('panel.deger.sil');
+
+            /*
+            | KOLEKSİYONLAR (4.5E) — 2D'nin ekranı.
+            |
+            | ⚠️ Kurallı koleksiyona ELLE ürün eklenemiyor: üyelik sorguyla
+            | belirleniyor ve elle eklenen ürün bir sonraki sorguda
+            | kaybolurdu. Kontrol controller'da, 422.
+            */
+            Route::get('/koleksiyonlar', [CollectionPageController::class, 'index'])->name('panel.koleksiyonlar');
+            Route::post('/koleksiyonlar', [CollectionPageController::class, 'ekle'])->name('panel.koleksiyon.ekle');
+            Route::get('/koleksiyonlar/{koleksiyon:uuid}', [CollectionPageController::class, 'goster'])->name('panel.koleksiyon');
+            Route::delete('/koleksiyonlar/{koleksiyon:uuid}', [CollectionPageController::class, 'sil'])->name('panel.koleksiyon.sil');
+            Route::post('/koleksiyonlar/{koleksiyon:uuid}/urunler', [CollectionPageController::class, 'urunEkle'])->name('panel.koleksiyon.urunekle');
+            Route::delete('/koleksiyonlar/{koleksiyon:uuid}/urunler/{urun}', [CollectionPageController::class, 'urunCikar'])->name('panel.koleksiyon.uruncikar');
 
             Route::post('/urunler/{urun:uuid}/varyantlar', [PanelUrunSayfasi::class, 'varyantEkle'])->name('panel.varyant.ekle');
             /*

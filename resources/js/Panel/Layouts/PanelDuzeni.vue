@@ -20,6 +20,8 @@ const bildirim = computed(() => sayfa.props.bildirim ?? {})
 const menu = [
   { ad: 'Pano', yol: '/yonetim', izin: null },
   { ad: 'Ürünler', yol: '/yonetim/urunler', izin: 'product.write' },
+  { ad: 'Koleksiyonlar', yol: '/yonetim/koleksiyonlar', izin: 'product.write' },
+  { ad: 'Katalog ayarları', yol: '/yonetim/katalog', izin: 'product.write' },
   { ad: 'Siparişler', yol: '/yonetim/siparisler', izin: 'order.view' },
   { ad: 'İadeler', yol: '/yonetim/iadeler', izin: 'order.view' },
   { ad: 'Mağaza', yol: '/yonetim/magaza', izin: 'settings.write' },

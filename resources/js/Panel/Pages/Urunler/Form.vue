@@ -54,6 +54,24 @@ function varyantSil(uuid) {
   router.delete(`/yonetim/urunler/${props.urun.uuid}/varyantlar/${uuid}`)
 }
 
+/* GÖRSELLER (4.5E) */
+const gorsel = useForm({ image: null, alt: '' })
+
+function gorselYukle() {
+  /*
+   | ⚠️ `forceFormData`: dosya gönderiliyor. Olmadan Inertia JSON
+   | göndermeye çalışır ve dosya sunucuya HİÇ ULAŞMAZ.
+   */
+  gorsel.post(`/yonetim/urunler/${props.urun.uuid}/gorseller`, {
+    forceFormData: true,
+    onSuccess: () => gorsel.reset(),
+  })
+}
+
+function gorselSil(uuid) {
+  router.delete(`/yonetim/urunler/${props.urun.uuid}/gorseller/${uuid}`)
+}
+
 function durumDegistir(deger) {
   router.post(`/yonetim/urunler/${props.urun.uuid}/durum`, { status: deger })
 }
@@ -140,6 +158,34 @@ function urunSil() {
           class="rounded-lg bg-orange-600 text-white px-4 py-2 font-semibold disabled:opacity-60"
           :disabled="form.processing"
         >{{ yeniMi ? 'Oluştur' : 'Kaydet' }}</button>
+      </div>
+
+      <div v-if="!yeniMi" class="col-span-2 rounded-xl bg-white border border-stone-200 p-5">
+        <h2 class="font-semibold mb-3">Görseller</h2>
+
+        <div v-if="urun.images.length" class="flex gap-3 flex-wrap mb-4">
+          <div v-for="g in urun.images" :key="g.uuid" class="relative">
+            <img :src="g.url" :alt="g.alt ?? ''" class="w-24 h-24 object-cover rounded-lg border border-stone-200">
+            <button type="button" class="absolute top-1 right-1 rounded bg-white/90 px-1 text-xs text-red-700" @click="gorselSil(g.uuid)">
+              sil
+            </button>
+          </div>
+        </div>
+
+        <!-- ⚠️ Görselsiz ürün vitrinde boş kare çıkıyor; uyarı gizlenmiyor. -->
+        <p v-else class="text-sm text-amber-700 mb-4">Görsel yok — ürün vitrinde görselsiz görünür.</p>
+
+        <div class="flex gap-2 items-center">
+          <input type="file" accept="image/jpeg,image/png,image/webp" class="text-sm"
+                 @input="gorsel.image = $event.target.files[0]">
+          <input v-model="gorsel.alt" placeholder="Görsel açıklaması" class="rounded-lg border border-stone-300 px-3 py-2 text-sm">
+          <button type="button" class="rounded-lg border border-stone-300 px-3 py-2 text-sm"
+                  :disabled="!gorsel.image || gorsel.processing" @click="gorselYukle">
+            Yükle
+          </button>
+        </div>
+
+        <p v-if="gorsel.errors.image" class="text-sm text-red-700 mt-2">{{ gorsel.errors.image }}</p>
       </div>
 
       <div v-if="!yeniMi" class="col-span-2 md:col-span-1 rounded-xl bg-white border border-stone-200 p-5">

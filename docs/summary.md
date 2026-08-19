@@ -1989,3 +1989,39 @@ FAZ 4.5 AÇILDI — ARAYÜZ BOŞLUKLARI
         kayıt → 302 → /hesabim · giriş → hesap sayfası
         üst bar giriş durumuna göre "Hesabım" gösteriyor
         A'nın müşteri çerezi B'de → 302 → B ana sayfası
+
+4.5E ✅ PANEL KATALOG EKRANLARI — 12 test (toplam 710)
+      dört boşluk birden: kategori · varyant ekseni · koleksiyon · görsel
+      hepsinin ucu 1B/2D'de vardı, hiçbirinin ekranı yoktu
+
+      4.5E-K1 kategori ve eksen TEK EKRANDA (ikisi de ürün eklemeden
+        ÖNCE yapılan hazırlık işi)
+      4.5E-K2 kurallı koleksiyonun ÜYE SAYISI SORGUDAN
+        tablodan verilseydi kurallı koleksiyon hep "0 ürün" görünürdü —
+        marka kuralının çalıştığını hiç göremezdi
+
+      ★★ KIRMA DENEMESİ ÖLÜ BİR SAVUNMA BULDU
+        controller'a "kurallıya elle ekleme yasak" kontrolü yazmıştım;
+        kaldırdım, HİÇBİR TEST DÜŞMEDİ — gerçek koruma serviste
+        (CollectionService::urunEkle → manuelOlmali)
+        2F/3E kararı uygulandı: KOPYA KALDIRILDI
+        sonra servisteki asıl korumayı kırdım, test DÜŞTÜ → artık doğru
+        yeri ölçüyor
+
+      ★ GERÇEK ARAYÜZ HATASI: kategori girintisi HİÇ OLUŞMAYACAKTI
+        derinlik substr_count($path,'.') ile hesaplanıyordu ama ltree
+        yolu `/1/2/` biçiminde — NOKTA YOK, derinlik hep 0 çıkardı
+
+      ★ ÜÇ TESTİM YANLIŞ VARSAYIMLA (kod haklı): koşul anahtarı `op`
+        (operator değil) · eksenleriAyarla() Option NESNESİ alıyor ·
+        varsayılan rol adları
+
+      ⚠️ renk kutusu yalnızca #rrggbb: serbest metin olsaydı 4-K5'te
+        kapatılan CSS ENJEKSİYONU buradan geri gelirdi
+
+      DOĞRULANDI (gerçek tarayıcı)
+        katalog: Giyim(0) → Tişört(1) doğru girintiyle, iki eksen
+        koleksiyon: kurallı "250 TL Altı" 1 ürün (SORGUDAN), manuel 2
+        görsel yüklendi → adresi 200 image/png → panelden silindi
+      ⚠️ YAPILMAYAN: kural düzenleme arayüzü · kategori taşıma ·
+        görsel sıralama (üçü de uçlarda var, 4.5F'ye)

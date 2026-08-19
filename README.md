@@ -129,3 +129,9 @@ veya dağıtım için izin gerekir.
 
 
 ---
+
+## İyileştirme
+
+* Ürün sayfasının altında benzer ürünler, beğenilenler (hepsiburada gibi)
+* Ürünlere tıklamayı sayma
+* Hepsiburada gibi büyük e-ticaret sitelerinin bu tarz niş özelliklerini tespit edip liste oluşturalım

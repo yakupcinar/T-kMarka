@@ -36,12 +36,12 @@
 │  4.5 · ARAYÜZ BOŞLUKLARI ◀ AÇILDI — ölçüldü: 73 uç, 34 sayfa  │
 │     ✅ 4.5A yasal → ✅ 4.5B ödeme/sözleşme → ✅ K1 iframe ödeme│
 │     ✅ 4.5C personel/alan adı → ✅ 4.5D müşteri hesabı         │
-│     4.5E katalog ekranları → 4.5F görsel + kapanış             │
+│     ✅ 4.5E katalog ekranları → 4.5F görsel + kapanış          │
 │  5 · ENTEGRASYON   kargo · e-fatura                            │
 │  6 · DAĞITIM       yayın · yedekleme · izleme                  │
 │                                                                │
 │  Kural: bir blok bitmeden sonrakine geçilmez.                  │
-│  698 test · lint · analyse · CI hepsi yeşil                    │
+│  710 test · lint · analyse · CI hepsi yeşil                    │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -5277,6 +5277,72 @@ veriyordu. Docker boş birimi imajdaki karşılığından dolduruyor
 kayıt → **302 → /hesabim** · giriş → hesap sayfası e-posta ve "Henüz
 siparişiniz yok" ile · üst bar giriş durumuna göre "Hesabım" gösteriyor ·
 A'nın müşteri çerezi B'de **302 → B ana sayfası**.
+
+---
+
+### 4.5E — BİTTİ ✅ (12 test)
+
+Kod: `app/Http/Panel/{CatalogSettingsPageController,CollectionPageController}.php` ·
+`ProductPageController` (görseller) ·
+`resources/js/Panel/Pages/{Katalog,Koleksiyonlar,KoleksiyonAyrinti}.vue` ·
+`Urunler/Form.vue` (görsel bölümü) · `routes/tenant.php` ·
+`tests/Tenancy/PanelKatalogAyarTest.php`
+
+**Toplam 710 test** (4.5D sonu: 698).
+
+**★ Dört boşluk birden:** kategori · varyant ekseni · koleksiyon · ürün
+görseli. Hepsinin ucu 1B/2D'de vardı, hiçbirinin ekranı yoktu.
+
+**4.5E-K1 · Kategori ve eksen TEK EKRANDA.** İkisi de ürün eklemeden
+**önce** yapılan hazırlık işi; ayrı sayfalar olsaydı marka "beden ekseni
+nereden eklenir" diye aramak zorunda kalırdı.
+
+**4.5E-K2 · Kurallı koleksiyonun üye sayısı SORGUDAN geliyor.**
+> 2D'de üyeler sorgu anında hesaplanıyor. Sayı tablodan verilseydi kurallı
+> koleksiyon ekranda **hep "0 ürün"** görünürdü — marka kuralının
+> çalıştığını hiç göremezdi. Canlıda doğrulandı: *250 TL Altı* → 1 ürün.
+
+⚠️ Kurallı koleksiyona **elle ürün eklenmiyor** ve sebebi ekranda yazılı:
+üyelik sorguyla belirleniyor, elle eklenen ürün bir sonraki sorguda
+kaybolurdu.
+
+---
+
+**★★ KIRMA DENEMESİ ÖLÜ BİR SAVUNMA BULDU**
+
+Controller'a "kurallı koleksiyona elle ekleme yasak" kontrolü yazmıştım.
+Kaldırdım — **hiçbir test düşmedi**: gerçek koruma
+`CollectionService::urunEkle()` içinde (`manuelOlmali`) ve oradan 422
+dönüyor.
+
+> 2F ve 3E'deki kararın aynısı uygulandı: **kopya kaldırıldı.** Gerçek
+> koruma başka yerdeyse ikinci kopya yalnızca "iki yerden biri
+> güncellenmeden kalır" riski üretir. Kaldırdıktan sonra servisteki asıl
+> korumayı kırdım ve test **düştü** — yani artık doğru yeri ölçüyor.
+
+**★ VE BİR GERÇEK ARAYÜZ HATASI: kategori girintisi hiç oluşmayacaktı.**
+
+Derinlik `substr_count($path, '.')` ile hesaplanıyordu ama `ltree` yolu
+`/1/2/` biçiminde — **nokta yok**. Derinlik her zaman 0 çıkardı ve ağaç
+düz liste gibi görünürdü. Test yakaladı; kırma denemesi de doğruladı.
+
+**★ Üç testim yanlış varsayımla yazılmıştı** (kod haklı çıktı): koleksiyon
+koşul anahtarı `operator` değil **`op`** · `eksenleriAyarla()` metin değil
+**Option nesnesi** alıyor · varsayılan roller listesi.
+
+⚠️ Renk kutusu yalnızca `#rrggbb` kabul ediyor: serbest metin olsaydı
+4-K5'te kapatılan **CSS enjeksiyonu** buradan geri gelirdi.
+
+**Dört kırma denemesi:** üçü düştü, biri ölü savunmayı buldu.
+
+**Doğrulandı (gerçek tarayıcı):** katalog ekranı kategorileri **doğru
+girintiyle** (Giyim 0 · Tişört 1) ve iki ekseni değerleriyle gösteriyor ·
+koleksiyon ekranı kurallı ve manuel türü ayrı ayrı, üye sayılarıyla ·
+görsel yüklendi, adresi **200 `image/png`** döndü, panelden silindi.
+
+**⚠️ Bu blokta YAPILMAYAN:** kural düzenleme arayüzü (koleksiyon
+oluşturuluyor ama kuralları ekrandan yazılamıyor — uçtan geliyor) ·
+kategori taşıma · görsel sıralama. Üçü de uçlarda var, 4.5F'ye kalıyor.
 
 ---
 
