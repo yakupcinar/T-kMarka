@@ -8,7 +8,9 @@ use App\Domain\Order\CheckoutService;
 use App\Domain\Order\StaleContractException;
 use App\Domain\Payment\PaymentService;
 use App\Enums\LegalDocumentType;
+use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
 use App\Models\Order;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -107,28 +109,83 @@ class CheckoutPageController extends Controller
                 ->with('hata', 'Satış sözleşmesi güncellendi, lütfen yeniden okuyup onaylayın.');
         }
 
-        return $this->odemeyeYonlendir($istek, $siparis);
+        /*
+        | ★ 4.5-K1: SİTEDE KALIYORUZ. Sipariş oluştu, ödeme sayfasına
+        | yönlendirmek yerine gömülü ödeme adımına gidiliyor.
+        |
+        | ⚠️ Sipariş kimliği adrese `uuid` ile giriyor, `id` ile değil:
+        | sıralı kimlik adres çubuğunda görünseydi başkasının siparişinin
+        | ödeme ekranı tahmin edilebilirdi.
+        */
+        return redirect()->route('vitrin.ode', $siparis->uuid);
     }
 
     /**
-     * Sağlayıcının ödeme sayfasına yönlendirir.
+     * Gömülü ödeme adımı — kart formu IFRAME içinde. (4.5-K1)
      *
-     * ⚠️ DÖNÜŞ ADRESİ SUNUCUDA ÜRETİLİYOR. İstek gövdesinden alınsaydı
-     * saldırgan kendi sitesini yazardı: müşteri ödeme sonrası oraya düşer,
-     * sahte bir "başarılı" ekranı görürdü (açık yönlendirme açığı).
+     * ⚠️ Sipariş SEPETTEN DEĞİL adresten geliyor ve sahipliği burada
+     * doğrulanıyor: adresi bilen herkes başkasının ödeme ekranını
+     * açamamalı.
      */
-    private function odemeyeYonlendir(Request $istek, Order $siparis): RedirectResponse
+    public function ode(Request $istek, Order $siparis): View|RedirectResponse
     {
+        $this->siparisiDogrula($istek, $siparis);
+
+        /*
+        | ⚠️ ÖDENMİŞ siparişe ödeme ekranı açılmıyor: müşteri geri
+        | düğmesine bastığında ikinci kez ödemeye çalışabilirdi.
+        */
+        if ($siparis->payment_status !== PaymentStatus::Pending) {
+            return redirect()->route('vitrin.anasayfa');
+        }
+
         $sonuc = $this->odemeler->baslat(
             $siparis,
             $istek->getSchemeAndHttpHost().PaymentController::DONUS_YOLU,
         );
 
         /*
-        | ⚠️ `away()` — dış adrese yönlendirme. `to()` kullanılsaydı Laravel
-        | adresi kendi alan adına göre yeniden yazardı ve müşteri hiçbir
-        | yere gidemezdi.
+        | ⚠️ Sağlayıcı gömmeyi desteklemiyorsa YÖNLENDİRİLİYOR. Tek yol
+        | dayatılsaydı, iframe vermeyen bir sağlayıcıya geçildiği gün
+        | ödeme tamamen kırılırdı.
         */
-        return redirect()->away($sonuc->yonlendirmeAdresi);
+        if (! $sonuc->gomulebilirMi()) {
+            return redirect()->away($sonuc->yonlendirmeAdresi);
+        }
+
+        return view('storefront.odeme-form', [
+            'siparis' => $siparis,
+            'gomuluAdres' => (string) $sonuc->gomuluAdres,
+        ]);
+    }
+
+    /**
+     * Siparişin bu ziyaretçiye ait olduğunu doğrular.
+     *
+     * ★ Kural 1E'de kuruldu ([PaymentController::siparisiCoz]) ve BURADA
+     * TEKRARLANMIYOR, aynısı uygulanıyor: giriş yapmışsa yalnızca kendi
+     * siparişi, misafirse yalnızca MİSAFİR siparişi.
+     *
+     * ⚠️ 404, 403 DEĞİL: "böyle bir sipariş var ama senin değil" bilgisi
+     * de sızıntıdır (1A.5).
+     *
+     * ⚠️ Sipariş ile sepet arasında kolon bağı YOK, bu yüzden misafir
+     * tarafında token eşleştirmesi yapılamıyor. Bugünkü koruma "misafir
+     * siparişi" olmasıyla sınırlı — uuid v7 tahmin edilebilir değil ama
+     * bu, adresi ELE GEÇİREN birine karşı koruma sağlamıyor. Aynı sınır
+     * 1E'deki ödeme ucunda da var; daraltılacaksa iki yerde birden
+     * daraltılmalı.
+     */
+    private function siparisiDogrula(Request $istek, Order $siparis): void
+    {
+        $kullanici = $istek->user();
+
+        if ($kullanici instanceof Customer) {
+            abort_unless($siparis->customer_id === $kullanici->id, 404);
+
+            return;
+        }
+
+        abort_unless($siparis->customer_id === null, 404);
     }
 }

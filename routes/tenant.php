@@ -580,6 +580,14 @@ Route::middleware([
     Route::get('/odeme', [CheckoutPageController::class, 'form'])->name('vitrin.odeme');
     Route::post('/odeme', [CheckoutPageController::class, 'gonder'])->name('vitrin.odeme.gonder');
 
+    /*
+    | GÖMÜLÜ ÖDEME ADIMI (4.5-K1) — kart formu iframe içinde.
+    |
+    | ⚠️ Sipariş adrese  ile giriyor; sahipliği controller'da
+    | doğrulanıyor (1A.5 · 1E'deki kuralın aynısı).
+    */
+    Route::get('/odeme/ode/{siparis:uuid}', [CheckoutPageController::class, 'ode'])->name('vitrin.ode');
+
 });
 
 /*

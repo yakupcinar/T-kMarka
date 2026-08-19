@@ -46,9 +46,17 @@ class FakePaymentProvider implements RefundablePaymentProvider
         */
         $referans = 'FAKE-'.Str::upper(Str::random(16));
 
+        /*
+        | ⚠️ Sahte sağlayıcı da GÖMÜLEBİLİR olmalı (4.5-K1): olmasaydı
+        | geliştirme ve testler yalnızca yönlendirme yolunu ölçer, iframe
+        | yolu ancak canlıda ilk kez denenirdi.
+        */
+        $adres = $istek->donusAdresi.'?ref='.$referans;
+
         return new PaymentInitiation(
-            yonlendirmeAdresi: $istek->donusAdresi.'?ref='.$referans,
+            yonlendirmeAdresi: $adres,
             saglayiciReferansi: $referans,
+            gomuluAdres: $adres.'&iframe=true',
         );
     }
 

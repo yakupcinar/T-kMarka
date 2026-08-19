@@ -207,6 +207,19 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   valid cache path`). Veritabanı testte ayrı (`tikmarka_test`) ama **disk
   ayrı değil**. Kural: dosya silen her servis **kök parametresi** almalı ve
   test kendi geçici klasöründe çalışmalı.
+- **Ödeme formu IFRAME içinde — sağlayıcının HAZIR BETİĞİ kullanılmaz.**
+  iyzico hem `checkoutFormContent` (yapıştırılacak `<script>`) hem
+  `paymentPageUrl` veriyor. Betik seçilseydi sağlayıcının JavaScript'i
+  **bizim kökenimizde** çalışır ve kart alanları bizim DOM'umuzda olurdu —
+  PCI kapsamını daraltma amacının tersi. Doğrusu `paymentPageUrl` +
+  `&iframe=true` ile ADRESİ gömmek (4.5-K1). ⚠️ Dönüş sayfası
+  **çerçeveden çıkmalı** (`window.top`, `window.parent` değil); çıkmazsa
+  müşteri "sipariş alındı" ekranını küçük bir çerçevede görür.
+- **`assertRedirect()` HEDEFSİZ çağrılırsa yönlendirmenin NEREYE gittiğini
+  ölçmez.** 4.5'te iki kez ısırdı: ödeme akışı sağlayıcıya yönlendirmekten
+  kendi sayfamıza döndü ve **hiçbir test kırılmadı**; ödeme sayfasındaki
+  sözleşme bağlantısı ham JSON'a gidiyordu ve test yalnızca bağlantı
+  METNİNİ arıyordu. Hedefi yaz.
 - **OTURUM TABANLI KİMLİK ÇOK KİRACILIKTA KENDİLİĞİNDEN GÜVENLİ DEĞİL.**
   Oturum yalnızca kullanıcı `id`'sini tutuyor; guard onu **isteğin
   kiracısının** şemasından çözüyor. İki markada da `id = 1` olan birer

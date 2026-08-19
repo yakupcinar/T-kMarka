@@ -1877,3 +1877,44 @@ FAZ 4.5 AÇILDI — ARAYÜZ BOŞLUKLARI
         ödeme ekranı: iyzico seçili, iki anahtar "girilmiş",
         GERÇEK DEĞER SIZMIYOR
         yasal ekran: üç metnin yayın sürümü + değişiklik uyarısı
+
+4.5-K1 ✅ ÖDEME FORMU IFRAME İÇİNDE — 8 test (toplam 675)
+      ESKİ: sipariş → redirect()->away(iyzico), müşteri SİTEDEN ÇIKIYOR
+      YENİ: sipariş → /odeme/ode/{uuid}, kart formu IFRAME içinde
+      → müşteri sitede kalıyor, kart verisi bize HİÇ UĞRAMIYOR
+
+      ★★ İKİ GÖMME YÖNTEMİNDEN HANGİSİ
+        checkoutFormContent (hazır script) → iyzico'nun JS'i BİZİM
+          kökenimizde çalışır, kart alanları BİZİM DOM'umuzda olur
+        paymentPageUrl + &iframe=true      → her şey ONLARIN kökeninde ✓
+        ⚠️ betik daha kolaydı ve çoğu örnekte o var; SEÇİLMEDİ
+        test bunu ölçüyor: sayfada checkoutFormContent geçmemeli
+
+      4.5-K1a PaymentInitiation "gömülebilir mi" sorusunu AYRICA cevaplıyor
+        sağlayıcı iframe vermiyorsa yönlendirmeye düşülüyor; tek yol
+        dayatılsaydı o sağlayıcıya geçildiği gün ödeme TAMAMEN kırılırdı
+      4.5-K1b sahte sağlayıcı da gömülebilir — yoksa iframe yolu ANCAK
+        CANLIDA ilk kez denenirdi
+      4.5-K1c dönüş sayfası ÇERÇEVEDEN ÇIKIYOR
+        sağlayıcı dönüş adresini O ÇERÇEVENİN İÇİNDE açıyor; betik
+        olmasaydı müşteri "sipariş alındı"yı ödeme formunun yerinde,
+        küçük bir çerçevede görürdü
+        ⚠️ window.parent DEĞİL window.top: iç içe çerçevede bir seviye
+          çıkardı · betik çalışmazsa bağlantı target="_top"
+
+      ★★ KIRMA DENEMESİ BİR TESTİN YALANINI GÖSTERDİ
+        çerçeveden çıkış testi assertSee('window.top') diyordu;
+        yönlendirme satırı silinse bile `if (window.top !== window.self)`
+        koşulu metinde kalıyor ve TEST YEŞİL GEÇİYORDU
+        iddia asıl satıra bağlandı (window.top.location.href)
+
+      ⚠️ ESKİ TESTLER BU DEĞİŞİKLİĞİ YAKALAYAMAZDI: assertRedirect()
+        hedefsiz çağrılıyordu — "bir yere yönlendirildi" ölçülüyordu,
+        NEREYE değil (4.5A'daki dersin aynısı)
+
+      DOĞRULANDI (gerçek iyzico sandbox)
+        sipariş → 302 → /odeme/ode/{uuid} (siteden çıkılmıyor)
+        iframe kaynağı: sandbox-cpp.iyzipay.com?token=…&iframe=true
+        sağlayıcı betiği sayfada YOK
+      ⚠️ FAZ 6'YA NOT: PCI DSS 4.0 iframe kullanan sayfalar için istemci
+        tarafı betik bütünlüğü koruması istiyor (CSP + betik envanteri)

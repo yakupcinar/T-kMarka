@@ -34,14 +34,14 @@
 │     ✅ 4A vitrin → ✅ 4B akış → ✅ 4C panel → ✅ 4D katalog    │
 │     ✅ 4E sipariş → ✅ 4F yönetim → ✅ 4G tema → ✅ 4H kapanış │
 │  4.5 · ARAYÜZ BOŞLUKLARI ◀ AÇILDI — ölçüldü: 73 uç, 34 sayfa  │
-│     ✅ 4.5A yasal metin → ✅ 4.5B ödeme+sözleşme ekranı        │
+│     ✅ 4.5A yasal → ✅ 4.5B ödeme/sözleşme → ✅ K1 iframe ödeme│
 │     4.5C personel/alan adı → 4.5D müşteri hesabı               │
 │     4.5E katalog ekranları → 4.5F görsel + kapanış             │
 │  5 · ENTEGRASYON   kargo · e-fatura                            │
 │  6 · DAĞITIM       yayın · yedekleme · izleme                  │
 │                                                                │
 │  Kural: bir blok bitmeden sonrakine geçilmez.                  │
-│  667 test · lint · analyse · CI hepsi yeşil                    │
+│  675 test · lint · analyse · CI hepsi yeşil                    │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -5069,6 +5069,82 @@ değerlerini prop'a koyma · taslak kaydederken yayınlama.
 **Doğrulandı (gerçek tarayıcı):** ödeme ekranı **iyzico** seçili, iki
 anahtar "girilmiş", **gerçek değer sızmıyor** · yasal ekran üç metnin
 yayın sürümünü ve "yayınlanmamış değişiklik" uyarısını gösteriyor.
+
+---
+
+### 4.5-K1 — ÖDEME FORMU IFRAME İÇİNDE  ✅ (8 test)
+
+Kod: `app/Domain/Payment/PaymentInitiation.php` · `IyzicoProvider` ·
+`FakePaymentProvider` · `app/Http/Storefront/CheckoutPageController.php` ·
+`resources/views/storefront/odeme-form.blade.php` ·
+`sade/odeme-donus.blade.php` (çerçeveden çıkış) ·
+`tests/Tenancy/GomuluOdemeTest.php`
+
+**Toplam 675 test** (4.5B sonu: 667).
+
+**★ KARAR: müşteri siteden AYRILMIYOR, kart verisi bize HİÇ UĞRAMIYOR.**
+
+```
+ESKİ:  sipariş → redirect()->away(iyzico)   müşteri siteden çıkıyor
+YENİ:  sipariş → /odeme/ode/{uuid}          kart formu IFRAME içinde
+```
+
+**Neden bu yol:** kart alanlarını kendimiz toplasaydık PCI kapsamı bize
+geçerdi. iframe/yönlendirme her ikisi de kapsamı dışarıda tutuyor; iframe
+ayrıca taksit ve 3D akışını sağlayıcıya bırakıp müşteriyi sitede tutuyor.
+
+**★★ İKİ GÖMME YÖNTEMİNDEN HANGİSİ — ve neden.**
+
+iyzico başlatma cevabında iki şey veriyor:
+
+| yöntem | ne olur |
+|---|---|
+| `checkoutFormContent` (hazır `<script>`) | iyzico'nun JavaScript'i **BİZİM sayfamızın kökeninde** çalışır; kart alanları bizim DOM'umuzda olur |
+| `paymentPageUrl` + `&iframe=true` | her şey **onların kökeninde** kalır ✅ |
+
+> ⚠️ Betiği yapıştırmak daha kolaydı ve çoğu örnekte o var. Seçilmedi:
+> PCI kapsamını daraltma amacının gereği, kart alanlarının bizim
+> kökenimizde **hiç bulunmaması**. Test bunu ölçüyor — sayfada
+> `checkoutFormContent` ya da `iyzipay-checkout-form` geçmemeli.
+
+**4.5-K1a · `PaymentInitiation` "gömülebilir mi" sorusunu ayrıca
+cevaplıyor.** Sağlayıcı iframe vermiyorsa yönlendirmeye düşülüyor; tek yol
+dayatılsaydı iframe desteklemeyen bir sağlayıcıya geçildiği gün ödeme
+**tamamen kırılırdı**.
+
+**4.5-K1b · Sahte sağlayıcı da gömülebilir.** Olmasaydı geliştirme ve
+testler yalnızca yönlendirme yolunu ölçer, iframe yolu **ancak canlıda ilk
+kez** denenirdi.
+
+**4.5-K1c · Dönüş sayfası ÇERÇEVEDEN ÇIKIYOR.**
+> Sağlayıcı, işlem bitince dönüş adresini **o çerçevenin içinde** açıyor.
+> Betik olmasaydı müşteri "Siparişiniz alındı" ekranını ödeme formunun
+> yerinde, küçük bir çerçevede görürdü. ⚠️ `window.parent` değil
+> `window.top`: iç içe iki çerçevede yalnızca bir seviye çıkılırdı.
+> Betik çalışmazsa sayfa yine okunabilir ve bağlantı `target="_top"`.
+
+⚠️ Ödeme ekranı **sipariş sahipliğini** doğruluyor (1A.5 · 1E'deki kuralın
+aynısı, tekrarlanmıyor) ve **ödenmiş siparişe açılmıyor** — müşteri geri
+düğmesine basınca ikinci kez ödemeye çalışabilirdi.
+
+**★★ KIRMA DENEMESİ BİR TESTİN YALANINI GÖSTERDİ.** Çerçeveden çıkış testi
+`assertSee('window.top')` diyordu; yönlendirme satırı silinse bile
+`if (window.top !== window.self)` koşulu metinde kaldığı için **test yeşil
+geçiyordu**. İddia asıl satıra bağlandı (`window.top.location.href`) ve
+kırma denemesi bu kez düştü.
+
+⚠️ Ayrıca eski testler bu değişikliği **yakalayamazdı**: `assertRedirect()`
+hedefsiz çağrılıyordu, yani "bir yere yönlendirildi" ölçülüyordu — nereye
+değil. 4.5A'daki dersin aynısı.
+
+**Doğrulandı (gerçek iyzico sandbox):** sipariş → **302 →
+`/odeme/ode/{uuid}`** (siteden çıkılmıyor) · sayfa 200 ve iframe kaynağı
+**`sandbox-cpp.iyzipay.com?token=…&iframe=true`** · sağlayıcı betiği
+sayfada **yok**.
+
+**⚠️ Faz 6'ya not:** PCI DSS 4.0, iframe kullanan sayfalar için istemci
+tarafı betik bütünlüğü koruması istiyor (CSP + betik envanteri). Yayına
+çıkmadan önce ele alınacak.
 
 ---
 

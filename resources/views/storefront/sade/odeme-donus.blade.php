@@ -4,6 +4,30 @@
 
 @section('icerik')
 
+    {{--
+        ★ IFRAME'DEN ÇIKIŞ (4.5-K1) — bu bloğun olmaması sessiz bir
+        bozukluk üretirdi.
+
+        Ödeme formu iframe içinde açılıyor ve sağlayıcı işlem bitince
+        DÖNÜŞ ADRESİNİ O ÇERÇEVENİN İÇİNDE açıyor. Bu betik olmasaydı
+        müşteri, "Siparişiniz alındı" ekranını ödeme formunun yerinde,
+        küçük bir çerçevenin içinde görürdü — üst bar ve menü hâlâ ödeme
+        sayfasına ait olurdu.
+
+        ⚠️ `window.top` yerine `window.parent` yazılsaydı iç içe iki
+        çerçevede yalnızca bir seviye çıkılırdı.
+
+        ⚠️ Betik ÇALIŞMAZSA (JavaScript kapalı) sayfa yine de doğru ve
+        okunabilir: çerçevenin içinde görünür ama içeriği tamdır. Aşağıdaki
+        bağlantı da `target="_top"` ile çıkışı elle mümkün kılıyor.
+    --}}
+    <script>
+        if (window.top !== window.self) {
+            window.top.location.href = window.location.href
+        }
+    </script>
+
+
     <div class="sonuc">
         @if ($durum === 'success')
             <h1>Siparişiniz alındı</h1>
@@ -39,7 +63,8 @@
             </p>
         @endif
 
-        <p><a class="dugme" href="{{ route('vitrin.anasayfa') }}">Alışverişe devam et</a></p>
+        {{-- ⚠️ `target="_top"`: betik çalışmazsa müşteri çerçeveden elle çıkabilsin. --}}
+        <p><a class="dugme" target="_top" href="{{ route('vitrin.anasayfa') }}">Alışverişe devam et</a></p>
     </div>
 
 @endsection

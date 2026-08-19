@@ -188,6 +188,10 @@
         .yasal-liste { line-height: 2.2; }
         footer a { color: inherit; }
 
+        /* GÖMÜLÜ ÖDEME (4.5-K1) */
+        .odeme-gomulu { max-width: 760px; margin: 0 auto; padding: 24px 0; }
+        .odeme-cercevesi { width: 100%; min-height: 640px; border: 1px solid #e7e5e4; border-radius: 12px; background: #fff; }
+
         /* SONUÇ */
         .sonuc { padding: 56px 0; text-align: center; }
         .siparis-no { font-size: 17px; }

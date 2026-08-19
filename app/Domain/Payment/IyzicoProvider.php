@@ -123,7 +123,26 @@ class IyzicoProvider implements QueryablePaymentProvider, RefundablePaymentProvi
             throw new PaymentProviderException($this->ad(), 'Başlatma cevabı eksik döndü.', $cevap);
         }
 
-        return new PaymentInitiation(yonlendirmeAdresi: $adres, saglayiciReferansi: $jeton);
+        /*
+        | ★ İFRAME ADRESİ (4.5-K1). iyzico aynı ödeme sayfasını
+        | `&iframe=true` ile gömülebilir hâlde veriyor.
+        |
+        | ⚠️ Sağlayıcının `checkoutFormContent` betiği KULLANILMIYOR: o
+        | betik iyzico'nun JavaScript'ini BİZİM sayfamızın kökeninde
+        | çalıştırırdı. Adresi gömünce kart alanları tamamen onların
+        | kökeninde kalıyor.
+        |
+        | ⚠️ Sorgu ayracı hesaplanıyor: adres zaten `?` içeriyorsa `&`,
+        | içermiyorsa `?`. Sabit `&` yazılsaydı ve iyzico bir gün sorgusuz
+        | adres döndürseydi bağlantı bozulur, iframe boş açılırdı.
+        */
+        $ayrac = str_contains($adres, '?') ? '&' : '?';
+
+        return new PaymentInitiation(
+            yonlendirmeAdresi: $adres,
+            saglayiciReferansi: $jeton,
+            gomuluAdres: $adres.$ayrac.'iframe=true',
+        );
     }
 
     /**
