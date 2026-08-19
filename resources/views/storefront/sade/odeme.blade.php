@@ -18,10 +18,57 @@
                 (M-1) ama iletişim adresi olmadan sipariş takip edilemez.
             --}}
             <label>E-posta
-                <input type="email" name="email" value="{{ old('email') }}" required>
+                <input type="email" name="email" value="{{ $eposta }}" required>
             </label>
 
             <h2>Teslimat adresi</h2>
+
+            @if ($adresler->isNotEmpty())
+                {{--
+                    ⚠️ KAYITLI ADRES VARSA ÖNCE O GÖSTERİLİYOR (4.5I).
+                    Müşteri adres defterine adres kaydedip ödemeye gelince
+                    aynı adresi baştan yazmak zorunda kalıyordu.
+
+                    ⚠️ Adres defteri BOŞSA bu blok hiç çıkmıyor: seçilecek
+                    bir şey yokken "kayıtlı adreslerim" başlığı göstermek
+                    müşteriye kaybettiği bir şey olduğunu düşündürürdü.
+                --}}
+                <div class="adres-secim">
+                    @foreach ($adresler as $a)
+                        <label class="adres-kart">
+                            <input
+                                type="radio"
+                                name="adres_uuid"
+                                value="{{ $a->uuid }}"
+                                @checked(old('adres_uuid', $loop->first ? $a->uuid : null) === $a->uuid)
+                            >
+                            <span>
+                                <strong>{{ $a->title }}</strong> — {{ $a->full_name }}<br>
+                                {{ $a->line1 }}{{ $a->line2 ? ', '.$a->line2 : '' }}<br>
+                                {{ $a->district }} / {{ $a->city }}
+                            </span>
+                        </label>
+                    @endforeach
+
+                    {{--
+                        ⚠️ "Başka adres" de bir RADYO — ayrı düğme değil.
+                        Düğme olsaydı iki ayrı durum (seçili adres + açık
+                        form) aynı anda var olabilir ve hangisinin
+                        gönderileceği belirsiz kalırdı.
+                    --}}
+                    <label class="adres-kart">
+                        <input type="radio" name="adres_uuid" value="" @checked(old('adres_uuid') === '')>
+                        <span><strong>Başka adrese gönder</strong></span>
+                    </label>
+                </div>
+            @endif
+
+            {{--
+                ⚠️ Form KAPALI DEĞİL, gizli: "başka adres" seçilince
+                açılıyor. Sunucuda da kontrol var — gizlemek doğrulama
+                değildir (4.5H.1'in dersi).
+            --}}
+            <div class="yeni-adres" @if ($adresler->isNotEmpty()) hidden @endif>
 
             <label>Ad soyad
                 <input type="text" name="shipping[full_name]" value="{{ old('shipping.full_name') }}" required>
@@ -56,6 +103,15 @@
             <label>Posta kodu
                 <input type="text" name="shipping[postal_code]" value="{{ old('shipping.postal_code') }}">
             </label>
+
+            @auth('customer-web')
+                <label class="onay">
+                    <input type="checkbox" name="adresi_kaydet" value="1" @checked(old('adresi_kaydet'))>
+                    Bu adresi adres defterime kaydet
+                </label>
+            @endauth
+
+            </div>{{-- .yeni-adres --}}
 
             <h2>Fatura <span class="ipucu">(kurumsal fatura istiyorsanız)</span></h2>
 
@@ -118,5 +174,38 @@
             @endif
         </aside>
     </form>
+
+
+{{--
+        ⚠️ `required` alanlar GİZLİYKEN tarayıcı formu göndermiyor ve
+        "odaklanılamayan alan doldurulmalı" diyerek SESSİZCE duruyor —
+        müşteri neyin eksik olduğunu göremiyor. Bu yüzden zorunluluk
+        görünürlükle birlikte açılıp kapanıyor.
+
+        ⚠️ Betik çalışmazsa form AÇIK kalıyor (`hidden` kaldırılıyor):
+        bozuk durumda müşteri adresini yine de yazabilmeli.
+    --}}
+    <script>
+        (function () {
+            var blok = document.querySelector('.yeni-adres')
+            if (!blok) return
+
+            var secimler = document.querySelectorAll('input[name="adres_uuid"]')
+            if (secimler.length === 0) return
+
+            var zorunlular = blok.querySelectorAll('[required]')
+
+            function uygula() {
+                var yeni = document.querySelector('input[name="adres_uuid"]:checked')
+                var acik = yeni !== null && yeni.value === ''
+
+                blok.hidden = !acik
+                zorunlular.forEach(function (alan) { alan.required = acik })
+            }
+
+            secimler.forEach(function (s) { s.addEventListener('change', uygula) })
+            uygula()
+        })()
+    </script>
 
 @endsection

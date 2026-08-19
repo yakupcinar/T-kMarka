@@ -461,6 +461,27 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   konmaz (o sınıf okuma yolunda da çalışıyor ve veritabanına bakmıyor);
   yazma yoluna ait.
 
+- **VARSAYILAN GUARD SAYFA KATMANINDA YANLIŞ.** `config/auth.php`'de
+  varsayılan `customer` — yani **sanctum, token**. Sayfalarda kimlik
+  OTURUMDA (`customer-web`); `$istek->user()` yazılırsa sanctum sorulur,
+  `null` döner ve **giriş yapmış müşteri misafir sayılır**. 4.5I'de
+  ölçüldü: sepet müşteriye bağlanmıyor, sipariş `customer_id = null`
+  doğuyordu — geliştirme markasında **24 siparişin hepsi**, ödenmişler
+  dâhil, sahipsizdi ve "Siparişlerim" sayfası hiçbir zaman dolamazdı.
+  ⚠️ API katmanında (`api/*`) varsayılan guard **DOĞRU** — düzeltme tüm
+  vitrine değil sayfa katmanına uygulanır. Ölçen test:
+  `PanelKapsamTest` sayfa dosyalarında `->user()` arıyor.
+- **`actingAs()` VARSAYILAN GUARD'I DA DEĞİŞTİRİYOR — guard hatasını
+  GİZLER.** 4.5I'de iki kez ısırdı: (1) kök sebebi ölçmek için yazdığım
+  test `actingAs` ile **hatalı kodla yeşil geçti**; gerçek `/giris`
+  POST'uyla ölçünce düştü. (2) `GomuluOdemeTest`'te bir güvenlik testi
+  `actingAs($musteri, 'customer')` (TOKEN) kullanıyordu ama ölçtüğü şey
+  bir SAYFA rotasıydı — yıllardır yanlış şeyi ölçüyormuş, düzeltme onu
+  ortaya çıkardı. Kural: kimliğin **hangi guard'dan** çözüldüğünü ölçen
+  testte `actingAs` KULLANILMAZ, gerçek giriş isteği atılır.
+  (`postJson`'ın `Accept` eklemesi ve `getJson`'ın çerezi düşürmesiyle
+  aynı aile: **test yardımcısı ölçmek istediğin şeyi ortadan kaldırıyor**.)
+
 ## Yapı
 
 ```

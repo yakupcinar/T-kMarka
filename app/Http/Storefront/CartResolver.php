@@ -36,7 +36,24 @@ class CartResolver
      */
     public function bul(Request $istek): ?Cart
     {
-        $kullanici = $istek->user();
+        /*
+        | ★ GUARD AÇIKÇA YAZILIYOR — `user()` DEĞİL `user('customer-web')`.
+        |
+        | ⚠️ Varsayılan guard `customer` (sanctum, TOKEN). Bu sınıf yalnızca
+        | SAYFALARDAN çağrılıyor ve orada kimlik OTURUMDA. Guard yazılmadığı
+        | sürece sanctum sorulur, `null` döner ve giriş yapmış müşteri
+        | MİSAFİR sayılır.
+        |
+        | ⚠️ Bedeli sessiz ve kalıcıydı: sepet müşteriye bağlanmıyor, sipariş
+        | de `customer_id = null` doğuyordu. Ölçüldü — geliştirme markasında
+        | 24 siparişin HEPSİ, ödenmişler dâhil, sahipsizdi. "Siparişlerim"
+        | sayfası doğru yazılmıştı ama hiçbir zaman dolamazdı.
+        |
+        | ⚠️ API katmanı (`api/*`) BUNUN TERSİ: orada kimlik sanctum
+        | token'ında ve varsayılan guard doğru. Bu yüzden düzeltme tüm
+        | vitrine değil YALNIZCA sayfa katmanına uygulandı.
+        */
+        $kullanici = $istek->user('customer-web');
 
         if ($kullanici instanceof Customer) {
             return $this->sepetler->musteriSepeti($kullanici);

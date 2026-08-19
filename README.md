@@ -140,20 +140,22 @@ veya dağıtım için izin gerekir.
 ## İyileştirme
 
 * Ürün sayfasının altında benzer ürünler, beğenilenler (hepsiburada gibi)
-* Ürünlere tıklamayı sayma
-* Hepsiburada gibi büyük e-ticaret sitelerinin bu tarz niş özelliklerini tespit edip liste oluşturalım
+* Ürünlere tıklamayı sayma arkada kullanıcı başına data tutma bunu marka panelinde düzgün formatta bölüm açalım
 * Vitrinde kullanıcı için ürün favorileme yok, eski siparişlerim olmalı
+* Hepsiburada gibi büyük e-ticaret sitelerinin bu tarz niş özelliklerini tespit edip liste oluşturalım
 
-* Koleksiyonlar kurallı tanımlarken uyarı veriyor kural bir nesne olmalı diye, kullanıcı panelinde koleksiyonların kullanıldığı bir yer görmedim eksik var.
-* Marka panelinde varyant ekleyebiliyorum üründe ama bu varyantlara özellik ekletmiyor oraya onu da ekleyelim
-* Marka panelinde adres kaydı başlık alanı zorunludur diyor baktım ama frontda onun için yer yok.
+* Vitrinde sepet ödemesine giderken kayıtlı adres seçili olunca hata veriyor line uyarıları falan ödemeye gitmiyor.
+* Sepete ürün koydum ödeme kısmına kadar geldim ama sonra geri çıktım baktım siparişlerimde ödeme durumunda diye duruyor öyle belki de sepetim o yüzden 2 gözüküyor ben bakınca sağ üstteki kısımda içine girince boş olmasına rağmen bir daha yaptım aynı işlemi yine siparişlerde ödeme bekleniyor diye geldi sayıları arttı ama sipariş 2 de sabit kaldı sağ üstte
+* Marka Panelinde yeni koleksiyon oluşturdum elle seç özelliği ile ama seçtirmiyor ürün ya ürünler kısmında ya da başka bir yerde koleksiyona koyabilmeli
+* Marka panelinde varyant ekleyebiliyorum üründe ama ikinci bir varyant eklemeye çalışınca saçma bir sayfa açılıyor kusurlu burası ayrıca varyantlara varyant eksenlerini ekliyemiyorum Renk, Beden etc.
+* Marka panelinde ürün eklemede ürünü ekliyorum şimdi varyantları ekleyebilirsin yazısı geliyor ama varyant ve görsel kısmı gelmiyor, bir sayfa değiştirip oluşmuş ürüne tıklıyorum o zaman bu varyant ve görsel kısım gelmiş oluyor; ilk ürünü oluşturmaya tıkladığım zaman sayfa değiştirmek zorunda kalmayayım varyant eklemek için istersen sayfayı yenile varyant ve görsel de gelsin oraya
 * "https://marka-a.localhost/odeme/ode/" da ödeme için sandbox değeri girdim ve çalıştı ama sms'i girince buraya attı "Test Kullanıcı" isimli bir hesapla yaptım ve ürün gidiyor stoğa bakınca, geçersiz kartları denediğimde stok azalmıyor ama iki geçerli veya geçersiz olsun sonucunda bir mesaj döndürmüyor vitrinde kullanıcıya aynı zamanda sayfanın içindeki sayfa kalıyor bu aşağıdaki yazıya dönüşüyor web in web yani
 "
 ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS
 marka-a.localhost is blocked
 The connection is blocked because it was initiated by a public page to connect to devices or servers on your local network.
 "
-* Vitrinde siparişlere bakıyorum ama göremiyorum yeni verdiğim siparişleri kullanıcı olarak ve iade seçeneği de yok şu anda 
+* Vitrinde siparişlere bakıyorum ama göremiyorum verdiğim siparişleri kullanıcı olarak görmem gerekiyor ve iade seçeneği de yok şu anda 
 * Açılan yeni Markaları tekrar elle eklemek gerekiyor Caddy üzerinden, ben o işlemi de yönetim paneline koyalım diyorum yeni gelen Marka isteğini onay/red yapayım olur mu.
 
 * a@a bizim doğrulamamızı geçiyor, iyzico reddediyor. Bedeli: sipariş oluşuyor, stok bağlanıyor, sonra ödeme patlıyor ve stok 60 dakika kilitli kalıyor.

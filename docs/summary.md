@@ -2185,3 +2185,43 @@ FAZ 5 SIRADA — kargo firmaları · e-fatura/e-arşiv
         adlar artık SUNUCUDAN (arayüzde kopyalansa liste ayrışırdı)
 
       DOĞRULANDI (gerçek curl): iki bozuk koleksiyon 404 → 200
+
+4.5I ✅ MÜŞTERİ KİMLİĞİ VİTRİN SAYFALARINDA — 743 test
+      üç şikâyet, TEK kök: siparişlerim boş · adres ödemede yine soruluyor
+      · sepet girişten sonra da misafir
+
+      KÖK SEBEP TEK SATIR
+        sayfa katmanı $istek->user() çağırıyordu
+        varsayılan guard `customer` = SANCTUM (token)
+        oturumla giren müşteri sanctum'a GÖRÜNMÜYOR → misafir sayılıyor
+        ⚠️ bedeli sessiz: 24 siparişin HEPSİ (ödenmişler dâhil) sahipsiz
+          "Siparişlerim" doğru yazılmıştı, HİÇBİR ZAMAN DOLAMAZDI
+        ⚠️ API katmanı TERSİ — orada varsayılan guard DOĞRU
+          düzeltme yalnızca SAYFA katmanına uygulandı
+
+      ✅ ÖDEME SAYFASI ADRES DEFTERİNİ TANIYOR
+        kayıtlı adres varsa liste + seçim, "Başka adrese gönder" form açar
+        adresi olmayan bugünkü formu görüyor
+        ⚠️ seçilen adres SUNUCUDA çözülüyor, istekten gelen shipping DEĞİL
+        ⚠️ sahiplik addresses() ilişkisinden — yabancı uuid bulunamıyor
+        ⚠️ required_without:adres_uuid — koşulsuz nullable olsaydı
+          hiç adres seçmeyen BOŞ ADRESLE sipariş verirdi
+        ⚠️ deftere kayıt yalnızca İSTENİRSE
+
+      ⚠️ ÖLÇEN TESTİ İKİ KEZ YAZDIM
+        ilki actingAs kullanıyordu → HATALI KODLA YEŞİL GEÇTİ
+        actingAs VARSAYILAN GUARD'I DA DEĞİŞTİRİYOR
+        gerçek /giris POST'uyla ölçünce customer_id null çıktı
+
+      AYNI YARDIMCI BİR YALANCI TESTİ DE GİZLEMİŞTİ
+        GomuluOdemeTest: actingAs(..., 'customer') = TOKEN guard'ı
+        ama ölçtüğü şey bir SAYFA rotası
+        düzeltmeden sonra düştü → gerçek girişle yazıldı, KORUMA YERİNDE
+        kırılan koruma değil, TESTİN ÖLÇTÜĞÜ ŞEYDİ
+
+      yapısal test: sayfa katmanında guard'sız user() kalamaz
+
+      DOĞRULANDI (gerçek curl)
+        giriş → sepet → ödemede kayıtlı adres görünüyor
+        shipping HİÇ GÖNDERİLMEDEN sipariş oluştu, adres defterden
+        müşteriye bağlandı, "Siparişlerim"de göründü

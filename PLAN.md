@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ──────── şu an: 4.5H.1 BİTTİ, FAZ 5 SIRADA ┐
+┌─ YOL HARİTASI ──────── şu an: 4.5I BİTTİ, 4.5J SIRADA ┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -5622,6 +5622,72 @@ büyüyünce iki taraf ayrışır ve etiket boş çıkardı).
 **Üç kırma denemesi, üçü de düştü.** **Doğrulandı (gerçek `curl`):** iki
 bozuk koleksiyon **404 → 200** · onarıldıktan sonra 1 ve 2 ürün
 listeliyor. **737 test.**
+
+---
+
+### 4.5I — müşteri kimliği vitrin sayfalarında  ◀ AÇIK
+
+Üç ayrı şikâyet, **tek kök**: *"vitrinde siparişlerimi göremiyorum"* ·
+*"adres kaydettim ama ödemede yine soruyor"* · sepetin girişten sonra da
+misafir gibi davranması.
+
+**Kök sebep tek satırdı.** Sayfa katmanı `$istek->user()` çağırıyordu ve
+varsayılan guard `customer` — yani **sanctum, token**. Oturumla giren
+müşteri sanctum'a görünmüyor; her sayfa onu **misafir** sanıyordu.
+
+```
+tarayıcı → oturum çerezi → customer-web guard     ← kimlik BURADA
+sayfa    → $istek->user() → customer (sanctum)    ← BOŞ döner
+```
+
+> ⚠️ **Bedeli sessiz ve kalıcıydı.** Sepet müşteriye bağlanmıyor, sipariş
+> de `customer_id = null` doğuyordu. Ölçüldü: geliştirme markasında **24
+> siparişin hepsi**, ödenmişler dâhil, sahipsizdi. "Siparişlerim" sayfası
+> doğru yazılmıştı ama **hiçbir zaman dolamazdı**.
+>
+> ⚠️ **API katmanı bunun TERSİ:** orada kimlik token'da ve varsayılan
+> guard doğru. Bu yüzden düzeltme tüm vitrine değil **yalnızca sayfa
+> katmanına** uygulandı — 15 guard'sız çağrının çoğu yerinde duruyor.
+
+**✅ Ödeme sayfası artık adres defterini tanıyor.** Kayıtlı adres varsa
+liste + seçim, "Başka adrese gönder" formu açıyor; adresi olmayan müşteri
+bugünkü formu görüyor.
+
+> ⚠️ Seçilen adres **sunucuda** çözülüyor, istekten gelen `shipping`
+> gövdesi kullanılmıyor. Ekranda gizlemek doğrulama değildir: `adres_uuid`
+> yanına başka bir gövde eklemek serbest.
+>
+> ⚠️ Sahiplik `addresses()` ilişkisi üzerinden — yabancı uuid zaten
+> bulunamıyor. Testi var: saldırgan kurbanın adresine sipariş çıkaramıyor.
+>
+> ⚠️ Form alanları `required_without:adres_uuid`. Koşulsuz `nullable`
+> yazılsaydı hiçbir adres seçmeyen müşteri **boş adresle** sipariş
+> verebilirdi — kargo çıkamayan bir sipariş, hata vermeden.
+>
+> ⚠️ Adres defterine kayıt yalnızca **istenirse**. Sessizce kaydedilseydi
+> müşteri bir kerelik gönderdiği adresi defterinde bulur, kim eklediğini
+> anlamazdı.
+
+**⚠️ ÖLÇEN TESTİ İKİ KEZ YAZDIM.** İlki `actingAs` kullanıyordu ve
+**hatalı kodla yeşil geçti** — `actingAs` varsayılan guard'ı da
+değiştiriyor, yani `user()` çağrısının gerçekte ne döndürdüğünü gizliyor.
+Gerçek `/giris` POST'uyla ölçünce `customer_id` **null** çıktı.
+
+**Aynı yardımcı bir yalancı testi de gizlemişti.** `GomuluOdemeTest`'teki
+"başkasının siparişinin ödeme ekranı açılmıyor" testi
+`actingAs($musteri, 'customer')` — yani **token** guard'ı — kullanıyordu,
+oysa ölçtüğü şey bir **sayfa** rotası. Düzeltme sonrası düştü; gerçek
+giriş akışıyla yeniden yazıldı ve **koruma yerinde çıktı**. Kırılan koruma
+değil, testin ölçtüğü şeydi.
+
+**Yapısal test eklendi:** sayfa katmanındaki dosyalarda guard'sız `user()`
+çağrısı kalamaz.
+
+**Dört kırma denemesi, dördü de düştü.** **Doğrulandı (gerçek `curl`):**
+giriş → sepete ekle → ödeme sayfasında kayıtlı adres görünüyor →
+`shipping` **hiç gönderilmeden** sipariş oluştu, adres defterden geldi
+(İzmir/Konak), müşteriye bağlandı ve **"Siparişlerim"de göründü**.
+**743 test.**
 
 ---
 

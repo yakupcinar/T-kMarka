@@ -148,16 +148,31 @@ it('★★ BASKASININ siparisinin odeme ekrani ACILMIYOR', function () {
     $siparis = Order::query()->latest('id')->firstOrFail();
 
     // Müşteri olarak giriş yapmış biri, MİSAFİR siparişini açamamalı.
-    $musteri = Customer::create([
-        'name' => 'Baskasi', 'email' => 'baskasi@example.com', 'password' => 'sifre1234',
+    Customer::create([
+        'name' => 'Baskasi', 'email' => 'baskasi@example.com', 'password' => bcrypt('sifre1234'),
     ]);
 
     /*
+    | ⚠️ GİRİŞ GERÇEK AKIŞLA yapılıyor — `actingAs` DEĞİL.
+    |
+    | Burada `actingAs($musteri, 'customer')` yazılıydı, yani SANCTUM
+    | (token) guard'ı. Ama bu bir SAYFA rotası ve orada kimlik OTURUMDA.
+    | Test, sayfanın gerçekte hangi guard'ı okuduğunu ölçmüyordu; 4.5I'de
+    | sayfa katmanı `customer-web`'e geçince ortaya çıktı.
+    |
+    | ⚠️ `actingAs` ayrıca VARSAYILAN guard'ı da değiştiriyor — yani
+    | ölçmek istediğimiz şeyi ortadan kaldıran bir yardımcı (aynı aile:
+    | `postJson`'ın `Accept` eklemesi, `getJson`'ın çerezi düşürmesi).
+    |
     | ⚠️ 404, 403 DEĞİL: "böyle bir sipariş var ama senin değil" bilgisi
-    | de sızıntıdır (1A.5). Kural 1E'de kurulmuştu, burada tekrarlanmıyor.
+    | de sızıntıdır (1A.5).
     */
-    $this->actingAs($musteri, 'customer')
-        ->get("http://marka-a.test/odeme/ode/{$siparis->uuid}")
+    $this->post('http://marka-a.test/giris', [
+        'email' => 'baskasi@example.com',
+        'password' => 'sifre1234',
+    ])->assertRedirect();
+
+    $this->get("http://marka-a.test/odeme/ode/{$siparis->uuid}")
         ->assertNotFound();
 });
 

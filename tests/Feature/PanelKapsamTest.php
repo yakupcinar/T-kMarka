@@ -161,3 +161,40 @@ it('★★★ VİTRİN API ALANLARININ DA EKRAN KARŞILIĞI VAR', function () {
 
     expect($eksikler)->toBe([], "Ekranı olmayan vitrin uç alanları:\n".implode("\n", $eksikler));
 });
+
+/*
+| SAYFA KATMANINDA GUARD YAZILMIŞ OLMALI (4.5I).
+|
+| ⚠️ Varsayılan guard `customer` (sanctum, TOKEN). Sayfa katmanında kimlik
+| OTURUMDA; guard yazılmadığı sürece sanctum sorulur, `null` döner ve giriş
+| yapmış müşteri MİSAFİR sayılır. Bedeli sessizdi: sepet ve sipariş
+| müşteriye hiç bağlanmadı, "Siparişlerim" hiçbir zaman dolamadı.
+|
+| ⚠️ API katmanı BUNUN TERSİ — orada varsayılan guard DOĞRU. Bu yüzden test
+| tüm vitrini değil yalnızca sayfa dosyalarını tarıyor.
+*/
+it('★★★ SAYFA katmani guardi ACIKCA yaziyor', function () {
+    $sayfaDosyalari = [
+        'CartResolver.php',
+        'CartPageController.php',
+        'CheckoutPageController.php',
+        'AccountPageController.php',
+        'ProductPageController.php',
+        'CollectionPageController.php',
+    ];
+
+    foreach ($sayfaDosyalari as $dosya) {
+        $yol = app_path('Http/Storefront/'.$dosya);
+
+        if (! file_exists($yol)) {
+            continue;
+        }
+
+        $icerik = (string) file_get_contents($yol);
+
+        /*
+        | `user()` — parantezin içi BOŞ. `user('customer-web')` eşleşmiyor.
+        */
+        expect($icerik)->not->toMatch('/->user\(\s*\)/', $dosya.' guard yazmadan user() çağırıyor');
+    }
+});

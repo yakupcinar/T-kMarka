@@ -14,6 +14,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Rules\DeliverableEmail;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -52,9 +53,33 @@ class CheckoutPageController extends Controller
         */
         $sozlesme = $this->belgeler->guncelSurum(LegalDocumentType::DistanceSales);
 
+        /*
+        | ★ KAYITLI ADRESLER FORMA GİRİYOR (4.5I).
+        |
+        | ⚠️ Gerçek kullanımda bulundu: müşteri adres defterine adres
+        | kaydediyor, ödemeye gelince aynı adresi BAŞTAN yazmak zorunda
+        | kalıyordu. Adres defteri (1C) vardı ama ödeme akışı ondan
+        | habersizdi — "uç var ≠ kullanılabilir"in bir örneği daha.
+        |
+        | ⚠️ Guard AÇIKÇA yazılıyor; gerekçesi [CartResolver]'da.
+        */
+        $musteri = $istek->user('customer-web');
+
+        $adresler = $musteri instanceof Customer
+            ? $musteri->addresses()->orderByDesc('id')->get()
+            : new EloquentCollection;
+
         return view('storefront.sade.odeme', [
             'sepet' => $sepet,
             'sozlesme' => $sozlesme,
+            'adresler' => $adresler,
+
+            /*
+            | ⚠️ E-posta ön dolu ama KİLİTLİ DEĞİL: müşteri siparişi
+            | başka bir adresle takip etmek isteyebilir. Kilitlenseydi
+            | hesap e-postasını değiştirmeden bunu yapamazdı.
+            */
+            'eposta' => old('email', $musteri instanceof Customer ? $musteri->email : ''),
         ]);
     }
 
@@ -78,12 +103,23 @@ class CheckoutPageController extends Controller
             */
             'sozlesme_onay' => ['accepted'],
 
-            'shipping.full_name' => ['required', 'string', 'max:120'],
-            'shipping.phone' => ['required', 'string', 'max:20'],
-            'shipping.city' => ['required', 'string', 'max:60'],
-            'shipping.district' => ['required', 'string', 'max:60'],
+            /*
+            | ★ KAYITLI ADRES SEÇİLDİYSE FORM ALANLARI ZORUNLU DEĞİL (4.5I).
+            |
+            | ⚠️ `required_without` kullanılıyor: adres seçilmediyse
+            | alanlar yine zorunlu. Koşulsuz `nullable` yazılsaydı hiçbir
+            | adres seçmeyen müşteri BOŞ adresle sipariş verebilirdi —
+            | kargo çıkamayan bir sipariş, hata vermeden.
+            */
+            'adres_uuid' => ['nullable', 'uuid'],
+            'adresi_kaydet' => ['nullable', 'boolean'],
+
+            'shipping.full_name' => ['required_without:adres_uuid', 'string', 'max:120'],
+            'shipping.phone' => ['required_without:adres_uuid', 'string', 'max:20'],
+            'shipping.city' => ['required_without:adres_uuid', 'string', 'max:60'],
+            'shipping.district' => ['required_without:adres_uuid', 'string', 'max:60'],
             'shipping.neighborhood' => ['nullable', 'string', 'max:100'],
-            'shipping.line1' => ['required', 'string', 'max:255'],
+            'shipping.line1' => ['required_without:adres_uuid', 'string', 'max:255'],
             'shipping.line2' => ['nullable', 'string', 'max:255'],
             'shipping.postal_code' => ['nullable', 'string', 'max:10'],
 
@@ -95,6 +131,56 @@ class CheckoutPageController extends Controller
 
         if ($sepet === null) {
             return redirect()->route('vitrin.sepet')->with('hata', 'Sepetiniz bulunamadı.');
+        }
+
+        $musteri = $istek->user('customer-web');
+
+        /*
+        | ★ SEÇİLEN ADRES SUNUCUDA ÇÖZÜLÜYOR — istekten gelen alanlar
+        | kullanılmıyor.
+        |
+        | ⚠️ Ekranda gizlemek doğrulama değildir: `adres_uuid` gönderip
+        | yanına başka bir `shipping` gövdesi eklemek serbest. Adres
+        | seçildiyse alanlar DEFTERDEN okunuyor, istekten değil.
+        |
+        | ⚠️ Sahiplik kontrolü şart: başkasının adres uuid'si gönderilirse
+        | o adrese sipariş çıkardı. `addresses()` ilişkisi üzerinden
+        | arandığı için yabancı adres zaten bulunamıyor.
+        */
+        if (is_string($veri['adres_uuid'] ?? null) && $veri['adres_uuid'] !== '') {
+            if (! $musteri instanceof Customer) {
+                return back()->withInput()->with('hata', 'Kayıtlı adres kullanmak için giriş yapmalısınız.');
+            }
+
+            $adres = $musteri->addresses()->where('uuid', $veri['adres_uuid'])->first();
+
+            if ($adres === null) {
+                return back()->withInput()->with('hata', 'Seçilen adres bulunamadı.');
+            }
+
+            $veri['shipping'] = [
+                'full_name' => $adres->full_name,
+                'phone' => $adres->phone,
+                'city' => $adres->city,
+                'district' => $adres->district,
+                'neighborhood' => $adres->neighborhood,
+                'line1' => $adres->line1,
+                'line2' => $adres->line2,
+                'postal_code' => $adres->postal_code,
+            ];
+        } elseif ($musteri instanceof Customer && ($veri['adresi_kaydet'] ?? false)) {
+            /*
+            | ⚠️ Adres defterine kayıt YALNIZCA istenirse. Sessizce
+            | kaydedilseydi müşteri bir kerelik gönderdiği adresi (hediye,
+            | iş yeri) defterinde bulur ve kim eklediğini anlamazdı.
+            |
+            | ⚠️ `title` zorunlu (4.5G) — burada ekranda sorulmuyor, bu
+            | yüzden ilden türetiliyor. Boş bırakılsaydı kayıt sessizce
+            | düşerdi.
+            */
+            $musteri->addresses()->create($veri['shipping'] + [
+                'title' => $veri['shipping']['city'] ?? 'Adres',
+            ]);
         }
 
         try {
@@ -185,7 +271,8 @@ class CheckoutPageController extends Controller
      */
     private function siparisiDogrula(Request $istek, Order $siparis): void
     {
-        $kullanici = $istek->user();
+        // ⚠️ SAYFA katmanı: kimlik oturumda. Bkz. [CartResolver].
+        $kullanici = $istek->user('customer-web');
 
         if ($kullanici instanceof Customer) {
             abort_unless($siparis->customer_id === $kullanici->id, 404);
