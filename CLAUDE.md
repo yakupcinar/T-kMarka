@@ -207,6 +207,19 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   valid cache path`). Veritabanı testte ayrı (`tikmarka_test`) ama **disk
   ayrı değil**. Kural: dosya silen her servis **kök parametresi** almalı ve
   test kendi geçici klasöründe çalışmalı.
+- **Testte GERÇEK DNS SORGUSU yapılmaz.** `SystemDnsChecker` ağa çıkıp
+  zaman aşımını bekliyor: tek test **24 saniye** sürdü (4.5C). Bundan
+  kötüsü test **ağa bağımlı** olur — ağ yoksa kırılır ve ölçtüğü şey bizim
+  kodumuz değil internet olur. `FakeDnsChecker` bağla (3H'de bunun için
+  yazıldı).
+- **`Role::permissions` ÖZELLİK DEĞİL METOT.** `role_permissions` için ayrı
+  Eloquent modeli yok (1A.6); `$rol->permissions` yazılırsa Laravel onu
+  ilişki sanıyor ve *"must return a relationship instance"* ile **500**
+  veriyor. `$rol->permissions()` çağır.
+- **Modelin `getRouteKeyName()`'i `uuid` ise arayüz de `uuid` göndermeli.**
+  4.5C'de `User` için `id` gönderiliyordu: rota eşleşmiyor ve **404**
+  geliyordu — yani "korunuyor" sanılan şey kazaydı. ⚠️ Test de bunu
+  ölçüyor sanıyordu; 404 ile 422 arasındaki fark yakalandı.
 - **Ödeme formu IFRAME içinde — sağlayıcının HAZIR BETİĞİ kullanılmaz.**
   iyzico hem `checkoutFormContent` (yapıştırılacak `<script>`) hem
   `paymentPageUrl` veriyor. Betik seçilseydi sağlayıcının JavaScript'i

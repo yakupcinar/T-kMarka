@@ -1918,3 +1918,34 @@ FAZ 4.5 AÇILDI — ARAYÜZ BOŞLUKLARI
         sağlayıcı betiği sayfada YOK
       ⚠️ FAZ 6'YA NOT: PCI DSS 4.0 iframe kullanan sayfalar için istemci
         tarafı betik bütünlüğü koruması istiyor (CSP + betik envanteri)
+
+4.5C ✅ PANEL: PERSONEL/ROLLER + ÖZEL ALAN ADI — 12 test (toplam 687)
+      marka artık personel EKLEYEBİLİYOR (uçları 1A'da) ve DNS
+      TALİMATINI GÖREBİLİYOR (uçları 3H'de, ekranı yoktu)
+
+      ★★ ÜÇ TESTİM YANLIŞ VARSAYIMLA YAZILMIŞTI — KOD HAKLI ÇIKTI
+        "roles: ['Depo']" → varsayılan roller Yönetici/Katalog/Sipariş
+        "sahip çıkarma 422" → getRouteKeyName() UUID; id ile 404 geliyordu
+          ⚠️ yani ölçtüğüm şey KORUMA DEĞİL KAZAYDI
+          ve bu GERÇEK BİR HATA ortaya çıkardı: arayüz id gönderiyordu,
+          "personeli çıkar" düğmesi canlıda 404 verirdi → uuid'ye çevrildi
+        "sistem rolü değiştirilemez" → 1A.6 yalnızca SİLMEYİ kilitliyor;
+          ad/izin değişebiliyor ve bu bilinçli
+
+      ★ Role::permissions ÖZELLİK DEĞİL METOT — özellik gibi okununca
+        Laravel ilişki sanıyor, "must return a relationship instance" 500
+
+      ★ TEST 24 SANİYE SÜRÜYORDU: SystemDnsChecker gerçek ağa çıkıyordu
+        bundan kötüsü test AĞA BAĞIMLIYDI — ölçtüğü şey bizim kodumuz
+        değil internet olurdu → FakeDnsChecker bağlandı, 24sn → 5sn
+
+      ★ DERLENMİŞ BLADE ÖNBELLEĞİ bağlı klasörden çıkarıldı
+        aynı errno=35 kilidi DÖRDÜNCÜ KEZ (4D · 4E · 4.5C ×2), her
+        seferinde panelin bütün sayfaları 500
+        node_modules'te yaptığımızın aynısı: adlandırılmış Docker birimi
+
+      DOĞRULANDI (gerçek tarayıcı)
+        personel ekranı: 3 personel, 3 rol (izin ve personel sayılarıyla)
+        alan adı ekranı: iki doğrulanmış kayıt
+        yeni alan adı → ÜÇ DNS SEÇENEĞİ (CNAME·A·TXT) marka başına
+        rastgele belirteçle göründü, sonra silindi

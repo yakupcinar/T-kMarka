@@ -43,6 +43,19 @@ services:
       # ⚠️ Sonuç: `npm install` konteyner İÇİNDE yaşıyor. Host'taki
       # node_modules klasörü (varsa) artık kullanılmıyor.
       - node_modules:/var/www/html/node_modules
+
+      # ⚠️ DERLENMİŞ BLADE ÖNBELLEĞİ de bağlı klasörün DIŞINDA. (4.5C)
+      #
+      # Aynı `errno=35 Resource deadlock avoided` kilidi burada DÖRT KEZ
+      # çıktı (4D · 4E · 4.5C ×2): panelin bütün sayfaları 500 veriyordu
+      # ve belirti yanıltıcıydı — hata `Filesystem::require()`'dan
+      # geliyor, yığın izinde sayfayı yazan kod hiç görünmüyor.
+      #
+      # ⚠️ Klasör TÜRETİLMİŞ veri: Blade kaynaktan yeniden üretiyor.
+      # Host'tan görünmemesi bir kayıp değil. (Diğer `storage/framework`
+      # klasörleri bağlı kalıyor — oturum ve önbellek zaten Redis'te,
+      # ama `testing` klasörünü ayırmak testleri etkilerdi.)
+      - blade_cache:/var/www/html/storage/framework/views
     # env_file YOK — bilerek. Laravel .env'i dosyadan kendisi okuyor.
     # Konteyner ortamına enjekte edilirse $_SERVER'a yazılır ve
     # phpunit.xml testlerde onu EZEMEZ → testler geliştirme
@@ -151,6 +164,7 @@ services:
       - caddy
 
 volumes:
+  blade_cache:
   node_modules:
   pg_data:
   redis_data:

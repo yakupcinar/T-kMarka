@@ -9,6 +9,7 @@ use App\Http\Panel\CategoryController;
 use App\Http\Panel\CollectionController;
 use App\Http\Panel\DashboardController;
 use App\Http\Panel\DomainController;
+use App\Http\Panel\DomainPageController;
 use App\Http\Panel\LegalController;
 use App\Http\Panel\LegalPageController as PanelLegalSayfa;
 use App\Http\Panel\OptionController;
@@ -25,6 +26,7 @@ use App\Http\Panel\ReviewController;
 use App\Http\Panel\RoleController;
 use App\Http\Panel\SettingsController;
 use App\Http\Panel\StaffController;
+use App\Http\Panel\StaffPageController;
 use App\Http\Panel\StoreController;
 use App\Http\Panel\StorePageController;
 use App\Http\Panel\ThemePageController;
@@ -766,6 +768,23 @@ Route::middleware([
         | değiştirebilen ama iletişim bilgisini değiştiremeyen" gibi
         | pratikte hiç kullanılmayan bir rol türü doğardı.
         */
+        /*
+        | PERSONEL VE ROLLER (4.5C) — `izin:staff.manage` arkasında.
+        |
+        | ⚠️ Bu izin SİSTEMDEKİ EN TEHLİKELİSİ: yetki dağıtma yetkisi.
+        | Roller ekranı da aynı kapının ardında — rol düzenleyebilen zaten
+        | herkese her yetkiyi verebilir.
+        */
+        Route::middleware('izin:staff.manage')->group(function () {
+            Route::get('/personel', [StaffPageController::class, 'index'])->name('panel.personel');
+            Route::post('/personel', [StaffPageController::class, 'personelEkle'])->name('panel.personel.ekle');
+            Route::delete('/personel/{kullanici}', [StaffPageController::class, 'personelCikar'])->name('panel.personel.cikar');
+
+            Route::post('/roller', [StaffPageController::class, 'rolEkle'])->name('panel.rol.ekle');
+            Route::put('/roller/{rol}', [StaffPageController::class, 'rolGuncelle'])->name('panel.rol.guncelle');
+            Route::delete('/roller/{rol}', [StaffPageController::class, 'rolSil'])->name('panel.rol.sil');
+        });
+
         Route::middleware('izin:settings.write')->group(function () {
             /*
             | MAĞAZA AYARLARI VE YAYINA ALMA (4H).
@@ -785,6 +804,18 @@ Route::middleware([
             | YASAL METİNLER (4.5B) — taslak ve yayın AYRI (1A.4).
             | `legal_document_versions` salt-ekleme: yayınlamak yeni satır.
             */
+            /*
+            | ÖZEL ALAN ADI (4.5C) — 3H'nin karşılığı.
+            |
+            | ⚠️ Uçları 3H'de vardı ama ekranı yoktu, yani marka DNS
+            | talimatını HİÇ GÖREMİYORDU — o adım insan işi ve destek
+            | yükünün tamamı orada.
+            */
+            Route::get('/alan-adlari', [DomainPageController::class, 'index'])->name('panel.alanadlari');
+            Route::post('/alan-adlari', [DomainPageController::class, 'ekle'])->name('panel.alanadi.ekle');
+            Route::post('/alan-adlari/{alanAdi}/dogrula', [DomainPageController::class, 'dogrula'])->name('panel.alanadi.dogrula');
+            Route::delete('/alan-adlari/{alanAdi}', [DomainPageController::class, 'sil'])->name('panel.alanadi.sil');
+
             Route::get('/yasal', [PanelLegalSayfa::class, 'index'])->name('panel.yasal');
             Route::post('/yasal/{tur}', [PanelLegalSayfa::class, 'kaydet'])->name('panel.yasal.kaydet');
             Route::post('/yasal/{tur}/yayinla', [PanelLegalSayfa::class, 'yayinla'])->name('panel.yasal.yayinla');

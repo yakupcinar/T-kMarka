@@ -25,6 +25,8 @@ const menu = [
   { ad: 'Mağaza', yol: '/yonetim/magaza', izin: 'settings.write' },
   { ad: 'Ödeme', yol: '/yonetim/odeme-ayarlari', izin: 'settings.write' },
   { ad: 'Yasal', yol: '/yonetim/yasal', izin: 'settings.write' },
+  { ad: 'Alan adları', yol: '/yonetim/alan-adlari', izin: 'settings.write' },
+  { ad: 'Personel', yol: '/yonetim/personel', izin: 'staff.manage' },
   { ad: 'Tema', yol: '/yonetim/tema', izin: 'settings.write' },
 ]
 

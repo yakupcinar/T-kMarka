@@ -35,13 +35,13 @@
 │     ✅ 4E sipariş → ✅ 4F yönetim → ✅ 4G tema → ✅ 4H kapanış │
 │  4.5 · ARAYÜZ BOŞLUKLARI ◀ AÇILDI — ölçüldü: 73 uç, 34 sayfa  │
 │     ✅ 4.5A yasal → ✅ 4.5B ödeme/sözleşme → ✅ K1 iframe ödeme│
-│     4.5C personel/alan adı → 4.5D müşteri hesabı               │
+│     ✅ 4.5C personel/alan adı → 4.5D müşteri hesabı            │
 │     4.5E katalog ekranları → 4.5F görsel + kapanış             │
 │  5 · ENTEGRASYON   kargo · e-fatura                            │
 │  6 · DAĞITIM       yayın · yedekleme · izleme                  │
 │                                                                │
 │  Kural: bir blok bitmeden sonrakine geçilmez.                  │
-│  675 test · lint · analyse · CI hepsi yeşil                    │
+│  687 test · lint · analyse · CI hepsi yeşil                    │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -5145,6 +5145,68 @@ sayfada **yok**.
 **⚠️ Faz 6'ya not:** PCI DSS 4.0, iframe kullanan sayfalar için istemci
 tarafı betik bütünlüğü koruması istiyor (CSP + betik envanteri). Yayına
 çıkmadan önce ele alınacak.
+
+---
+
+### 4.5C — BİTTİ ✅ (12 test)
+
+Kod: `app/Http/Panel/{StaffPageController,DomainPageController}.php` ·
+`resources/js/Panel/Pages/{Personel,AlanAdlari}.vue` · `routes/tenant.php` ·
+`docker-compose.yml` (Blade önbelleği birimi) ·
+`tests/Tenancy/PanelPersonelAlanAdiTest.php`
+
+**Toplam 687 test** (4.5-K1 sonu: 675).
+
+**★ İki boşluk kapandı:** marka artık panelden **personel ekleyebiliyor**
+(uçları 1A'da) ve **DNS talimatını görebiliyor** (uçları 3H'de).
+
+> ⚠️ 3H'de talimat uçtan dönüyordu ama **ekran yoktu** — yani markanın onu
+> görmesinin hiçbir yolu yoktu. O adım insan işi ve destek yükünün tamamı
+> orada; ekran üç seçeneği birden gösteriyor (CNAME · A · TXT), çünkü kök
+> alan adında CNAME yasak olabiliyor.
+
+**4.5C-K1 · Roller ekranı da `staff.manage` arkasında.** Rol
+düzenleyebilen zaten herkese her yetkiyi verebilir; ayrı bir izne bölmek
+korumayı değil yalnızca görünümü değiştirirdi.
+
+---
+
+**★★ ÜÇ TESTİM YANLIŞ VARSAYIMLA YAZILMIŞTI — kod haklı çıktı**
+
+| yazdığım | gerçek |
+|---|---|
+| `roles: ['Depo']` ile personel eklenir | varsayılan roller **Yönetici · Katalog · Sipariş & Destek**; olmayan rol adı doğrulamadan dönüyor (1A.6'daki `exists` kuralı) |
+| sahip çıkarma **422** döner | `User::getRouteKeyName()` **uuid**; `id` ile adres eşleşmiyor ve **404** geliyordu — yani ölçtüğüm şey koruma değil KAZAYDI |
+| **sistem rolü değiştirilemez** | 1A.6 yalnızca **silmeyi** kilitliyor; ad ve izin değiştirilebiliyor ve bu bilinçli — markanın kendi adlandırmasını vermesi meşru |
+
+> ⚠️ İkincisi ayrıca **gerçek bir hata** ortaya çıkardı: arayüz `id`
+> gönderiyordu, yani "personeli çıkar" düğmesi canlıda **404** verirdi.
+> Prop `uuid`'ye çevrildi — sıralı iç kimliği arayüze vermek zaten
+> gereksiz sızıntı.
+
+**★ `Role::permissions` bir ÖZELLİK DEĞİL METOT.** `role_permissions` için
+ayrı model yok (1A.6); özellik gibi okununca Laravel onu ilişki sanıyor ve
+*"must return a relationship instance"* ile **500** veriyor.
+
+**★ TEST 24 SANİYE SÜRÜYORDU.** Doğrulama testi `SystemDnsChecker` ile
+**gerçek ağa** çıkıp zaman aşımını bekliyordu. Bundan kötüsü: test ağa
+bağımlıydı — ağ yavaşsa yavaş, ağ yoksa kırık, ve ölçtüğü şey bizim kodumuz
+değil internet olurdu. 3H'de yazılan `FakeDnsChecker` bağlandı: **24 sn →
+5 sn**.
+
+**★ DERLENMİŞ BLADE ÖNBELLEĞİ BAĞLI KLASÖRDEN ÇIKARILDI.** Aynı
+`errno=35` kilidi burada **dördüncü kez** çıktı (4D · 4E · 4.5C ×2) ve her
+seferinde panelin bütün sayfaları 500 veriyordu. `node_modules`'te
+yaptığımızın aynısı: adlandırılmış Docker birimi. Klasör türetilmiş veri —
+Blade kaynaktan yeniden üretiyor.
+
+**Üç kırma denemesi, üçü de düştü:** `staff.manage` kapısı · alan adının
+markaya daraltılması · son alan adı kontrolü.
+
+**Doğrulandı (gerçek tarayıcı):** personel ekranı 3 personel ve 3 rolü
+izin/personel sayılarıyla gösteriyor · alan adı ekranı iki doğrulanmış
+kaydı listeliyor · yeni alan adı eklendi ve **üç DNS seçeneği** marka
+başına rastgele belirteçle göründü, sonra silindi.
 
 ---
 
