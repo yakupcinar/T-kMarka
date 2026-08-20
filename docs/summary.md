@@ -2426,3 +2426,37 @@ FAZ 5 SIRADA — kargo firmaları · e-fatura/e-arşiv
       DOĞRULANDI (gerçek curl)
         kayıt → pending, deneme boş, domain-check 404
         onayla → trial, deneme bitişi yazıldı, domain-check 200
+
+4.5O ✅ SEPET/STOK HATALARININ SUNUMU — 787 test
+      AYNI HATANIN DÖRDÜNCÜSÜ (4A kapalı mağaza · 4B ödeme dönüşü ·
+      4.5G ödeme başlatma) — sepet ve stok istisnaları gözden kaçmıştı
+
+      gerçek curl koşusunda çıktı:
+        {"message":"'DC-1' için yeterli stok yok: 2 istendi, 1 kaldı."}
+      müşteri ödeme düğmesine basınca bunu HAM görüyordu
+
+      ✅ ÜÇ İSTİSNA DA AYRILDI
+        InsufficientStock · CartNotOrderable · VariantNotPurchasable
+        ⚠️ tarayıcı SEPETE yönlendiriliyor, back() ile ödemeye değil:
+          sorunun düzeltilebileceği tek yer orası
+        ⚠️ genel işleyici MERKEZ bağlamında da koşuyor, orada
+          vitrin.sepet rotası YOK — route() çağrılsaydı İSTİSNA
+          İŞLEYİCİSİNİN KENDİSİ patlardı; Route::has() ile korundu
+        ⚠️ mesajın kendisi müşteriye gidiyor: SKU ve kalan adet zaten
+          sepetinde gördüğü bilgi (4.5G'deki sağlayıcı mesajının aksine)
+        ⚠️ ÜÇÜ BİRDEN: biri atlanırsa aynı hata BEŞİNCİ kez geri gelir
+
+      ⚠️ TESTİ İLK YAZDIĞIMDA YANLIŞ ŞEYİ ÖLÇTÜM
+        `stock` düşürüyordum → CartService::engeller()'e takılıyor,
+        controller yakalıyor, ZATEN anlaşılır mesaj veriyor
+        yani test DÜZELTMEDEN ÖNCE DE GEÇERDİ
+        ham JSON'un yolu başka: stok VAR ama BAĞLI; sepet engel görmüyor,
+        rezervasyon adımı patlıyor
+
+      DOĞRULANDI (gerçek curl): 302 → /sepet, gövde HTML, JSON yok
+
+4.5M-tünel ✅ KULLANICI DOĞRULADI
+      make kaldir ile tünelden gerçek 3DS akışı koşuldu: SMS girildi,
+      ödeme tamamlandı, vitrinde "ödendi" göründü
+      ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS yalnızca .localhost
+      erişiminin yan etkisiymiş; kod değişikliği gerekmedi

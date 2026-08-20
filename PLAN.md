@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ──────── şu an: 4.5N BİTTİ, kalan: ödeme akışının tünelden ölçümü ┐
+┌─ YOL HARİTASI ──────── şu an: FAZ 4.5 BİTTİ, FAZ 5 SIRADA ┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -6058,6 +6058,60 @@ alıyor. Yani bu isteğin yarısı (onay/red) çözüldü, öteki yarısı zaten
 için gerekçesiyle güncellendi. **Doğrulandı (gerçek `curl`):** kayıt →
 `pending`, deneme boş, `domain-check` **404** · onayla → `trial`, deneme
 bitişi yazıldı, `domain-check` **200**. **784 test.**
+
+---
+
+### 4.5O — sepet/stok hatalarının sunumu  ◀ AÇIK
+
+**AYNI HATANIN DÖRDÜNCÜSÜ.** 4A'da kapalı mağaza, 4B'de ödeme dönüşü,
+4.5G'de ödeme başlatma için düzeltilmişti; sepet ve stok istisnaları
+gözden kaçmıştı. 4.5I.1'i ölçerken **gerçek `curl` koşusunda** çıktı:
+
+```
+{"message":"'DC-1' için yeterli stok yok: 2 istendi, 1 kaldı."}
+```
+
+Müşteri, ödeme düğmesine bastığında bunu **ham** görüyordu.
+
+**✅ Üç istisnanın üçü de ayrıldı:** `InsufficientStockException`,
+`CartNotOrderableException`, `VariantNotPurchasableException`.
+
+> ⚠️ Tarayıcı **sepete** yönlendiriliyor, `back()` ile ödeme sayfasına
+> değil: sorunun düzeltilebileceği tek yer orası. Mesaj "satırı
+> kaldırın" derken müşteriyi kaldıramayacağı bir ekranda bırakmak
+> anlamsız olurdu.
+>
+> ⚠️ Genel işleyici merkez bağlamında da koşabiliyor ve orada
+> `vitrin.sepet` rotası **yok** — `route()` doğrudan çağrılsaydı
+> istisna işleyicisinin **kendisi** patlardı. `Route::has()` ile
+> korunuyor, yoksa JSON dalına düşülüyor.
+>
+> ⚠️ Mesajın kendisi müşteriye gidiyor — sağlayıcı hatalarının aksine
+> (4.5G) burada sızıntı yok: SKU ve kalan adet zaten sepetinde gördüğü
+> bilgiler.
+>
+> ⚠️ Üçü birden düzeltildi çünkü **biri atlanırsa aynı hata beşinci kez
+> geri gelir** — bu bloğun varlık sebebi tam olarak o.
+
+**⚠️ TESTİ İLK YAZDIĞIMDA YANLIŞ ŞEYİ ÖLÇTÜM.** `stock` alanını
+düşürüyordum; düşük stok `CartService::engeller()`'e takılıyor,
+controller onu yakalıyor ve zaten anlaşılır mesaj veriyor — yani test
+**düzeltmeden önce de geçerdi**. Ham JSON'un çıktığı yol başka: stok
+**var** ama ödemesi süren başka bir siparişe **bağlı**; sepet engel
+görmüyor, rezervasyon adımı patlıyor. Test gerçek koşudan alınan
+senaryoya çevrildi.
+
+**Üç kırma denemesi, üçü de düştü.** **Doğrulandı (gerçek `curl`):**
+bağlı stokla ödeme → **302 → /sepet**, gövde HTML, sepette okunabilir
+mesaj; hiçbir yerde JSON yok. **787 test.**
+
+#### ✅ 4.5M'in tünel yarısı da kapandı
+
+Kullanıcı `make kaldir` ile tünelden gerçek 3DS akışını koştu: SMS
+girildi, ödeme tamamlandı ve vitrinde **"ödendi"** göründü. Yani
+`ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS` yalnızca `.localhost`
+erişiminin bir yan etkisiydi; kod değişikliği gerekmedi (dönüş adresi
+isteğin host'undan türüyor).
 
 ---
 

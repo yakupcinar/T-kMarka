@@ -46,6 +46,7 @@ use App\Platform\WeeklyLimitReachedException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -308,7 +309,45 @@ return Application::configure(basePath: dirname(__DIR__))
         | ⚠️ 409 ile 422 ayrımı yine aynı: 409 ZAMAN/DURUM sorunu (veri
         | geçerli ama şu an olmuyor), 422 verinin kendisi geçersiz.
         */
-        $exceptions->render(function (CartNotOrderableException $e) {
+        /*
+        | ★ TARAYICIYA HTML, API'YE JSON — DÖRDÜNCÜ KEZ. (4.5O)
+        |
+        | ⚠️ 4A'da kapalı mağaza, 4B'de ödeme dönüşü, 4.5G'de ödeme
+        | başlatma için düzeltilmişti. Bu üçü gözden kaçmıştı ve gerçek
+        | kullanımda ölçüldü: sepette stok yetmeyince ödeme düğmesi
+        | müşteriye ham JSON basıyordu:
+        |
+        |     {"message":"'DC-1' için yeterli stok yok: 2 istendi, 1 kaldı."}
+        |
+        | ⚠️ Tarayıcı SEPETE yönlendiriliyor, `back()` ile ödeme sayfasına
+        | değil: sorunun düzeltilebileceği tek yer orası — mesaj "satırı
+        | kaldırın" derken müşteriyi kaldıramayacağı bir ekranda bırakmak
+        | anlamsız olurdu. (Aynı gerekçe `CheckoutPageController`'da
+        | zaten yazılıydı; buradaki genel işleyici onu ATLAYAN yollar
+        | için.)
+        |
+        | ⚠️ Mesajın KENDİSİ müşteriye gidiyor — sağlayıcı hatalarının
+        | aksine (4.5G) burada sızıntı yok: SKU ve kalan adet zaten
+        | müşterinin sepetinde gördüğü bilgiler.
+        */
+        $sepeteYonlendir = function (string $mesaj): ?RedirectResponse {
+            if (! Route::has('vitrin.sepet')) {
+                /*
+                | ⚠️ Merkez bağlamında böyle bir rota yok. `null` dönüp
+                | JSON dalına düşülüyor — route() çağrılsaydı istisna
+                | işleyicisinin KENDİSİ patlardı.
+                */
+                return null;
+            }
+
+            return redirect()->route('vitrin.sepet')->with('hata', $mesaj)->setStatusCode(303);
+        };
+
+        $exceptions->render(function (CartNotOrderableException $e, Request $istek) use ($sepeteYonlendir) {
+            if (! $istek->expectsJson() && ($cevap = $sepeteYonlendir('Sepetinizde düzeltilmesi gereken satırlar var.')) !== null) {
+                return $cevap;
+            }
+
             return response()->json([
                 'message' => $e->getMessage(),
                 'blockers' => $e->engeller,
@@ -316,7 +355,11 @@ return Application::configure(basePath: dirname(__DIR__))
             ], 409);
         });
 
-        $exceptions->render(function (InsufficientStockException $e) {
+        $exceptions->render(function (InsufficientStockException $e, Request $istek) use ($sepeteYonlendir) {
+            if (! $istek->expectsJson() && ($cevap = $sepeteYonlendir($e->getMessage())) !== null) {
+                return $cevap;
+            }
+
             return response()->json([
                 'message' => $e->getMessage(),
                 'sku' => $e->sku,
@@ -324,7 +367,11 @@ return Application::configure(basePath: dirname(__DIR__))
             ], 409);
         });
 
-        $exceptions->render(function (VariantNotPurchasableException $e) {
+        $exceptions->render(function (VariantNotPurchasableException $e, Request $istek) use ($sepeteYonlendir) {
+            if (! $istek->expectsJson() && ($cevap = $sepeteYonlendir($e->getMessage())) !== null) {
+                return $cevap;
+            }
+
             return response()->json(['message' => $e->getMessage(), 'sku' => $e->sku], 409);
         });
 

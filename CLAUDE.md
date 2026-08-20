@@ -537,6 +537,18 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   düştü. Doğrusu **gösterim** saat dilimi ayarı + `setTimezone()`; değer
   beyaz listeden geçmeli, yoksa geçersiz ayar sayfayı 500'e düşürür.
 
+- **İSTİSNA İŞLEYİCİSİ İÇİNDE `route()` ÇAĞIRMAK İŞLEYİCİYİ PATLATABİLİR.**
+  Genel işleyiciler merkez bağlamında da koşuyor ve orada vitrin rotaları
+  **tanımlı değil**; `route('vitrin.sepet')` doğrudan çağrılsaydı hatayı
+  işlemeye çalışan kodun kendisi `RouteNotFoundException` fırlatırdı
+  (4.5O). `Route::has()` ile koru, yoksa JSON dalına düş.
+- **"TARAYICIYA HTML, API'YE JSON" AYRIMINI BİR UÇTA DÜZELTMEK YETMİYOR —
+  AİLENİN TAMAMINI DÜZELT.** Aynı hata dört kez çıktı: 4A kapalı mağaza ·
+  4B ödeme dönüşü · 4.5G ödeme başlatma · 4.5O sepet/stok istisnaları.
+  Her seferinde "bu uç gözden kaçmıştı" denildi. Bir istisna için
+  `expectsJson()` dalı yazarken **aynı ekrandan tetiklenebilecek diğer
+  istisnaları da** aynı anda tara.
+
 ## Yapı
 
 ```

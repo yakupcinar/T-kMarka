@@ -147,31 +147,16 @@ veya dağıtım için izin gerekir.
 **Vitrin — sipariş / ödeme**
 
 * Vitrinde ödemeyi yaptım iyzicodan web in web kısmında ödeme yapıldı ama web in webde karşıma açılamayan bir sayfa çıktı bunu kullanıcının görmesini istemiyoruz onun yerine ödemeniz yapıld ve yapılmadı gibi bir sayfa açılması gerekmez mi bu iyziconun yaptığı bir şey değilse biz ödeme işlemi bittiği gibi web in webi kapatıp kendimiz yazalım ödeme başarılı ya da başarız diye bunu bir araştır unutma iyzico sandbox kullanıyoruz
-* Şirket Panelinden ürün->yeni üründe varyant ekseni eklemeden varyant ekleme butonuna basınca saçma bir sayfa açılıyor o butona varyant ekseni kaydetmeden tıklamayı engelleyelim ayrıca varyant ekseni seçmeden varyant eksenlerini kaydetmeyi de engelleyim o butonda çalışmasın eksen seçilmeden
-* Sepette stok yetmediğinde ödeme düğmesi tarayıcıya **ham JSON** döndürüyor (`{"message":"'DC-1' için yeterli stok yok…"}`). 4A/4B/4.5G'de kapatılan hatanın **dördüncüsü** — ölçüldü.
-* `https://marka-a.localhost/odeme/ode/` — sandbox değeriyle ödeme çalıştı, SMS'i girince aşağıdaki hataya düştü. Geçerli/geçersiz kart fark etmeksizin vitrinde kullanıcıya **mesaj dönmüyor** ve sayfanın içindeki sayfa (web in web) kalıyor.
 * Sepete gittim iletişim kısmına test@gmail.com yazdım sonra ödeme kısmına gittim doğru sandbox kart bilgilerini yazdım sms geldi doğru yazdım web in web kaybolmuyor iyziconun yerine ama açılmamış bir sayfa geliyor errorlu hesabıma geri dönünce bakıyorum ödeme yapılmış hazırlanıyor diyor.
-* Şirket panelinde ürünler -> yeni ürün -> Oluştur yapınca sayfada sadece ürün bilgileri kısmı kalıyor varyant görsel gelmiyor onların da o an gelmesi lazım (Ürünü oluşturup Ürünlere gidip ürüne tıklayınca bu sefer sekmeler sayfada oluyor)
-* Marka Panelinde ürünler'de arama saçma olmuş büyük küçük farketmez ama baştan sona benzeyeni listelemesi gerekiyor ama arama içinde olan harfe göre burda ve nerden başladığına bakmıyor normalde kelime başına bakması lazım.
-
-```
-ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS
-marka-a.localhost is blocked
-The connection is blocked because it was initiated by a public page
-to connect to devices or servers on your local network.
-```
-
-> ⚠️ Bu hatanın kendisi **bizim kusurumuz değil**: Chrome, genel ağdaki bir
-> sayfanın (iyzico) yerel ağa (`.localhost`) dönmesini engelliyor. Gerçek
-> alan adında olmaz. Ölçmek için tünel gerekiyor — `make kaldir`.
-> Çerçeveden çıkış betiği yazılı ve doğru; sayfa hiç yüklenmediği için
-> çalışamıyor. "Mesaj dönmüyor" da bunun sonucu.
 
 **Marka paneli — katalog**
 
+* Şirket Panelinden ürün->yeni üründe varyant ekseni eklemeden varyant ekleme butonuna basınca saçma bir sayfa açılıyor o butona varyant ekseni kaydetmeden tıklamayı engelleyelim ayrıca varyant ekseni seçmeden varyant eksenlerini kaydetmeyi de engelleyim o butonda çalışmasın eksen seçilmeden
+* Şirket panelinde ürünler -> yeni ürün -> Oluştur yapınca sayfada sadece ürün bilgileri kısmı kalıyor varyant görsel gelmiyor onların da o an gelmesi lazım (Ürünü oluşturup Ürünlere gidip ürüne tıklayınca bu sefer sekmeler sayfada oluyor)
+* Marka Panelinde ürünler'de arama saçma olmuş büyük küçük farketmez ama baştan sona benzeyeni listelemesi gerekiyor ama arama içinde olan harfe göre burda ve nerden başladığına bakmıyor normalde kelime başına bakması lazım.
+
 
 **Merkez yönetim**
-
 
 * ⚠️ **Geliştirmede** yeni marka alan adı hâlâ `docker/Caddyfile`'a elle ekleniyor — Let's Encrypt `.localhost` adreslerine sertifika veremediği için on-demand TLS yerelde devreye giremiyor. **Üretimde gerekmiyor** (4.5N).
 
@@ -208,6 +193,8 @@ to connect to devices or servers on your local network.
 | Sepet sayacı sepetle uyuşmuyor, bekleyen siparişler birikiyor | Vitrin → giriş → sepete ekle → **rozet ile sepet aynı** · Hesabım → bekleyen siparişte **"Ödemeyi tamamla" / "iptal et"** | 4.5J |
 | Sipariş panele düşmemiş / saati yanlış | Vitrin → Hesabım → sipariş saati artık **mağaza saat diliminde** (panel zaten doğruydu) | 4.5M |
 | Yeni marka isteğini onay/red edeyim | Merkez → `/yonetim/markalar` → başvuru **`pending`** görünür → **Onayla / Reddet** (onayda deneme başlar) | 4.5N |
+| Stok yetmeyince ödeme ham JSON döndürüyor | Sepet → stok bağlıyken öde → **sepete döner, Türkçe mesaj** (JSON yok) | 4.5O |
+| Tünelden ödeme tamamlanıyor mu | `make kaldir` → gerçek 3DS/SMS akışı — kullanıcı doğruladı: **ödeme tamam, vitrinde "ödendi"**. ⚠️ Çerçeve içindeki dönüş ekranı hâlâ bozuk (açık listede) | 4.5M |
 | Ürün oluşturunca varyant sayfasına gitmiyor | `POST /yonetim/urunler` → `302 → /yonetim/urunler/{uuid}` — **ölçüldü, zaten doğruydu** | 4.5G |
 
 > ⚠️ Ürün oluşturma yönlendirmesi doğru çalışıyor ama **açılan sayfada
