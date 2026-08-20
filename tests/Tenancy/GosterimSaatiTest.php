@@ -30,6 +30,19 @@ use Carbon\CarbonImmutable;
 | DEĞİŞEN yalnızca gösterim.
 */
 
+beforeEach(function () {
+    /*
+    | ⚠️ PANEL TESTLERİ `withoutVite()` İSTER. Yerelde `public/build`
+    | duruyor, CI'da yok: manifest bulunamayınca sayfa Inertia yerine
+    | istisna basıyor ve `inertiaVerisi()` "0 is identical to 1" ile
+    | düşüyor — hata mesajı sebebi hiç göstermiyor.
+    |
+    | ⚠️ "Yerel yeşil ≠ CI yeşil, otorite CI" kuralının bir örneği daha:
+    | burada 777 test yeşildi, CI'da iki panel testi kırmızıydı.
+    */
+    $this->withoutVite();
+});
+
 /** @return array{siparis: Order, musteri: Customer} */
 function saatTestiSiparisi(): array
 {
