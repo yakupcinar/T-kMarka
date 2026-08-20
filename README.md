@@ -146,10 +146,10 @@ veya dağıtım için izin gerekir.
 
 **Vitrin — sipariş / ödeme**
 
+* Şirket Panelinden ürün->yeni üründe varyant ekseni eklemede
 * Vitrinden sipariş ödemesini yaptım, vitrinde "ödendi, hazırlanıyor" yazıyor; marka paneline baktım oraya ya düşmemiş ya da saati yanlış düşmüş — bunun testini yap.
 * Sepete ürün koydum, ödeme kısmına kadar geldim, sonra geri çıktım. Siparişlerimde "ödeme bekleniyor" diye duruyor. Sağ üstteki sayaç 2 gösteriyor ama içine girince boş. İşlemi tekrarlayınca siparişler arttı, sağ üstteki sayı 2'de sabit kaldı.
 * Sepette stok yetmediğinde ödeme düğmesi tarayıcıya **ham JSON** döndürüyor (`{"message":"'DC-1' için yeterli stok yok…"}`). 4A/4B/4.5G'de kapatılan hatanın **dördüncüsü** — ölçüldü.
-* Vitrinde **iade seçeneği yok** — uçları var (`api/orders/{siparis}/returns`), ekranı yok.
 * `https://marka-a.localhost/odeme/ode/` — sandbox değeriyle ödeme çalıştı, SMS'i girince aşağıdaki hataya düştü. Geçerli/geçersiz kart fark etmeksizin vitrinde kullanıcıya **mesaj dönmüyor** ve sayfanın içindeki sayfa (web in web) kalıyor.
 * Sepete gittim iletişim kısmına test@gmail.com yazdım sonra ödeme kısmına gittim doğru sandbox kart bilgilerini yazdım sms geldi doğru yazdım web in web kaybolmuyor iyziconun yerine ama açılmamış bir sayfa geliyor errorlu hesabıma geri dönünce bakıyorum ödeme yapılmış hazırlanıyor diyor.
 * Şirket panelinde ürünler -> yeni ürün -> Oluştur yapınca sayfada sadece ürün bilgileri kısmı kalıyor varyant görsel gelmiyor onların da o an gelmesi lazım (Ürünü oluşturup Ürünlere gidip ürüne tıklayınca bu sefer sekmeler sayfada oluyor)
@@ -204,10 +204,8 @@ to connect to devices or servers on your local network.
 | Manuel koleksiyona ürün eklenemiyor | Panel → Ürünler → ürün → **"Koleksiyonlar"** kutucukları (koleksiyon ayrıntısındaki seçici de duruyor) | 4.5L |
 | İkinci varyant bozuk sayfa açıyor, eksen eklenemiyor | Panel → Ürünler → ürün → **"Varyant eksenleri"** → Renk seç → kaydet → her renk için varyant | 4.5L |
 | Ürün oluşturunca varyant/görsel bölümü gelmiyor | Panel → Ürünler → Yeni → Oluştur → bölümler **aynı anda** gelir | 4.5L |
+| Vitrinde iade seçeneği yok | Vitrin → Hesabım → sipariş → **"İade"** bölümü (adet + cayma/kusurlu + açıklama) | 4.5K |
 | Ürün oluşturunca varyant sayfasına gitmiyor | `POST /yonetim/urunler` → `302 → /yonetim/urunler/{uuid}` — **ölçüldü, zaten doğruydu** | 4.5G |
 
-> ⚠️ "Vitrinde siparişleri göremiyorum" maddesinin **iade yarısı hâlâ
-> açık** — o yüzden yukarıdaki listede duruyor.
->
 > ⚠️ Ürün oluşturma yönlendirmesi doğru çalışıyor ama **açılan sayfada
 > varyant/görsel bölümü gelmiyor** — o ayrı bir kusur ve açık listede.

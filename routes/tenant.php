@@ -626,6 +626,13 @@ Route::middleware([
         Route::post('/cikis', [AccountPageController::class, 'cikis'])->name('vitrin.cikis');
         Route::get('/hesabim', [AccountPageController::class, 'hesap'])->name('vitrin.hesap');
         Route::get('/hesabim/siparis/{siparis:uuid}', [AccountPageController::class, 'siparis'])->name('vitrin.hesap.siparis');
+
+        /*
+        | ⚠️ İADE TALEBİ vitrinde (4.5K). Uçları 2B'de vardı ama ekranı
+        | yoktu; panelde de açılamıyordu (4.5L'de eklendi) — yani iade
+        | pratikte ULAŞILAMAZ bir özellikti.
+        */
+        Route::post('/hesabim/siparis/{siparis:uuid}/iade', [AccountPageController::class, 'iadeAc'])->name('vitrin.hesap.iade');
         Route::get('/hesabim/adresler', [AccountPageController::class, 'adresler'])->name('vitrin.adresler');
         Route::post('/hesabim/adresler', [AccountPageController::class, 'adresEkle'])->name('vitrin.adres.ekle');
         Route::delete('/hesabim/adresler/{adres}', [AccountPageController::class, 'adresSil'])->name('vitrin.adres.sil');

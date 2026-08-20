@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ──────── şu an: 4.5L BİTTİ, 4.5J-K-M-N SIRADA ┐
+┌─ YOL HARİTASI ──────── şu an: 4.5K BİTTİ, 4.5J-M-N SIRADA ┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -5831,6 +5831,55 @@ isteği):** eksensiz ikinci varyant **500 → 302** + oturum hatası · Renk
 ekseni atandı, **üç varyant** (kırmızı/mavi/siyah) eklendi · ürün ekranı
 eksen listesini, kilit durumunu ve manuel koleksiyonları gönderiyor.
 **757 test.**
+
+---
+
+### 4.5K — vitrinde iade ekranı  ◀ AÇIK
+
+★ **İade, kodu tamamen yazılmış olmasına rağmen ULAŞILAMAZ bir özellikti.**
+Uçları 2B'de vardı (`api/orders/{siparis}/returns`), servisi eksiksizdi,
+panelde onay/teslim/para iadesi zinciri çalışıyordu — ama **talebi açacak
+hiçbir ekran yoktu**. Vitrinde form yok, panelde de açma yolu yoktu
+(4.5L'de eklendi). "Uç var ≠ kullanılabilir"in en net örneği.
+
+**✅ Sipariş sayfasına iade bölümü eklendi.** Satır satır adet, cayma
+süresi bilgisi, açıklama ve talep listesi.
+
+> ⚠️ **"Kaç adet iade edebilirim" SERVİSTEN geliyor**
+> (`ReturnService::iadeEdilebilirAdet`, `asimiDogrula` ile aynı sorgu).
+> Ekran kendi hesabını yapsaydı iki formül olur, biri güncellenmeden
+> kalır ve müşteri formu gönderip **sunucudan red alır, sebebini
+> anlamazdı**.
+>
+> ⚠️ **Cayma süresi SATIR BAZINDA gösteriliyor** (2B-K2): kısmi
+> sevkiyatta her paketin kendi teslim tarihi var. Sipariş bazında tek
+> tarih yazılsaydı ikinci pakette gelen ürünün hakkı yanlış görünürdü.
+>
+> ⚠️ **Cayma mı kusurlu ürün mü — müşteri seçiyor.** Cayma 14 günle
+> sınırlı, kusurlu ürün değil. Yalnızca cayma sunulsaydı 15. günde
+> kusurlu ürün bildiren müşteri hiçbir şey yapamaz, markayı aramak
+> zorunda kalırdı. ⚠️ Seçim **talebi açmaya** yetiyor, iadeyi
+> **onaylamaya** değil — iddiayı marka değerlendiriyor (2B-K1).
+>
+> ⚠️ Düğme *"İade talebi oluştur"*, "iade et" değil: müşteri yalnızca
+> talep açıyor. "İade et" deseydi para iadesinin başladığı beklentisini
+> yaratırdı.
+>
+> ⚠️ Cayma süresi dolmuş satırda mesaj **yol gösteriyor**: *"Ürün
+> kusurluysa 'Ürün kusurlu/hatalı' seçeneğiyle talep açabilirsiniz."*
+> Servisin ham istisnası müşteriye bir şey anlatmazdı.
+
+**⚠️ BİR KIRMA DENEMESİ TESTİ KIRAMADI — ve haklıydı.** Boş form kontrolü
+kaldırıldığında test **geçmeye devam etti**: servis yine istisna atıyor ve
+oturumda `hata` yine doluyordu. Test "bir hata var"ı ölçüyordu, "anlaşılır
+bir hata var"ı değil. **Mesajın kendisi** iddiaya eklendi; sonra kırma
+denemesi düştü.
+
+**Dört kırma denemesi** (sahiplik · boş form · kalan adet · form).
+**Doğrulandı (gerçek `curl`):** sipariş sayfasında form görünüyor ("en
+fazla 1", cayma/kusurlu seçenekleri) → talep açıldı → sayfada *"Talep
+alındı, marka değerlendiriyor"* → **panelde iade listesinde**. **764
+test.**
 
 ---
 

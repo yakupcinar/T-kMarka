@@ -5,6 +5,7 @@ namespace App\Domain\Returns;
 use App\Enums\PaymentStatus;
 use App\Enums\ReturnStatus;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\OrderReturn;
 use App\Models\ReturnItem;
 use Illuminate\Support\Facades\DB;
@@ -163,6 +164,25 @@ class ReturnService
     /**
      * @throws OverReturnException
      */
+    /**
+     * Bu satırdan daha kaç adet iade edilebilir. (4.5K)
+     *
+     * ★ NEDEN PUBLIC: vitrindeki iade ekranı "kaç adet seçebilirim"i
+     * göstermek zorunda. Ekran kendi hesabını yapsaydı iki formül olurdu
+     * ve biri güncellenmeden kalırdı — `asimiDogrula` ile AYNI sorgu.
+     *
+     * ⚠️ Reddedilen talepler sayılmıyor: o satırlar yeniden iade
+     * edilebilir olmalı.
+     */
+    public function iadeEdilebilirAdet(OrderItem $satir): int
+    {
+        $mevcut = (int) ReturnItem::where('order_item_id', $satir->id)
+            ->whereHas('orderReturn', fn ($sorgu) => $sorgu->where('status', '!=', ReturnStatus::Rejected->value))
+            ->sum('quantity');
+
+        return max(0, $satir->quantity - $mevcut);
+    }
+
     private function asimiDogrula(int $satirId, string $sku, int $eklenecek, int $siparisAdedi): void
     {
         /*

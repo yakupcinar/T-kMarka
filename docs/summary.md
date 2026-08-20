@@ -2308,3 +2308,30 @@ FAZ 5 SIRADA — kargo firmaları · e-fatura/e-arşiv
       DOĞRULANDI (gerçek panel isteği)
         eksensiz ikinci varyant 500 → 302 + oturum hatası
         Renk ekseni atandı, üç varyant eklendi (kırmızı/mavi/siyah)
+
+4.5K ✅ VİTRİNDE İADE EKRANI — 764 test
+      ★ İADE, KODU TAMAMEN YAZILMIŞ OLMASINA RAĞMEN ULAŞILAMAZDI
+        uçları 2B'de vardı, servisi eksiksizdi, panelde onay/teslim/para
+        zinciri çalışıyordu — ama TALEBİ AÇACAK HİÇBİR EKRAN YOKTU
+
+      ✅ SİPARİŞ SAYFASINA İADE BÖLÜMÜ
+        ⚠️ "kaç adet iade edebilirim" SERVİSTEN (asimiDogrula ile aynı sorgu)
+          ekran kendi hesabını yapsaydı iki formül olur, müşteri formu
+          gönderip red alır ve sebebini ANLAMAZDI
+        ⚠️ cayma süresi SATIR BAZINDA (2B-K2) — kısmi sevkiyatta her
+          paketin kendi teslim tarihi var
+        ⚠️ cayma mı KUSURLU mu — müşteri seçiyor; yalnızca cayma
+          sunulsaydı 15. günde kusurlu ürün bildiren hiçbir şey yapamazdı
+          seçim TALEBİ AÇMAYA yetiyor, ONAYLAMAYA değil (2B-K1)
+        ⚠️ düğme "İade talebi oluştur" — "iade et" deseydi para iadesinin
+          başladığı beklentisini yaratırdı
+
+      ⚠️ BİR KIRMA DENEMESİ TESTİ KIRAMADI — VE HAKLIYDI
+        boş form kontrolü kaldırıldı, test GEÇMEYE DEVAM ETTİ
+        servis yine istisna atıyor, oturumda `hata` yine doluyordu
+        test "BİR hata var"ı ölçüyordu, "ANLAŞILIR hata var"ı değil
+        MESAJIN KENDİSİ iddiaya eklendi → sonra kırma denemesi düştü
+
+      DOĞRULANDI (gerçek curl)
+        form görünüyor → talep açıldı → "Talep alındı, marka
+        değerlendiriyor" → PANELDE iade listesinde

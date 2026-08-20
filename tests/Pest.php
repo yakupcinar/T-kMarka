@@ -556,3 +556,27 @@ function yorumaHazir(string $alanAdi = 'marka-a.test'): array
 
     return ['siparis' => $siparis, 'musteri' => $musteri, 'urun' => $urun];
 }
+
+/**
+ * Müşteriyi GERÇEK giriş isteğiyle oturum açar. (4.5K)
+ *
+ * ⚠️ `actingAs` KULLANILMIYOR: o varsayılan guard'ı da değiştiriyor ve
+ * sayfa katmanının kimliği hangi guard'dan çözdüğünü GİZLİYOR (4.5I'de
+ * iki kez ısırdı).
+ *
+ * ⚠️ Burada — `tests/Pest.php`'de — çünkü `test()` bağlaması için
+ * `phpstan.neon` istisnası YALNIZCA bu dosyaya tanımlı. Test örneğini
+ * parametre olarak geçmek denendi: `$this` Pest testlerinde
+ * `PHPUnit\Framework\TestCase` görünüyor ve hata 1'den 7'ye çıkıyor
+ * (`panelTokeni`'nde aynısı ölçülmüştü).
+ */
+function iadeciGirisi(Customer $musteri, string $alanAdi = 'marka-a.test'): void
+{
+    $musteri->password = bcrypt('sifre1234');
+    $musteri->save();
+
+    test()->post("http://{$alanAdi}/giris", [
+        'email' => $musteri->email,
+        'password' => 'sifre1234',
+    ])->assertRedirect();
+}
