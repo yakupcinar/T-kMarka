@@ -8,6 +8,7 @@ use App\Domain\Legal\LegalDocumentService;
 use App\Domain\Order\CheckoutService;
 use App\Domain\Returns\ReturnService;
 use App\Enums\LegalDocumentType;
+use App\Enums\PaymentStatus;
 use App\Enums\Permission;
 use App\Enums\ProductStatus;
 use App\Models\Fulfillment;
@@ -398,4 +399,140 @@ it('★★ STOK ACIGI olan siparis listenin BASINDA', function () {
 
     expect($numaralar[0])->toBe($ilk->order_number)
         ->and($numaralar)->toContain($sonraki->order_number);
+});
+
+/*
+| TEK ADIMDA TAMAMLAMA VE PANELDEN İADE (4.5L) — gerçek kullanımda bulundu.
+|
+| ★ Marka siparişi "bitti" diye kapatamıyordu: tek yol satır satır adet
+| girip paket açmak, sonra iki düğmeye daha basmaktı. Kargo entegrasyonu
+| (Faz 5) gelene kadar bu akış markayı kilitliyordu.
+|
+| ★ İade daha kötüydü: panel iadeyi İŞLEYEBİLİYOR (onayla · teslim al ·
+| para iadesi) ama AÇAMIYORDU. Vitrinde de ekranı yok (4.5K), yani iade
+| pratikte ULAŞILAMAZ bir özellikti.
+*/
+
+it('★★★ SIPARISI TAMAMLA tek adimda sevk edip teslim ediyor', function () {
+    $siparis = sevkiyatlikSiparis('marka-a.test');
+    $sahip = User::where('is_owner', true)->firstOrFail();
+
+    $this->actingAs($sahip, 'staff-web')
+        ->post("http://marka-a.test/yonetim/siparisler/{$siparis->uuid}/tamamla")
+        ->assertRedirect();
+
+    $siparis->refresh()->load('items');
+
+    /*
+    | ⚠️ Durum DOĞRUDAN YAZILMIYOR, gerçek yol koşuyor: paket açılıyor,
+    | kargoya veriliyor, teslim işaretleniyor. Doğrudan yazılsaydı stok ve
+    | bildirim adımları atlanır, ödenmemiş sipariş de "teslim edildi"
+    | olabilirdi.
+    */
+    expect($siparis->fulfillment_status->value)->toBe('fulfilled');
+
+    $paket = Fulfillment::where('order_id', $siparis->id)->firstOrFail();
+
+    expect($paket->status->value)->toBe('delivered')
+        ->and($paket->items->sum('quantity'))->toBe($siparis->items->sum('quantity'));
+});
+
+it('★★★ TAMAMLA ikinci kez ANLASILIR mesajla reddediliyor', function () {
+    $siparis = sevkiyatlikSiparis('marka-a.test');
+    $sahip = User::where('is_owner', true)->firstOrFail();
+
+    $this->actingAs($sahip, 'staff-web')
+        ->post("http://marka-a.test/yonetim/siparisler/{$siparis->uuid}/tamamla");
+
+    /*
+    | ⚠️ Servisin istisnası "aşırı sevkiyat" diyor ama markanın gördüğü
+    | durum bu değil — sevk edilecek bir şey kalmamış. Ham mesaj markaya
+    | YANLIŞ bir sorun anlatırdı.
+    */
+    $this->actingAs($sahip, 'staff-web')
+        ->post("http://marka-a.test/yonetim/siparisler/{$siparis->uuid}/tamamla")
+        ->assertSessionHas('hata');
+});
+
+it('★★★ TAMAMLA order.fulfill izni ISTIYOR', function () {
+    $siparis = sevkiyatlikSiparis('marka-a.test');
+
+    /*
+    | ⚠️ Yalnızca GÖRME yetkisi olan personel siparişi kapatamamalı —
+    | `order.view` altına konsaydı kapatabilirdi.
+    */
+    $personel = izinliPersonel([Permission::OrderView->value]);
+
+    $this->actingAs($personel, 'staff-web')
+        ->post("http://marka-a.test/yonetim/siparisler/{$siparis->uuid}/tamamla")
+        ->assertForbidden();
+});
+
+it('★★★ PANELDEN IADE TALEBI acilabiliyor', function () {
+    $siparis = iadeyeHazirSiparis('marka-a.test');
+    $sahip = User::where('is_owner', true)->firstOrFail();
+
+    $satir = $siparis->items()->firstOrFail();
+
+    $this->actingAs($sahip, 'staff-web')
+        ->post("http://marka-a.test/yonetim/siparisler/{$siparis->uuid}/iade", [
+            'items' => [['order_item_id' => $satir->id, 'quantity' => 1]],
+            'reason' => 'Müşteri telefonla bildirdi: ürün kusurlu.',
+        ])
+        ->assertRedirect();
+
+    $talep = OrderReturn::where('order_id', $siparis->id)->firstOrFail();
+
+    /*
+    | ⚠️ `is_withdrawal = false`: bu bir CAYMA talebi değil. Cayma 14
+    | günlük pencereye bağlı (2B-K2); markanın müşteri adına açtığı talep
+    | o pencereye takılsaydı kusurlu ürün iadesi açılamazdı.
+    */
+    expect((bool) $talep->is_withdrawal)->toBeFalse()
+        ->and($talep->reason)->toContain('kusurlu')
+        ->and($talep->items->sum('quantity'))->toBe(1);
+});
+
+it('★★★ IADE ACMAK order.refund ISTIYOR — order.fulfill YETMEZ', function () {
+    $siparis = iadeyeHazirSiparis('marka-a.test');
+    $satir = $siparis->items()->firstOrFail();
+
+    /*
+    | ⚠️ Talep açmak para iadesi zincirinin İLK HALKASI. Depo personelinin
+    | sipariş kargolayabilmesi, müşteri adına iade başlatabilmesi
+    | anlamına gelmemeli — 4E'de kurulan üç katmanlı yetki ayrımı.
+    */
+    $depocu = izinliPersonel([Permission::OrderView->value, Permission::OrderFulfill->value]);
+
+    $this->actingAs($depocu, 'staff-web')
+        ->post("http://marka-a.test/yonetim/siparisler/{$siparis->uuid}/iade", [
+            'items' => [['order_item_id' => $satir->id, 'quantity' => 1]],
+            'reason' => 'Deneme',
+        ])
+        ->assertForbidden();
+
+    expect(OrderReturn::count())->toBe(0);
+});
+
+it('★★ ODENMEMIS siparise iade acilamiyor', function () {
+    $siparis = sevkiyatlikSiparis('marka-a.test');
+    $siparis->payment_status = PaymentStatus::Pending;
+    $siparis->save();
+
+    $sahip = User::where('is_owner', true)->firstOrFail();
+    $satir = $siparis->items()->firstOrFail();
+
+    /*
+    | ⚠️ Geri verilecek para yok. Açılabilseydi tutar hesaplanır, para
+    | iadesi açılır ve sağlayıcıya HİÇ VAR OLMAYAN bir tahsilatın iadesi
+    | gönderilirdi.
+    */
+    $this->actingAs($sahip, 'staff-web')
+        ->post("http://marka-a.test/yonetim/siparisler/{$siparis->uuid}/iade", [
+            'items' => [['order_item_id' => $satir->id, 'quantity' => 1]],
+            'reason' => 'Deneme',
+        ])
+        ->assertSessionHas('hata');
+
+    expect(OrderReturn::count())->toBe(0);
 });

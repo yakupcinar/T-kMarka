@@ -841,6 +841,17 @@ Route::middleware([
             Route::get('/iadeler/{iade:uuid}', [ReturnPageController::class, 'show'])->name('panel.iade');
         });
 
+        /*
+        | ⚠️ İADE TALEBİ AÇMAK `order.refund` (4.5L) — `order.fulfill`
+        | DEĞİL. Talep açmak para iadesi zincirinin ilk halkası; depo
+        | personelinin sipariş kargolayabilmesi, müşteri adına iade
+        | başlatabilmesi anlamına gelmemeli.
+        */
+        Route::middleware('izin:order.refund')->group(function () {
+            Route::post('/siparisler/{siparis:uuid}/iade', [OrderPageController::class, 'iadeAc'])
+                ->name('panel.siparis.iade');
+        });
+
         Route::middleware('izin:order.fulfill')->group(function () {
             /*
             | ⚠️ İç içe kapsama KAPALI (4D-K3'ün gerekçesi): paketin bu
@@ -849,6 +860,15 @@ Route::middleware([
             */
             Route::post('/siparisler/{siparis:uuid}/paketler', [OrderPageController::class, 'paketOlustur'])
                 ->name('panel.paket.olustur');
+
+            /*
+            | ⚠️ TEK ADIMDA TAMAMLAMA da `order.fulfill` altında (4.5L):
+            | yaptığı iş paket açıp kargolamak ve teslim işaretlemek.
+            | `order.view` altına konsaydı yalnızca görmesi gereken
+            | personel siparişi kapatabilirdi.
+            */
+            Route::post('/siparisler/{siparis:uuid}/tamamla', [OrderPageController::class, 'tamamla'])
+                ->name('panel.siparis.tamamla');
 
             Route::post('/siparisler/{siparis:uuid}/paketler/{paket:uuid}/kargo', [OrderPageController::class, 'kargoyaVer'])
                 ->withoutScopedBindings()->name('panel.paket.kargo');

@@ -3,6 +3,11 @@
 namespace App\Http\Panel;
 
 use App\Domain\Order\FulfillmentService;
+use App\Domain\Order\OrderNotShippableException;
+use App\Domain\Order\OverShipmentException;
+use App\Domain\Returns\OverReturnException;
+use App\Domain\Returns\ReturnNotRefundableException;
+use App\Domain\Returns\ReturnService;
 use App\Http\Controllers\Controller;
 use App\Models\Fulfillment;
 use App\Models\FulfillmentItem;
@@ -33,7 +38,10 @@ class OrderPageController extends Controller
 {
     public const SAYFA = 25;
 
-    public function __construct(private readonly FulfillmentService $sevkiyat) {}
+    public function __construct(
+        private readonly FulfillmentService $sevkiyat,
+        private readonly ReturnService $iadeler,
+    ) {}
 
     public function index(Request $istek): Response
     {
@@ -103,6 +111,75 @@ class OrderPageController extends Controller
         );
 
         return back()->with('mesaj', 'Paket oluşturuldu.');
+    }
+
+    /**
+     * Siparişi tek adımda tamamlar. (4.5L)
+     *
+     * ⚠️ Yalnızca ÇEVİRİYOR: kalan adetleri hesaplamak, aşırı sevkiyatı
+     * ve ödemeyi doğrulamak servisin işi (`FulfillmentService::tamamla`).
+     * Burada hesaplansaydı aynı kural iki yerde dururdu.
+     */
+    public function tamamla(Order $siparis): RedirectResponse
+    {
+        try {
+            $this->sevkiyat->tamamla($siparis);
+        } catch (OrderNotShippableException $hata) {
+            return back()->with('hata', $hata->getMessage());
+        } catch (OverShipmentException) {
+            /*
+            | ⚠️ ANLAŞILIR MESAJ: servisin istisnası "aşırı sevkiyat"
+            | diyor ama markanın gördüğü durum bu değil — sevk edilecek
+            | bir şey kalmamış demek. Ham mesaj markaya yanlış bir sorun
+            | anlatırdı.
+            */
+            return back()->with('hata', 'Bu siparişte sevk edilecek satır kalmamış.');
+        }
+
+        return back()->with('mesaj', 'Sipariş tamamlandı.');
+    }
+
+    /**
+     * Panelden iade talebi açar. (4.5L)
+     *
+     * ★ NEDEN GEREKLİ: panel iadeyi İŞLEYEBİLİYORDU (onayla · teslim al ·
+     * para iadesi) ama AÇAMIYORDU. Vitrinde de ekranı yok (4.5K), yani
+     * iade pratikte ulaşılamaz bir özellikti.
+     *
+     * ⚠️ `cayma = false` — bu bir CAYMA talebi değil. Cayma 14 günlük
+     * pencereye bağlı (2B-K2) ve markanın müşteri adına açtığı talep o
+     * pencereye takılsaydı, telefonla arayan müşterinin kusurlu ürün
+     * iadesi açılamazdı. Sebep alanı zorunlu tutuluyor ki kaydın neden
+     * açıldığı görünsün.
+     */
+    public function iadeAc(Request $istek, Order $siparis): RedirectResponse
+    {
+        $veri = $istek->validate([
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.order_item_id' => ['required', 'integer'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        /** @var array<int, int> $satirlar */
+        $satirlar = [];
+
+        foreach ($veri['items'] as $satir) {
+            $satirlar[(int) $satir['order_item_id']] = (int) $satir['quantity'];
+        }
+
+        try {
+            $talep = $this->iadeler->talepAc($siparis, $satirlar, cayma: false, sebep: $veri['reason']);
+        } catch (OverReturnException|ReturnNotRefundableException $hata) {
+            return back()->with('hata', $hata->getMessage());
+        }
+
+        /*
+        | ⚠️ İade AYRINTISINA yönlendiriliyor: onay, teslim alma ve para
+        | iadesi orada. `back()` dönseydi marka talebi açar ama nereye
+        | gideceğini bilemezdi.
+        */
+        return redirect()->route('panel.iade', $talep->uuid)->with('mesaj', 'İade talebi açıldı.');
     }
 
     public function kargoyaVer(Request $istek, Order $siparis, Fulfillment $paket): RedirectResponse

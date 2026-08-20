@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ──────── şu an: 4.5I BİTTİ, 4.5J SIRADA (kalan bloklar planlandı) ┐
+┌─ YOL HARİTASI ──────── şu an: 4.5L sipariş akışı BİTTİ, katalog tarafı SIRADA ┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -5714,6 +5714,64 @@ hâlde boş adresli sipariş oluşur ve kargo çıkamazdı.
 **İki kırma denemesi, ikisi de düştü.** **Doğrulandı (gerçek `curl`,
 tarayıcının gövdesiyle birebir):** `adres_uuid` + boş `shipping` alanları
 → **302 → /odeme/ode/...**. **745 test.**
+
+---
+
+### 4.5L — panel sipariş akışı  ◀ AÇIK
+
+Gerçek kullanımda bulundu: *"Panellerden bu sipariş durumlarını
+güncelleyemiyorum… sipariş tamamlandı çekebilelim siparişleri şimdilik
+öyle bir onay koy siparişlerin yanına ve iade."*
+
+**Ölçüm önce:** yetenek **vardı** — paket aç → kargoya ver → teslim edildi.
+Sorun akıştı: kargo entegrasyonu (Faz 5) yokken marka, siparişi kapatmak
+için satır satır adet girip üç düğmeye basmak zorundaydı.
+
+**✅ Tek adımda tamamlama.** `FulfillmentService::tamamla()` kalan her
+satır için paket açıyor, kargoya veriyor, teslim işaretliyor.
+
+> ⚠️ **Kısayol DEĞİL, aynı yolun kendisi.** Durum doğrudan yazılsaydı
+> ödenmemiş sipariş de "teslim edildi" olabilir, stok ve bildirim
+> adımları atlanırdı. Üç servis çağrısı sırayla koşuyor.
+>
+> ⚠️ **İş kuralı Domain'de.** Controller'da yazılsaydı artisan komutu ya
+> da kuyruk işi aynı işi yaparken aşırı sevkiyat ve ödeme kontrolünü
+> atlardı.
+>
+> ⚠️ İkinci çağrıda servis `OverShipmentException` veriyor ama markanın
+> gördüğü durum bu değil — **anlaşılır mesaja** çevriliyor: "sevk
+> edilecek satır kalmamış". Ham mesaj markaya yanlış bir sorun anlatırdı.
+
+**✅ Panelden iade talebi açılabiliyor.** Panel iadeyi **işleyebiliyordu**
+(onayla · teslim al · para iadesi) ama **açamıyordu**; vitrinde de ekranı
+yok (4.5K). Yani iade **pratikte ulaşılamaz** bir özellikti.
+
+> ⚠️ `cayma = false` — bu bir cayma talebi değil. Cayma 14 günlük
+> pencereye bağlı (2B-K2); markanın müşteri adına açtığı talep o
+> pencereye takılsaydı **telefonla arayan müşterinin kusurlu ürün
+> iadesi açılamazdı**. Kırma denemesiyle ölçüldü.
+>
+> ⚠️ Sebep **zorunlu**: kaydın neden açıldığı görünür kalmalı.
+>
+> ⚠️ Talep açıldıktan sonra **iade ayrıntısına** yönlendiriliyor — onay,
+> teslim alma ve para iadesi orada. `back()` dönseydi marka talebi açar
+> ama nereye gideceğini bilemezdi.
+
+**⚠️ YETKİ AYRIMI KORUNDU — ve bu yeni uçlarda kolayca kaybedilebilirdi.**
+
+| Uç | İzin | Neden |
+|---|---|---|
+| `siparisler/{id}/tamamla` | `order.fulfill` | yaptığı iş sevkiyat; `order.view` altında yalnızca görmesi gereken personel siparişi kapatırdı |
+| `siparisler/{id}/iade` | **`order.refund`** | talep açmak para iadesi zincirinin ilk halkası; depocunun kargolayabilmesi, müşteri adına iade başlatabilmesi anlamına gelmemeli |
+
+**Üç kırma denemesi, üçü de düştü** (izinleri gevşetmek · caymayı açmak).
+**Doğrulandı (gerçek panel isteği):** tamamla → `fulfillment_status =
+fulfilled`, tek paket `delivered` · iade → `302 → /yonetim/iadeler/{uuid}`,
+`is_withdrawal = false`. **751 test.**
+
+> **Kalan 4.5L işleri** (katalog tarafı, ayrı ele alınacak): manuel
+> koleksiyona ürün ekleme · varyant eksenleri · ikinci varyantta bozulan
+> sayfa · ürün oluşturduktan sonra varyant/görsel bölümünün gelmemesi.
 
 ---
 

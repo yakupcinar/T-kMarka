@@ -180,6 +180,50 @@ class FulfillmentService
      * ⚠️ İptal edilen paketler sayılmıyor — o satırlar yeniden sevk
      * edilebilir olmalı.
      */
+    /**
+     * Siparişi TEK ADIMDA tamamlar: kalan her satır için paket açar,
+     * kargoya verir ve teslim edildi olarak işaretler. (4.5L)
+     *
+     * ★ NEDEN VAR: panelde tamamlamanın tek yolu satır satır adet girip
+     * paket açmak, sonra iki düğmeye daha basmaktı. Kargo entegrasyonu
+     * (Faz 5) gelene kadar marka siparişi "bitti" diye kapatamıyordu —
+     * gerçek kullanımda bulundu.
+     *
+     * ⚠️ İŞ KURALI DOMAIN'DE, controller'da değil. Controller'da yazılsaydı
+     * artisan komutu ya da kuyruk işi aynı işi yaparken kuralları
+     * atlardı — aşırı sevkiyat ve ödeme kontrolü dâhil.
+     *
+     * ⚠️ Kısayol DEĞİL, aynı yolun kendisi: `olustur` → `kargoyaVer` →
+     * `teslimEdildi` sırayla çağrılıyor. Durumu doğrudan yazsaydık
+     * ödenmemiş sipariş de "teslim edildi" olabilir, stok ve bildirim
+     * adımları atlanırdı.
+     *
+     * ⚠️ Sevk edilecek bir şey kalmamışsa `OverShipmentException` —
+     * `olustur` zaten boş satır listesini reddediyor. Sessizce başarı
+     * dönseydi marka "tamamladım" sanır, sipariş olduğu yerde kalırdı.
+     *
+     * @throws OrderNotShippableException
+     * @throws OverShipmentException
+     */
+    public function tamamla(Order $siparis, ?string $kargoFirmasi = null, ?string $takipNo = null): Fulfillment
+    {
+        $satirlar = [];
+
+        foreach ($siparis->items as $satir) {
+            $kalan = $satir->quantity - $this->sevkEdilenAdet($satir);
+
+            if ($kalan > 0) {
+                $satirlar[$satir->id] = $kalan;
+            }
+        }
+
+        $paket = $this->olustur($siparis, $satirlar, $kargoFirmasi, $takipNo);
+
+        $this->kargoyaVer($paket, $kargoFirmasi, $takipNo);
+
+        return $this->teslimEdildi($paket);
+    }
+
     public function sevkEdilenAdet(OrderItem $satir): int
     {
         return (int) FulfillmentItem::where('order_item_id', $satir->id)

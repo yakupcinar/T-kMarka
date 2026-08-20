@@ -153,7 +153,6 @@ veya dağıtım için izin gerekir.
 * `https://marka-a.localhost/odeme/ode/` — sandbox değeriyle ödeme çalıştı, SMS'i girince aşağıdaki hataya düştü. Geçerli/geçersiz kart fark etmeksizin vitrinde kullanıcıya **mesaj dönmüyor** ve sayfanın içindeki sayfa (web in web) kalıyor.
 * Sepete gittim iletişim kısmına test@gmail.com yazdım sonra ödeme kısmına gittim doğru sandbox kart bilgilerini yazdım sms geldi doğru yazdım web in web kaybolmuyor iyziconun yerine ama açılmamış bir sayfa geliyor errorlu hesabıma geri dönünce bakıyorum ödeme yapılmış hazırlanıyor diyor.
 * Şirket panelinde ürünler -> yeni ürün -> Oluştur yapınca sayfada sadece ürün bilgileri kısmı kalıyor varyant görsel gelmiyor onların da o an gelmesi lazım (Ürünü oluşturup Ürünlere gidip ürüne tıklayınca bu sefer sekmeler sayfada oluyor)
-* Vitrinde kullanıcı ödemesini yapıyor ve siparişini veriyor tamam ama Panellerden bu sipariş durumlarını güncelleyemiyorum o yüzden daha kargo bölümünü entegre etmedik ama sipariş tamamlandı çekebilelim siparişleri şimdilik öyle bir onay koy siparişlerin yanına ve iade.
 * Marka Panelinde ürünler'de arama saçma olmuş büyük küçük farketmez ama baştan sona benzeyeni listelemesi gerekiyor ama arama içinde olan harfe göre burda ve nerden başladığına bakmıyor normalde kelime başına bakması lazım.
 
 ```
@@ -204,6 +203,7 @@ to connect to devices or servers on your local network.
 | Vitrinde verdiğim siparişleri göremiyordum | Giriş yap → sipariş ver → Hesabım → **Siparişlerim**'de görünür | 4.5I |
 | Kayıtlı adres ödemede sorulmuyordu / "line" uyarıları veriyordu | Adres kaydet → Ödeme → **liste + seçim**, "Başka adrese gönder" formu açar | 4.5I |
 | Kayıtlı adres seçiliyken "shipping.full_name metin olmalıdır" uyarısı | Adres seç → Öde → **doğrudan ödeme ekranına** gider | 4.5I.1 |
+| Panelden sipariş durumu güncellenemiyor, iade açılamıyor | Panel → Siparişler → sipariş → **"Siparişi tamamla"** ve **"İade talebi aç"** | 4.5L |
 | Ürün oluşturunca varyant sayfasına gitmiyor | `POST /yonetim/urunler` → `302 → /yonetim/urunler/{uuid}` — **ölçüldü, zaten doğruydu** | 4.5G |
 
 > ⚠️ "Vitrinde siparişleri göremiyorum" maddesinin **iade yarısı hâlâ

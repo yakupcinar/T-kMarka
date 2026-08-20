@@ -2243,3 +2243,33 @@ FAZ 5 SIRADA — kargo firmaları · e-fatura/e-arşiv
       düzeltme: `nullable` kuralı `required_without`'tan ÖNCE
       ⚠️ required_* ÖRTÜK — null'da da koşuyor, zorunluluk GEVŞEMİYOR
         bu iddia da ölçüldü (yoksa boş adresli sipariş, kargo çıkamaz)
+
+4.5L ✅ PANEL SİPARİŞ AKIŞI — 751 test
+      "panellerden sipariş durumlarını güncelleyemiyorum"
+
+      ÖLÇÜM ÖNCE: yetenek VARDI (paket aç → kargoya ver → teslim edildi)
+        sorun AKIŞTI — kargo entegrasyonu yokken siparişi kapatmak için
+        satır satır adet girip ÜÇ düğmeye basmak gerekiyordu
+
+      ✅ TEK ADIMDA TAMAMLAMA — FulfillmentService::tamamla()
+        ⚠️ KISAYOL DEĞİL, AYNI YOLUN KENDİSİ
+          durum doğrudan yazılsaydı ödenmemiş sipariş de "teslim edildi"
+          olabilir, stok ve bildirim adımları atlanırdı
+        ⚠️ iş kuralı DOMAIN'de — controller'da olsaydı artisan/kuyruk
+          aynı işi yaparken kontrolleri atlardı
+        ⚠️ ikinci çağrıda "aşırı sevkiyat" değil ANLAŞILIR mesaj
+
+      ✅ PANELDEN İADE TALEBİ
+        panel iadeyi İŞLEYEBİLİYORDU ama AÇAMIYORDU
+        vitrinde de ekran yok → iade PRATİKTE ULAŞILAMAZDI
+        ⚠️ cayma=false: cayma 14 günlük pencereye bağlı; markanın müşteri
+          adına açtığı talep takılsaydı KUSURLU ÜRÜN iadesi açılamazdı
+        ⚠️ sebep ZORUNLU · talep sonrası iade AYRINTISINA yönlendiriliyor
+
+      ⚠️ YETKİ AYRIMI KORUNDU (yeni uçlarda kolayca kaybedilirdi)
+        tamamla → order.fulfill · iade AÇMAK → order.refund
+        depocunun kargolayabilmesi, iade başlatabilmesi DEMEK DEĞİL
+
+      DOĞRULANDI (gerçek panel isteği)
+        tamamla → fulfilled, tek paket delivered
+        iade → 302 /yonetim/iadeler/{uuid}, is_withdrawal=false

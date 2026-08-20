@@ -5,7 +5,7 @@
  | ⚠️ Kargolama düğmeleri `order.fulfill` izni yoksa GİZLENİYOR — ama bu
  | bir kolaylık; gerçek koruma sunucudaki `izin:order.fulfill` (4C-K4).
  */
-import { computed, reactive } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import PanelDuzeni from '../../Layouts/PanelDuzeni.vue'
 
@@ -13,6 +13,11 @@ const props = defineProps({ siparis: Object })
 
 const izinler = computed(() => usePage().props.auth?.permissions ?? [])
 const kargolayabilir = computed(() => izinler.value.includes('order.fulfill'))
+
+/* ⚠️ İade AÇMAK da `order.refund` — para iadesi zincirinin ilk halkası. */
+const iadeEdebilir = computed(() => izinler.value.includes('order.refund'))
+
+const odendi = computed(() => ['paid', 'partially_refunded'].includes(props.siparis.payment_status))
 
 /* Kalan adet = sipariş edilen − sevk edilen. */
 const kalanlar = computed(() =>
@@ -41,6 +46,33 @@ function paketIptal(u) {
   if (confirm('Paket iptal edilsin mi?')) {
     router.delete(`/yonetim/siparisler/${props.siparis.uuid}/paketler/${u}`)
   }
+}
+
+/*
+ | ⚠️ TEK ADIMDA TAMAMLAMA (4.5L). Kargo entegrasyonu (Faz 5) gelene
+ | kadar marka siparişi "bitti" diye kapatamıyordu: tek yol satır satır
+ | adet girip paket açmak, sonra iki düğmeye daha basmaktı.
+ |
+ | ⚠️ Kalan adetleri SUNUCU hesaplıyor — burada hesaplanıp gönderilseydi
+ | aynı kural iki yerde durur ve ekran bayatladığında (başka sekmede
+ | paket açılmışsa) fazladan sevkiyat denenirdi.
+ */
+function tamamla() {
+  if (!confirm('Kalan tüm satırlar sevk edilip sipariş teslim edildi olarak kapatılsın mı?')) return
+  router.post(`/yonetim/siparisler/${props.siparis.uuid}/tamamla`)
+}
+
+const iade = reactive({ reason: '', adetler: {} })
+const iadeFormu = ref(false)
+
+function iadeAc() {
+  const items = Object.entries(iade.adetler)
+    .map(([id, adet]) => ({ order_item_id: Number(id), quantity: Number(adet) }))
+    .filter((s) => s.quantity > 0)
+
+  if (items.length === 0 || iade.reason.trim() === '') return
+
+  router.post(`/yonetim/siparisler/${props.siparis.uuid}/iade`, { items, reason: iade.reason })
 }
 
 function para(v) { return Number(v).toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' TL' }
@@ -79,6 +111,18 @@ const paketDurumu = { pending: 'Hazırlanıyor', shipped: 'Kargoda', delivered: 
           </table>
         </div>
 
+        <div v-if="kargolayabilir && odendi && kalanlar.some((s) => s.kalan > 0)"
+             class="rounded-xl bg-white border border-stone-200 p-5">
+          <h2 class="font-semibold mb-1">Siparişi tamamla</h2>
+          <p class="text-sm text-stone-600 mb-3">
+            Kalan tüm satırlar tek pakette sevk edilir ve sipariş teslim edildi olarak kapanır.
+            Kargo firması takip etmek istersen aşağıdaki paket bölümünü kullan.
+          </p>
+          <button type="button" class="rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm font-semibold" @click="tamamla">
+            Siparişi tamamla
+          </button>
+        </div>
+
         <div v-if="kargolayabilir" class="rounded-xl bg-white border border-stone-200 p-5">
           <h2 class="font-semibold mb-3">Yeni paket</h2>
 
@@ -101,6 +145,43 @@ const paketDurumu = { pending: 'Hazırlanıyor', shipped: 'Kargoda', delivered: 
                 Paket oluştur
               </button>
             </div>
+          </template>
+        </div>
+
+        <!--
+          ⚠️ İADE AÇMA (4.5L): panel iadeyi İŞLEYEBİLİYORDU (onayla ·
+          teslim al · para iadesi) ama AÇAMIYORDU. Vitrinde de ekranı yok,
+          yani iade pratikte ulaşılamaz bir özellikti.
+
+          ⚠️ Ödenmemiş siparişte hiç gösterilmiyor: geri verilecek para yok
+          ve servis zaten reddediyor.
+        -->
+        <div v-if="iadeEdebilir && odendi" class="rounded-xl bg-white border border-stone-200 p-5">
+          <div class="flex items-center justify-between">
+            <h2 class="font-semibold">İade</h2>
+            <button type="button" class="text-sm text-orange-700" @click="iadeFormu = !iadeFormu">
+              {{ iadeFormu ? 'vazgeç' : 'İade talebi aç' }}
+            </button>
+          </div>
+
+          <template v-if="iadeFormu">
+            <div v-for="s in siparis.items" :key="s.id" class="flex items-center gap-3 mt-3 text-sm">
+              <span class="flex-1">{{ s.title }}</span>
+              <span class="text-stone-500">{{ s.quantity }} adet</span>
+              <input v-model="iade.adetler[s.id]" type="number" min="0" :max="s.quantity"
+                     class="w-20 rounded-lg border border-stone-300 px-2 py-1">
+            </div>
+
+            <input v-model="iade.reason" placeholder="Sebep (zorunlu)"
+                   class="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm mt-3">
+
+            <p class="text-xs text-stone-500 mt-2">
+              Bu talep cayma değil, marka tarafından açılan iadedir — 14 günlük cayma süresine takılmaz.
+            </p>
+
+            <button type="button" class="rounded-lg bg-orange-600 text-white px-4 py-2 text-sm font-semibold mt-3" @click="iadeAc">
+              Talebi aç
+            </button>
           </template>
         </div>
 
