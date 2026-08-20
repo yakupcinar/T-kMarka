@@ -146,8 +146,6 @@ veya dağıtım için izin gerekir.
 
 **Vitrin — sipariş / ödeme**
 
-* Vitrinde ödemeyi yaptım iyzicodan web in web kısmında ödeme yapıldı ama web in webde karşıma açılamayan bir sayfa çıktı bunu kullanıcının görmesini istemiyoruz onun yerine ödemeniz yapıld ve yapılmadı gibi bir sayfa açılması gerekmez mi bu iyziconun yaptığı bir şey değilse biz ödeme işlemi bittiği gibi web in webi kapatıp kendimiz yazalım ödeme başarılı ya da başarız diye bunu bir araştır unutma iyzico sandbox kullanıyoruz
-* Sepete gittim iletişim kısmına test@gmail.com yazdım sonra ödeme kısmına gittim doğru sandbox kart bilgilerini yazdım sms geldi doğru yazdım web in web kaybolmuyor iyziconun yerine ama açılmamış bir sayfa geliyor errorlu hesabıma geri dönünce bakıyorum ödeme yapılmış hazırlanıyor diyor.
 
 **Marka paneli — katalog**
 
@@ -194,6 +192,7 @@ veya dağıtım için izin gerekir.
 | Eksen kaydetmeden varyant ekleyince bozuk sayfa | Panel → ürün → eksen seçmeden **düğmeler kapalı**; boş değerle denersen *"Her varyant ekseni için bir değer seçin."* | 4.5P |
 | Ürün oluşturunca varyant/görsel gelmiyor | Panel → Ürünler → Yeni → Oluştur → bölümler **aynı anda** gelir | 4.5L · 4.5P |
 | Panelde arama kelime ortasından eşleşiyor | Panel → Ürünler → ara: **`iş` boş döner**, `cüz` → Deri Cüzdan | 4.5P |
+| Ödeme sonrası çerçevede açılamayan sayfa | Ödemeyi tamamla → çerçeve kapanır, **"Siparişiniz alındı"** ekranı gelir (POST → 303 → imzalı sayfa) | 4.5R |
 | Ürün oluşturunca varyant sayfasına gitmiyor | `POST /yonetim/urunler` → `302 → /yonetim/urunler/{uuid}` — **ölçüldü, zaten doğruydu** | 4.5G |
 
 > ⚠️ Ürün oluşturma yönlendirmesi doğru çalışıyor ama **açılan sayfada

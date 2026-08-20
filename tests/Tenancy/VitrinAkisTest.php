@@ -387,7 +387,15 @@ it('★★ ODEME DONUSU tarayiciya HTML donuyor', function () {
     | (1E.7.3'te ölçüldü — sabit yazılan `?ref=` yüzünden iyzico'nun üç
     | callback denemesi de 404 almıştı).
     */
-    $cevap = $this->get('http://marka-a.test/odeme/donus?ref='.$referans);
+    /*
+    | ⚠️ ARTIK 303 ÜZERİNDEN (4.5R): uç imzalı bir sonuç adresine
+    | yönlendiriyor. Sebep, dönüşün POST ve referansın GÖVDEDE gelmesi —
+    | sayfa doğrudan orada render edilince çerçeveden çıkış betiği üst
+    | pencereyi referanssız bir GET'e götürüyor ve müşteri 404 görüyordu.
+    */
+    $cevap = $this->followRedirects(
+        $this->get('http://marka-a.test/odeme/donus?ref='.$referans),
+    );
 
     $cevap->assertOk();
     expect($cevap->headers->get('content-type'))->toContain('text/html');

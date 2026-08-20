@@ -549,6 +549,17 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   `expectsJson()` dalı yazarken **aynı ekrandan tetiklenebilecek diğer
   istisnaları da** aynı anda tara.
 
+- **ÇERÇEVEDEN ÇIKIŞ BETİĞİ, İÇİNDE BULUNDUĞU ADRESE GERİ GİDEMEZ.**
+  Sağlayıcı dönüşü `POST` ve referans **gövdede**; `window.top.location =
+  window.location.href` üst pencereyi **referanssız bir GET**'e götürüyor
+  ve müşteri, ödemesi başarılı olmasına rağmen **404** görüyor (4.5R).
+  Doğrusu POST'u **303 ile GET'lenebilir bir sonuç adresine**
+  yönlendirmek; o adres imzalı olmalı, yoksa uuid'i ele geçiren başkasının
+  ödeme durumunu okur. ⚠️ **Sahte sağlayıcı bunu İKİ KEZ gizledi**
+  (1E.7.3 · 4.5R): referansı adres çubuğuna koyduğu için testler `?ref=`
+  ile koşuyor ve betik çalışıyordu. Dönüş akışını sınayan test
+  **sağlayıcının gerçek şekliyle** (POST + gövde) da koşmalı.
+
 ## Yapı
 
 ```

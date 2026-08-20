@@ -200,7 +200,21 @@ it('★★ DONUS SAYFASI iframe den CIKIYOR', function () {
     | formunun yerinde, KÜÇÜK BİR ÇERÇEVENİN İÇİNDE görürdü — üst bar ve
     | menü hâlâ ödeme sayfasına ait olurdu.
     */
-    $cevap = $this->get('http://marka-a.test/odeme/donus?ref='.$referans);
+    /*
+    | ⚠️ ARTIK 303 ÜZERİNDEN (4.5R). Dönüş ucu POST alıyor ve referans
+    | GÖVDEDE geliyor; sayfa doğrudan orada render edilince çerçeveden
+    | çıkış betiği üst pencereyi REFERANSSIZ bir GET'e götürüyor ve
+    | müşteri 404 görüyordu. Uç artık imzalı bir sonuç adresine
+    | yönlendiriyor.
+    |
+    | ⚠️ BU TEST O KUSURU GİZLEYENLERDEN BİRİYDİ: sahte sağlayıcı
+    | referansı ADRES ÇUBUĞUNA koyduğu için `?ref=` ile koşuyordu ve
+    | betik çalışıyordu. Gerçek sağlayıcının şekli hiç sınanmamıştı —
+    | 1E.7.3'ün aynısı, ikinci kez.
+    */
+    $cevap = $this->followRedirects(
+        $this->get('http://marka-a.test/odeme/donus?ref='.$referans),
+    );
 
     /*
     | ⚠️ İDDİA ASIL SATIRA BAĞLI. Önce yalnızca `window.top` aranıyordu ve

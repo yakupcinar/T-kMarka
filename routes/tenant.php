@@ -115,6 +115,20 @@ Route::middleware([
     Route::match(['get', 'post'], PaymentController::DONUS_YOLU, [PaymentReturnController::class, 'show']);
 
     /*
+    | ÖDEME SONUCU (4.5R) — dönüş ucunun 303 ile yönlendirdiği ekran.
+    |
+    | ⚠️ AYRI UÇ olmak zorunda: dönüş POST ve referans GÖVDEDE geliyor.
+    | Çerçeveden çıkış betiği üst pencereyi aynı adrese GET ile
+    | götürdüğünde gövde kayboluyor ve müşteri 404 görüyordu.
+    |
+    | ⚠️ `signed`: sayfa artık GET'lenebilir, yani uuid'i bilen herkes
+    | başkasının sipariş durumunu okuyabilirdi. Adresi biz üretiyoruz.
+    */
+    Route::get('/odeme/sonuc/{siparis:uuid}', [PaymentReturnController::class, 'sonuc'])
+        ->middleware('signed')
+        ->name('vitrin.odeme.sonuc');
+
+    /*
     | KVKK DOĞRULAMA BAĞLANTISI (2G-K3).
     |
     | ⚠️ `magaza-acik` DIŞINDA ve `api` önekinden AYRI: bağlantı postadan

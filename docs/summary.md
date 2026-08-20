@@ -2492,3 +2492,30 @@ FAZ 5 SIRADA — kargo firmaları · e-fatura/e-arşiv
         ⚠️ başlıkla başlayanlar ÖNCE
 
       DOĞRULANDI (gerçek panel): q=iş → boş · q=cüz → Deri Cüzdan
+
+4.5R ✅ ÖDEME DÖNÜŞ EKRANI — 797 test
+      "ödeme yapıldı ama web in webde açılamayan bir sayfa çıktı"
+
+      ARAŞTIRMA: iyzico iframe=true modunda ödeme bitince ÇERÇEVENİN
+      İÇİNDE callbackUrl'e gidiyor ve token'ı POST GÖVDESİNDE yolluyor
+      → çerçeveyi kapatıp sonucu göstermek BİZİM İŞİMİZ
+
+      KUSUR BİZDEYDİ:
+        sağlayıcı POST (referans GÖVDEDE)      → 200 ✅
+        çerçeveden çıkış betiğinin gittiği GET → 404 ❌
+        betik window.location.href'e çıkıyordu; referans gövdedeydi
+        müşteri ÖDEMESİ BAŞARILI OLMASINA RAĞMEN 404 görüyordu
+
+      ⚠️ SAHTE SAĞLAYICI BUNU GİZLEMİŞTİ — İKİNCİ KEZ (1E.7.3 ailesi)
+        referansı ADRES ÇUBUĞUNA koyduğu için testler ?ref= ile koşuyor
+        ve betik çalışıyordu; gerçek şekil (POST+gövde) hiç sınanmamıştı
+        iki mevcut test kusuru gizliyordu, ikisi de güncellendi
+
+      ✅ POST → 303 → İMZALI GET SAYFASI (/odeme/sonuc/{uuid})
+        ⚠️ imzalı: uuid'i ele geçiren başkasının ödeme durumunu okurdu
+        ⚠️ durum yine SİPARİŞTEN okunuyor (1E-K1)
+        ⚠️ JSON dalı korundu: sağlayıcı sunucudan sunucuya da çağırıyor
+
+      DOĞRULANDI (gerçek curl, iyzico şekliyle)
+        POST token=… → 303 → imzalı adres → 200 "Siparişiniz alındı"
+        imzasız aynı adres → 403

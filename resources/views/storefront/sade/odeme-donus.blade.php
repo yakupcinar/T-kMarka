@@ -20,6 +20,12 @@
         ⚠️ Betik ÇALIŞMAZSA (JavaScript kapalı) sayfa yine de doğru ve
         okunabilir: çerçevenin içinde görünür ama içeriği tamdır. Aşağıdaki
         bağlantı da `target="_top"` ile çıkışı elle mümkün kılıyor.
+
+        ★ BU BETİK 4.5R'DEN ÖNCE MÜŞTERİYİ 404'E GÖTÜRÜYORDU.
+        Dönüş ucu POST alıyor ve referans GÖVDEDE geliyor; `window.top`
+        aynı adrese **GET** ile gidince gövde kayboluyor ve sayfa "sipariş
+        bulunamadı" diyordu. Artık bu sayfanın kendi adresi imzalı bir
+        GET adresi — üst pencere oraya sorunsuz gidebiliyor.
     --}}
     <script>
         if (window.top !== window.self) {

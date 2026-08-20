@@ -5,9 +5,11 @@ namespace App\Http\Storefront;
 use App\Domain\Payment\PaymentProviderFactory;
 use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
+use App\Models\Order;
 use App\Models\Payment;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 /**
@@ -40,7 +42,7 @@ class PaymentReturnController extends Controller
      * yapıyor (iyzico POST eder). Tek yöntem tanımlansaydı gerçek
      * sağlayıcı takıldığı gün müşteri 405 ekranıyla karşılaşırdı.
      */
-    public function show(Request $istek): JsonResponse|View
+    public function show(Request $istek): JsonResponse|RedirectResponse
     {
         $saglayici = $this->saglayicilar->coz();
 
@@ -91,11 +93,38 @@ class PaymentReturnController extends Controller
         | ⚠️ Ayrım `expectsJson()` ile ve bu ancak 4A'dan sonra güvenilir:
         | `ForceJson` global olduğu sürece her istek "JSON istiyorum" derdi.
         */
+        /*
+        | ★ TARAYICI: POST → 303 → GET'lenebilir SONUÇ SAYFASI. (4.5R)
+        |
+        | ⚠️ GERÇEK KUSUR BURADAYDI ve ölçüldü. Sağlayıcı bu uca
+        | ÇERÇEVENİN İÇİNDE ve POST ile geliyor; referans GÖVDEDE.
+        | Sayfa doğrudan burada render edilince çerçeveden çıkış betiği
+        | `window.top.location.href = window.location.href` yazıyordu —
+        | yani ÜST PENCERE aynı adrese **GET** ile gidiyor ve gövdedeki
+        | referans kayboluyordu:
+        |
+        |     sağlayıcı POST (token gövdede) → 200  ✅
+        |     betiğin gittiği GET (token yok)  → 404 ❌
+        |
+        | Müşterinin ödemesi başarılı olmasına rağmen gördüğü son ekran
+        | 404'tü. Bildirilen "açılamayan sayfa" buydu.
+        |
+        | ⚠️ SAHTE SAĞLAYICI BUNU GİZLEMİŞTİ — İKİNCİ KEZ. 1E.7.3'te
+        | referansı adres çubuğuna koyduğu için testler `?ref=` ile
+        | koşuyordu ve betik çalışıyordu. Gerçek sağlayıcının şekli
+        | (POST + gövde) hiç sınanmamıştı.
+        |
+        | ⚠️ Adres İMZALI: sonuç sayfası artık GET'lenebilir olduğu için
+        | uuid'i bilen herkes başkasının sipariş durumunu okuyabilirdi.
+        | İmzayı biz üretiyoruz, tahmin edilemiyor ve süresi dolunca
+        | müşteri siparişini "Siparişlerim"den görüyor.
+        */
         if (! $istek->expectsJson()) {
-            return view('storefront.sade.odeme-donus', [
-                'siparis' => $siparis,
-                'durum' => $durum,
-            ]);
+            return redirect()->signedRoute(
+                'vitrin.odeme.sonuc',
+                ['siparis' => $siparis->uuid],
+                now()->addHour(),
+            )->setStatusCode(303);
         }
 
         return response()->json([
@@ -111,6 +140,30 @@ class PaymentReturnController extends Controller
             | ödemeye çalışır ya da bankasını arardı — oysa ödemesi yolda.
             */
             'state' => $durum,
+        ]);
+    }
+
+    /**
+     * Ödeme sonucu — müşterinin gördüğü ekran. (4.5R)
+     *
+     * ⚠️ Bu uç GET ve İMZALI. `donus` ucundan 303 ile buraya geliniyor;
+     * böylece çerçeveden çıkış betiği ÜST PENCEREYİ bu adrese
+     * götürebiliyor — gövdede taşınan bir şey kalmadı.
+     *
+     * ⚠️ Durum yine SİPARİŞTEN okunuyor, istekten değil: imzalı adres
+     * "bu siparişi görebilirsin" der, "ödendi" demez.
+     */
+    public function sonuc(Order $siparis): View
+    {
+        $durum = match ($siparis->payment_status) {
+            PaymentStatus::Paid => 'success',
+            PaymentStatus::Failed, PaymentStatus::Cancelled => 'failed',
+            default => 'processing',
+        };
+
+        return view('storefront.sade.odeme-donus', [
+            'siparis' => $siparis,
+            'durum' => $durum,
         ]);
     }
 }

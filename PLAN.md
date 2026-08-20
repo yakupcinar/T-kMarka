@@ -6171,6 +6171,59 @@ Deri Cüzdan, `q=deri` → Deri Cüzdan. **792 test.**
 
 ---
 
+### 4.5R — ödeme dönüş ekranı  ◀ AÇIK
+
+Şikâyet: *"ödeme yapıldı ama web in webde karşıma açılamayan bir sayfa
+çıktı."* Kullanıcı ayrıca sordu: bunu iyzico mu yapıyor, yoksa biz mi
+çerçeveyi kapatıp kendi ekranımızı göstermeliyiz?
+
+**Araştırma:** iyzico Checkout Form `iframe=true` modunda ödeme bitince
+**çerçevenin içinde** `callbackUrl`'e gidiyor ve `token`'ı **POST
+gövdesinde** yolluyor. Yani çerçeveyi kapatmak ve sonucu göstermek
+**bizim işimiz** — sağlayıcı yalnızca geri getiriyor.
+
+**Kusur bizdeydi ve ölçüldü:**
+
+```
+sağlayıcı POST (referans GÖVDEDE)       → 200  ✅
+çerçeveden çıkış betiğinin gittiği GET  → 404  ❌
+```
+
+Betik `window.top.location.href = window.location.href` yazıyordu.
+Referans gövdedeydi, adres çubuğunda değil; üst pencere **referanssız**
+bir GET yapıyor ve müşteri, **ödemesi başarılı olmasına rağmen** 404
+görüyordu.
+
+> ⚠️ **SAHTE SAĞLAYICI BUNU GİZLEMİŞTİ — İKİNCİ KEZ.** 1E.7.3'te aynı
+> aile: sahte sağlayıcı referansı **adres çubuğuna** koyduğu için
+> testler `?ref=` ile koşuyor ve betik çalışıyordu. Gerçek sağlayıcının
+> şekli (POST + gövde) hiç sınanmamıştı. İki mevcut test bu yüzden
+> yeşildi ve kusuru gizliyordu; ikisi de gerekçesiyle güncellendi.
+
+**✅ Çözüm: POST → 303 → İMZALI GET sayfası.** Dönüş ucu referansı
+çözüyor ve `/odeme/sonuc/{uuid}` adresine yönlendiriyor. Sayfa artık
+GET'lenebilir olduğu için çerçeveden çıkış betiği üst pencereyi oraya
+sorunsuz götürüyor; yenilenebilir de (PRG).
+
+> ⚠️ Adres **imzalı**: sonuç sayfası GET'lenebilir olduğu için uuid'i ele
+> geçiren biri (kargo etiketi, ekran görüntüsü, tarayıcı geçmişi)
+> başkasının ödeme durumunu okuyabilirdi. İmzayı biz üretiyoruz, bir saat
+> geçerli; sonrasında müşteri siparişini "Siparişlerim"den görüyor.
+>
+> ⚠️ Durum yine **siparişten** okunuyor, istekten değil (1E-K1): imzalı
+> adres "bu siparişi görebilirsin" der, "ödendi" demez.
+>
+> ⚠️ **JSON dalı korundu:** sağlayıcı bazen sunucudan sunucuya çağırıyor.
+> Tek dal yazılsaydı ya tarayıcı JSON görürdü ya makine yönlendirme
+> yerdi.
+
+**Dört kırma denemesi, dördü de düştü.** **Doğrulandı (gerçek `curl`,
+iyzico'nun şekliyle):** `POST token=…` → **303** → imzalı adres → **200**,
+ekranda *"Siparişiniz alındı"* + sipariş numarası + çıkış betiği · imzasız
+aynı adres **403**. **797 test.**
+
+---
+
 ### Faz 4.5'in kalan blokları  *(gerçek kullanımdan çıktı)*
 
 4.5I'den sonra kullanıcı listesi yeniden düzenlendi (`README.md` →
