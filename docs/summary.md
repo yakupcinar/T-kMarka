@@ -2391,3 +2391,38 @@ FAZ 5 SIRADA — kargo firmaları · e-fatura/e-arşiv
         ★ KOD DEĞİŞİKLİĞİ GEREKMİYOR (ölçüldü): dönüş adresi isteğin
           host'undan türüyor, tünelden girilince callback herkese açık
         ⚠️ 3DS SMS adımı ELLE — kullanıcıyla birlikte koşulacak
+
+4.5N ✅ MARKA BAŞVURU / ONAY AKIŞI — 784 test
+      self-servis kayıt (3D) markayı ANINDA YAYINA alıyordu
+
+      ✅ YENİ DURUM: Pending — kurulu ama panel de vitrin de kapalı
+        ⚠️ şema BAŞVURUDA kuruluyor, onayda değil: kurulum senkron ~280ms
+          onay TEK SATIRLIK KARAR oluyor
+        ⚠️ DENEME SÜRESİ ONAYDA BAŞLIYOR — başvuruda başlasaydı onayı üç
+          gün süren marka 14 gününün beşte birini beklemekle geçirirdi
+        ⚠️ M-1 BOZULMADI: kurulum hâlâ tamamen otomatik; onay bir kurulum
+          adımı değil, bir KARAR
+
+      ✅ DURUM MAKİNESİ — Larastan eksik geçişi DERHÂL yakaladı
+        (GECISLER anahtarları tam biliniyor, 3C'de böyle kurulmuştu)
+        pending'in YALNIZCA İKİ çıkışı: trial | closed
+        ⚠️ Active yok — doğrudan yazılabilseydi yönetici ÖDEME ALMADAN
+          markayı ücretli plana koymuş olurdu
+        ⚠️ Suspended yok — askı YAYINDAKİ markayı durdurmak demek
+
+      ✅ RED SİLMİYOR, closed + sebep: "neden reddedildi" cevabı kalmalı
+
+      ✅ SERTİFİKA KAPISI DARALTILDI — ASIL KAZANÇ
+        `ask` ucu yalnızca verified_at'e bakıyordu → onay bekleyen, hatta
+        REDDEDİLMİŞ başvurunun alan adı sertifika alabilirdi
+        ⚠️ kota HAFTADA 50 (3-K5); herkesin kota yakabilmesi ucu koyma
+          gerekçesini boşa çıkarırdı
+
+      ⚠️ CADDY'YE ELLE EKLEME GELİŞTİRMEDE DEVAM EDİYOR — DÜZELTİLEMEZ
+        Let's Encrypt .localhost'a sertifika veremiyor
+        ÜRETİMDE liste gerekmiyor: doğrulanmış + yayındaki alan adına
+        Caddy sertifikayı kendisi alıyor
+
+      DOĞRULANDI (gerçek curl)
+        kayıt → pending, deneme boş, domain-check 404
+        onayla → trial, deneme bitişi yazıldı, domain-check 200

@@ -37,9 +37,21 @@ it('★ ZİYARETÇİ marka açabiliyor — kendi parolasıyla', function () {
     |
     | ⚠️ Türkçe karakterler ölçüldü: `Ayşe’nin Butiği` → `aysenin-butigi`.
     */
+    /*
+    | ⚠️ DURUM 4.5N'DE DEĞİŞTİ: `trial` değil `pending`.
+    |
+    | 3D'de self-servis kayıt markayı ANINDA yayına alıyordu — internetten
+    | kaydolan herkes çalışan bir mağaza açabiliyordu. Artık platform
+    | onayı bekliyor; deneme süresi de ONAYDA başlıyor (bekleyen marka
+    | 14 gününün bir kısmını beklemekle geçirmesin).
+    |
+    | ⚠️ M-1'in şartı BOZULMADI: kurulumun tamamı hâlâ otomatik ve
+    | senkron. Aşağıdaki `run()` bloğu bunu ölçüyor — şema, roller,
+    | sahip kullanıcı ve varsayılanlar başvuru anında hazır.
+    */
     expect($cevap->json('domain'))->toBe('aysenin-butigi.localhost')
-        ->and($cevap->json('tenant.status'))->toBe('trial')
-        ->and($cevap->json('tenant.trial_ends_at'))->not->toBeNull();
+        ->and($cevap->json('tenant.status'))->toBe('pending')
+        ->and($cevap->json('tenant.trial_ends_at'))->toBeNull();
 
     /*
     | ⚠️ `@var` şart: statik analiz `findOrFail()` dönüşünü

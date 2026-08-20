@@ -58,7 +58,7 @@ class TenantProvisioning
      *
      * @throws DomainUnavailableException|WeeklyLimitReachedException
      */
-    public function ac(string $ad, string $alanAdi, string $sahipEposta, string $sahipParola): Tenant
+    public function ac(string $ad, string $alanAdi, string $sahipEposta, string $sahipParola, bool $onayBekliyor = false): Tenant
     {
         $ad = trim($ad);
         $alanAdi = strtolower(trim($alanAdi));
@@ -124,9 +124,24 @@ class TenantProvisioning
         }
 
         /*
-        | ⚠️ Kurulum BİTTİKTEN SONRA denemeye alınıyor. Önce yazılsaydı
+        | ⚠️ Kurulum BİTTİKTEN SONRA durum yazılıyor. Önce yazılsaydı
         | kurulum patladığında marka "denemede" kalırdı.
+        |
+        | ★ SELF-SERVİS KAYIT ONAY BEKLİYOR (4.5N): internetten açılan
+        | marka doğrudan yayına girmiyor. `tenant:create` (geliştirme ve
+        | operasyon komutu) bu bayrağı GEÇMİYOR — orada onay istemek
+        | komutu kullanılamaz hâle getirirdi.
+        |
+        | ⚠️ Deneme süresi onay bekleyende BAŞLAMIYOR: onayı üç gün süren
+        | marka 14 günlük denemesinin beşte birini beklemekle geçirirdi.
         */
+        if ($onayBekliyor) {
+            $marka->status = TenantStatus::Pending;
+            $marka->save();
+
+            return $marka;
+        }
+
         $marka->status = TenantStatus::Trial;
         $marka->trial_ends_at = now()->addDays(self::DENEME_GUN);
         $marka->save();

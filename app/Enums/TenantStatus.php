@@ -24,6 +24,21 @@ enum TenantStatus: string
     case Provisioning = 'provisioning';
 
     /**
+     * Başvuru alındı, PLATFORM ONAYI bekliyor. (4.5N)
+     *
+     * ⚠️ Şema KURULU ama marka çalışmıyor: panel de vitrin de kapalı.
+     * Şemayı onaydan sonra kurmak da düşünüldü; bu yol seçildi çünkü
+     * kurulum senkron ve 280 ms sürüyor — onay anında beklemek yerine
+     * başvuruda hallediliyor ve onay tek satırlık bir durum değişikliği
+     * oluyor.
+     *
+     * ⚠️ DENEME SÜRESİ BURADA BAŞLAMIYOR. Başlasaydı onayı üç gün süren
+     * bir marka 14 günlük denemesinin beşte birini beklemekle geçirirdi.
+     * `trial_ends_at` onayda yazılıyor.
+     */
+    case Pending = 'pending';
+
+    /**
      * Ücretsiz deneme — KART İSTENMEDEN.
      *
      * ⚠️ Deneme BİZDE tutuluyor, iyzico'da değil: abonelik başlatmak kart

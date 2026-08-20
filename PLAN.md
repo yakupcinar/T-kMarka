@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ──────── şu an: 4.5M saat yarısı BİTTİ, tünel + 4.5N SIRADA ┐
+┌─ YOL HARİTASI ──────── şu an: 4.5N BİTTİ, kalan: ödeme akışının tünelden ölçümü ┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -5997,6 +5997,67 @@ dönmesini engelliyor.
 >
 > ⚠️ 3DS **SMS adımı** elle yapılmak zorunda; bu yarı kullanıcıyla
 > birlikte koşulacak (`make kaldir` → tünel adresinden alışveriş).
+
+---
+
+### 4.5N — marka başvuru / onay akışı  ◀ AÇIK
+
+İstek: *"Açılan yeni Markaları tekrar elle eklemek gerekiyor Caddy
+üzerinden, ben o işlemi de yönetim paneline koyalım diyorum yeni gelen
+Marka isteğini onay/red yapayım."*
+
+**Ölçüm:** self-servis kayıt (3D) markayı **anında yayına** alıyordu —
+internetten kaydolan herkes çalışan bir mağaza açabiliyordu.
+
+**✅ Yeni durum: `Pending`.** Kayıt markayı kuruyor ama yayına almıyor;
+panel de vitrin de kapalı (`panelAcikMi` / `satisAcikMi` zaten durumdan
+okuyor, yeni kapı açılmadı).
+
+> ⚠️ **Şema başvuruda kuruluyor, onayda değil.** Kurulum senkron ve
+> ~280 ms (3D'de ölçülmüştü); onay anında beklemek yerine başvuruda
+> hallediliyor ve onay **tek satırlık bir karar** oluyor.
+>
+> ⚠️ **DENEME SÜRESİ ONAYDA BAŞLIYOR.** Başvuruda başlasaydı onayı üç
+> gün süren marka 14 günlük denemesinin beşte birini beklemekle
+> geçirirdi.
+>
+> ⚠️ **M-1'in şartı BOZULMADI** ("her yeni müşteri elle kurulum
+> gerektiriyorsa ürün değil, taslaktır"): kurulumun tamamı hâlâ
+> otomatik. Onay bir kurulum adımı değil, bir **karar**.
+
+**✅ Durum makinesine yazıldı** ve Larastan eksik geçişi **derhâl
+yakaladı** — `GECISLER` sabitinin anahtarları tam biliniyor (3C'de böyle
+kurulmuştu, bugün karşılığını verdi).
+
+> ⚠️ `pending`'in yalnızca **iki** çıkışı var: `trial` ya da `closed`.
+> `Active` yok — onaylanan marka önce denemeye giriyor; doğrudan
+> yazılabilseydi platform yöneticisi **ödeme almadan** bir markayı
+> ücretli plana koymuş olurdu. `Suspended` de yok: askıya almak yayındaki
+> bir markayı durdurmak demek, henüz yayına girmemişin karşılığı **red**.
+
+**✅ Red kaydı SİLMİYOR**, `closed` yazıyor + sebebi saklıyor: "neden
+reddedildi" cevabı kalmalı ve alan adı hemen yeniden kapılmamalı. Silme
+yolu 3G'de zaten var; ikinci bir silme yolu o kuralı ikiye bölerdi.
+
+**✅ SERTİFİKA KAPISI DA DARALTILDI — asıl kazanç burada.** `ask` ucu
+(3H) yalnızca `verified_at`'e bakıyordu; onay bekleyen, hatta
+**reddedilmiş** her başvurunun alan adı sertifika alabilirdi.
+
+> ⚠️ Let's Encrypt kotamız **haftada 50** (3-K5). İnternetten kaydolan
+> herkesin kota yakabilmesi, `ask` ucunu koymamızın gerekçesini boşa
+> çıkarırdı. Artık uç markanın **durumuna** da bakıyor.
+
+**⚠️ CADDY'YE ELLE EKLEME GELİŞTİRMEDE DEVAM EDİYOR — ve bu düzeltilemez.**
+Let's Encrypt `.localhost` adreslerine sertifika veremiyor, yani
+on-demand TLS yerelde devreye giremiyor. **Üretimde** liste gerekmiyor:
+alan adı doğrulanmış ve markası yayındaysa Caddy sertifikayı kendisi
+alıyor. Yani bu isteğin yarısı (onay/red) çözüldü, öteki yarısı zaten
+üretimde çözülmüştü ve yerelde çözülemez.
+
+**Dört kırma denemesi, dördü de düştü.** 3D'nin testi kararı değiştiği
+için gerekçesiyle güncellendi. **Doğrulandı (gerçek `curl`):** kayıt →
+`pending`, deneme boş, `domain-check` **404** · onayla → `trial`, deneme
+bitişi yazıldı, `domain-check` **200**. **784 test.**
 
 ---
 

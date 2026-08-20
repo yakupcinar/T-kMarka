@@ -115,6 +115,19 @@ foreach (config('tenancy.central_domains') as $centralDomain) {
                 Route::get('/markalar', [PlatformPage::class, 'markalar'])->name('yonetim.markalar');
                 Route::get('/markalar/{tenant}', [PlatformPage::class, 'marka'])->name('yonetim.marka');
                 Route::post('/markalar/{tenant}/durum', [PlatformPage::class, 'durumDegistir'])->name('yonetim.marka.durum');
+
+                /*
+                | ★ BAŞVURU ONAY/RED (4.5N) — durum değiştirmeden AYRI
+                | uçlar.
+                |
+                | ⚠️ Genel `durum` ucuyla yapılabilirdi ama iki yan etkisi
+                | var: onay DENEME SÜRESİNİ başlatıyor, red SEBEBİ
+                | kaydediyor. Genel uca yığılsaydı "durumu trial yap"
+                | diyen her çağrı sessizce deneme süresini de yeniden
+                | yazardı.
+                */
+                Route::post('/markalar/{tenant}/onayla', [PlatformPage::class, 'basvuruOnayla'])->name('yonetim.marka.onayla');
+                Route::post('/markalar/{tenant}/reddet', [PlatformPage::class, 'basvuruReddet'])->name('yonetim.marka.reddet');
                 Route::post('/markalar/{tenant}/plan', [PlatformPage::class, 'planAta'])->name('yonetim.marka.plan');
 
                 /*

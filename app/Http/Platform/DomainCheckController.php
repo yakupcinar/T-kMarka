@@ -2,7 +2,9 @@
 
 namespace App\Http\Platform;
 
+use App\Enums\TenantStatus;
 use App\Platform\Models\Domain;
+use App\Platform\Models\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
@@ -38,8 +40,33 @@ class DomainCheckController
         | bakıyor, DNS sorgusu YAPMIYOR. Yapsaydı her yeni bağlantı ağ turu
         | kadar beklerdi.
         */
+        /*
+        | ★ MARKANIN DURUMU DA BAKILIYOR (4.5N).
+        |
+        | ⚠️ Yalnızca `verified_at`'e bakılsaydı ONAY BEKLEYEN ya da
+        | REDDEDİLMİŞ bir başvurunun alan adı da sertifika alırdı. Kota
+        | haftada 50 (3-K5); internetten kaydolan herkesin sertifika
+        | yakabilmesi, `ask` ucunu koymamızın gerekçesini boşa çıkarırdı.
+        |
+        | ⚠️ `Closed` de dışarıda: kapatılmış markanın vitrini artık
+        | yayında değil, sertifikasını yenilemenin anlamı yok.
+        */
+        $yayindakiDurumlar = [
+            TenantStatus::Trial->value,
+            TenantStatus::Active->value,
+            TenantStatus::PastDue->value,
+            TenantStatus::Suspended->value,
+        ];
+
         $kayitli = $domain !== '' && Domain::where('domain', $domain)
             ->whereNotNull('verified_at')
+            /*
+            | ⚠️ `whereHas('tenant', ...)` DEĞİL: ilişki paketin taban
+            | modelinden geliyor ve dönüş tipi yazılmadığı için Larastan
+            | onu göremiyor. Alt sorgu hem analizden geçiyor hem de tek
+            | sorgu kalıyor.
+            */
+            ->whereIn('tenant_id', Tenant::query()->whereIn('status', $yayindakiDurumlar)->select('id'))
             ->exists();
 
         if (! $kayitli) {

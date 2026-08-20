@@ -8,6 +8,7 @@ use App\Platform\Models\Plan;
 use App\Platform\Models\Tenant;
 use App\Platform\TenantDataExport;
 use App\Platform\TenantLifecycle;
+use App\Platform\TenantProvisioning;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -107,6 +108,60 @@ class PlatformPageController extends Controller
         return back()->with('mesaj', 'Marka durumu güncellendi.');
     }
 
+    /**
+     * Marka başvurusunu ONAYLAR — deneme burada başlıyor. (4.5N)
+     *
+     * ⚠️ Self-servis kayıt markayı `pending` doğuruyor; panel de vitrin
+     * de kapalı. Onay bir KURULUM adımı değil (kurulum başvuruda
+     | senkron tamamlandı), tek satırlık bir karar.
+     *
+     * ⚠️ DENEME SÜRESİ BURADA yazılıyor, başvuruda değil: onayı üç gün
+     * süren marka 14 günlük denemesinin beşte birini beklemekle
+     * geçirirdi.
+     */
+    public function basvuruOnayla(Tenant $tenant): RedirectResponse
+    {
+        if ($tenant->status !== TenantStatus::Pending) {
+            return back()->with('hata', 'Bu marka onay bekleyen bir başvuru değil.');
+        }
+
+        $this->yasamDongusu->gecir($tenant, TenantStatus::Trial);
+
+        $tenant->trial_ends_at = now()->addDays(TenantProvisioning::DENEME_GUN);
+        $tenant->save();
+
+        return back()->with('mesaj', 'Başvuru onaylandı, deneme süresi başladı.');
+    }
+
+    /**
+     * Marka başvurusunu REDDEDER. (4.5N)
+     *
+     * ⚠️ Kayıt SİLİNMİYOR, `closed` yazılıyor: "neden reddedildi" sorusunun
+     * cevabı kalmalı ve aynı alan adı hemen yeniden kapılmamalı. Silme
+     * yolu zaten var (3G: saklama süresi sonunda zamanlanmış temizlik) ve
+     * ikinci bir silme yolu açmak o kuralı ikiye bölerdi.
+     */
+    public function basvuruReddet(Request $istek, Tenant $tenant): RedirectResponse
+    {
+        if ($tenant->status !== TenantStatus::Pending) {
+            return back()->with('hata', 'Bu marka onay bekleyen bir başvuru değil.');
+        }
+
+        $veri = $istek->validate(['sebep' => ['nullable', 'string', 'max:255']]);
+
+        $this->yasamDongusu->gecir($tenant, TenantStatus::Closed);
+
+        /*
+        | ⚠️ Sebep `data` json'ına yazılıyor, kolona değil: sorgulanmıyor,
+        | yalnızca okunuyor. Kolon açmak sorgulanmayan bir alan için
+        | migration maliyeti demekti (3B'nin tersi karar, gerekçesiyle).
+        */
+        $tenant->setAttribute('rejection_reason', $veri['sebep'] ?? null);
+        $tenant->save();
+
+        return back()->with('mesaj', 'Başvuru reddedildi.');
+    }
+
     public function planAta(Request $istek, Tenant $tenant): RedirectResponse
     {
         $veri = $istek->validate(['plan_id' => ['required', 'integer', 'exists:plans,id']]);
@@ -166,6 +221,14 @@ class PlatformPageController extends Controller
     private function ayrinti(Tenant $marka): array
     {
         return $this->satir($marka) + [
+            /*
+            | ⚠️ Deneme süresi EKRANA gidiyor (4.5N): onay düğmesi
+            | "kaç günlük deneme başlıyor" demeli. Arayüzde sabit
+            | yazılsaydı süre değiştiğinde iki taraf ayrışırdı.
+            */
+            'deneme_gun' => TenantProvisioning::DENEME_GUN,
+            'rejection_reason' => $marka->getAttribute('rejection_reason'),
+
             'grace_ends_at' => $marka->grace_ends_at?->toIso8601String(),
             'suspended_at' => $marka->suspended_at?->toIso8601String(),
             'closed_at' => $marka->closed_at?->toIso8601String(),

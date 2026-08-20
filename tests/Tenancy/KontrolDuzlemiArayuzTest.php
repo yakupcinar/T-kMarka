@@ -2,7 +2,6 @@
 
 use App\Enums\TenantStatus;
 use App\Models\Customer;
-use App\Platform\Models\PlatformUser;
 use App\Platform\TenantDataExport;
 use Illuminate\Support\Facades\Auth;
 
@@ -18,26 +17,6 @@ use Illuminate\Support\Facades\Auth;
 beforeEach(function () {
     $this->withoutVite();
 });
-
-function merkezKullanici(string $eposta = 'yonetici@tikmarka.test'): PlatformUser
-{
-    /*
-    | ⚠️ `create()` DEĞİL `updateOrCreate()`. `tests/Tenancy` klasöründe
-    | RefreshDatabase yok (şema oluşturmayı bozuyor) ve merkez tablolar
-    | testler arasında kalıyor; `create()` ikinci testte "duplicate key"
-    | ile patlıyor. 3F'de aynı ders çıkmıştı.
-    */
-    $kullanici = PlatformUser::updateOrCreate(
-        ['email' => $eposta],
-        ['name' => 'Yonetici', 'password' => 'sifre1234'],
-    );
-
-    // ⚠️ Önceki testte kapatılmış olabilir — her test temiz başlamalı.
-    $kullanici->is_active = true;
-    $kullanici->save();
-
-    return $kullanici->refresh();
-}
 
 it('★ giris sayfasi Inertia sayfasi donuyor', function () {
     $cevap = $this->get('http://localhost/yonetim/giris')->assertOk();

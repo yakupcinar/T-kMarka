@@ -23,6 +23,7 @@ use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use App\Platform\Models\PlatformUser;
 use App\Platform\Models\Tenant;
 use App\Platform\TenantProvisioning;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -628,4 +629,31 @@ function sayacMagazasi(): ProductVariant
     app(ProductService::class)->durumDegistir($urun->refresh(), ProductStatus::Active);
 
     return $varyant;
+}
+
+/**
+ * Merkez (platform) yöneticisi.
+ *
+ * ⚠️ `tests/Pest.php`'de çünkü İKİ dosya kullanıyor
+ * (`KontrolDuzlemiArayuzTest`, `MarkaBasvuruTest`). Tek dosyada kalsaydı
+ * öteki dosya TEK BAŞINA koşturulunca "tanımsız fonksiyon" verirdi.
+ */
+function merkezKullanici(string $eposta = 'yonetici@tikmarka.test'): PlatformUser
+{
+    /*
+    | ⚠️ `create()` DEĞİL `updateOrCreate()`. `tests/Tenancy` klasöründe
+    | RefreshDatabase yok (şema oluşturmayı bozuyor) ve merkez tablolar
+    | testler arasında kalıyor; `create()` ikinci testte "duplicate key"
+    | ile patlıyor. 3F'de aynı ders çıkmıştı.
+    */
+    $kullanici = PlatformUser::updateOrCreate(
+        ['email' => $eposta],
+        ['name' => 'Yonetici', 'password' => 'sifre1234'],
+    );
+
+    // ⚠️ Önceki testte kapatılmış olabilir — her test temiz başlamalı.
+    $kullanici->is_active = true;
+    $kullanici->save();
+
+    return $kullanici->refresh();
 }

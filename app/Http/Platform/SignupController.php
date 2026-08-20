@@ -56,11 +56,20 @@ class SignupController extends Controller
             ? strtolower(trim((string) $veri['subdomain'])).'.'.$kokAlanAdi
             : $this->kurulum->altAlanAdiUret((string) $veri['brand_name'], $kokAlanAdi);
 
+        /*
+        | ★ ONAY BEKLİYOR (4.5N). Marka kurulup yayına GİRMİYOR; platform
+        | yöneticisi onaylayana kadar panel de vitrin de kapalı.
+        |
+        | ⚠️ M-1'in şartı ("elle kurulum gerektiren ürün değil, taslaktır")
+        | BOZULMUYOR: kurulumun tamamı hâlâ otomatik. Onay bir kurulum
+        | adımı değil, bir KARAR — ve tek düğme.
+        */
         $marka = $this->kurulum->ac(
             (string) $veri['brand_name'],
             $alanAdi,
             (string) $veri['email'],
             (string) $veri['password'],
+            onayBekliyor: true,
         );
 
         return response()->json([

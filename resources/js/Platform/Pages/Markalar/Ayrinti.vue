@@ -14,6 +14,28 @@ function durumDegistir() {
 function planAta() {
   if (yeniPlan.value) router.post(`/yonetim/markalar/${props.marka.id}/plan`, { plan_id: yeniPlan.value })
 }
+/*
+ | BAŞVURU ONAY/RED (4.5N).
+ |
+ | ⚠️ Genel "durum değiştir" kutusuyla yapılabilirdi ama iki yan etkisi
+ | var: onay DENEME SÜRESİNİ başlatıyor, red SEBEBİ kaydediyor. Genel uca
+ | yığılsaydı "durumu trial yap" diyen her çağrı sessizce deneme süresini
+ | de yeniden yazardı.
+ */
+const redSebebi = ref('')
+
+function onayla() {
+  if (confirm('Bu marka başvurusu onaylansın mı? Deneme süresi şimdi başlar.')) {
+    router.post(`/yonetim/markalar/${props.marka.id}/onayla`)
+  }
+}
+
+function reddet() {
+  if (confirm('Bu başvuru reddedilsin mi?')) {
+    router.post(`/yonetim/markalar/${props.marka.id}/reddet`, { sebep: redSebebi.value || null })
+  }
+}
+
 function tarih(v) { return v ? new Date(v).toLocaleString('tr-TR') : '—' }
 </script>
 
@@ -25,6 +47,32 @@ function tarih(v) { return v ? new Date(v).toLocaleString('tr-TR') : '—' }
       <Link href="/yonetim/markalar" class="text-sm text-slate-600 hover:underline">← Markalar</Link>
       <h1 class="text-2xl font-bold">{{ marka.name }}</h1>
       <span class="rounded-full bg-slate-200 px-2 py-0.5 text-xs">{{ marka.status }}</span>
+    </div>
+
+    <!--
+      ⚠️ ONAY KUTUSU EN ÜSTTE ve yalnızca `pending` markada: platform
+      yöneticisinin bu ekrandaki tek işi karar vermek. Aşağıdaki genel
+      durum kutusuna karışsaydı yanlışlıkla `suspended` seçilebilirdi.
+    -->
+    <div v-if="marka.status === 'pending'" class="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-5">
+      <h2 class="font-semibold mb-1">Başvuru onay bekliyor</h2>
+      <p class="text-sm text-slate-700 mb-3">
+        Marka kurulu ama <strong>panel de vitrin de kapalı</strong>.
+        Onaylarsanız {{ marka.deneme_gun }} günlük deneme süresi şimdi başlar.
+      </p>
+
+      <div class="flex gap-2 items-center">
+        <button type="button" class="rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm font-semibold" @click="onayla">
+          Onayla
+        </button>
+
+        <input v-model="redSebebi" placeholder="Red sebebi (isteğe bağlı)"
+               class="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm">
+
+        <button type="button" class="rounded-lg border border-red-300 text-red-700 px-4 py-2 text-sm" @click="reddet">
+          Reddet
+        </button>
+      </div>
     </div>
 
     <div class="grid grid-cols-3 gap-6">

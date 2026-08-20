@@ -35,7 +35,19 @@ class TenantLifecycle
      * @var array<string, list<TenantStatus>>
      */
     public const GECISLER = [
-        'provisioning' => [TenantStatus::Trial, TenantStatus::Active, TenantStatus::Closed],
+        'provisioning' => [TenantStatus::Pending, TenantStatus::Trial, TenantStatus::Active, TenantStatus::Closed],
+
+        /*
+        | ★ BAŞVURU (4.5N) — yalnızca İKİ çıkış: onay ya da red.
+        |
+        | ⚠️ `Active` yok: onaylanan marka ÖNCE denemeye giriyor. Doğrudan
+        | `active` yazılabilseydi platform yöneticisi, ödeme almadan bir
+        | markayı ücretli plana koymuş olurdu.
+        |
+        | ⚠️ `Suspended` de yok: askıya almak YAYINDAKİ bir markayı
+        | durdurmak demek; henüz yayına girmemiş başvurunun karşılığı red.
+        */
+        'pending' => [TenantStatus::Trial, TenantStatus::Closed],
         'trial' => [TenantStatus::Active, TenantStatus::Suspended, TenantStatus::Closed],
         'active' => [TenantStatus::PastDue, TenantStatus::Suspended, TenantStatus::Closed],
         'past_due' => [TenantStatus::Active, TenantStatus::Suspended, TenantStatus::Closed],
