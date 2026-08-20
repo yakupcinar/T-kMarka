@@ -14,6 +14,20 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class VariantRequest extends FormRequest
 {
+    /**
+     * ⚠️ MESAJLAR ELLE YAZILIYOR: varsayılan metin alan adını olduğu gibi
+     * basıyor (*"options.renk metin olmalıdır"*) ve marka bunun eksen
+     * seçimi olduğunu anlamıyordu.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'options.*.string' => 'Her varyant ekseni için bir değer seçin.',
+        ];
+    }
+
     /** @return array<string, list<string>> */
     public function rules(): array
     {
@@ -30,6 +44,27 @@ class VariantRequest extends FormRequest
             'is_active' => ['nullable', 'boolean'],
 
             'options' => ['present', 'array'],
+
+            /*
+            | ⚠️ `required` — ve gerekçesi `ConvertEmptyStringsToNull`.
+            |
+            | Ekrandaki eksen seçicisinin boş seçeneği `value=""`
+            | gönderiyor; global middleware onu **null**'a çeviriyor ve
+            | `string` kuralı null'da düşüyor. Marka *"options.renk metin
+            | olmalıdır"* uyarısı alıyordu — ne dediği anlaşılmayan bir
+            | mesaj, üstelik ekranda hiç GÖRÜNMÜYORDU (hata anahtarı
+            | `options.renk`, arayüz `options` arıyordu).
+            |
+            | ⚠️ 4.5I.1'in aynısı, BEŞİNCİ kez: gizlemek/boş bırakmak
+            | göndermemek değildir.
+            |
+            | ⚠️ `required` DENENDİ VE ÇIKARILDI: gereksizdi. Anahtarın
+            | HİÇ gönderilmediği durumu Domain zaten yakalıyor
+            | (`VariantService::secenekleriDogrula` → *"'renk' ekseni
+            | eksik"*) ve kırma denemesi bunu gösterdi — kuralı
+            | kaldırınca test yine geçti. Buradaki iş yalnızca null'ı
+            | reddetmek ve mesajı anlaşılır kılmak.
+            */
             'options.*' => ['string', 'max:60'],
         ];
     }

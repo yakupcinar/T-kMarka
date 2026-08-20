@@ -151,9 +151,6 @@ veya dağıtım için izin gerekir.
 
 **Marka paneli — katalog**
 
-* Şirket Panelinden ürün->yeni üründe varyant ekseni eklemeden varyant ekleme butonuna basınca saçma bir sayfa açılıyor o butona varyant ekseni kaydetmeden tıklamayı engelleyelim ayrıca varyant ekseni seçmeden varyant eksenlerini kaydetmeyi de engelleyim o butonda çalışmasın eksen seçilmeden
-* Şirket panelinde ürünler -> yeni ürün -> Oluştur yapınca sayfada sadece ürün bilgileri kısmı kalıyor varyant görsel gelmiyor onların da o an gelmesi lazım (Ürünü oluşturup Ürünlere gidip ürüne tıklayınca bu sefer sekmeler sayfada oluyor)
-* Marka Panelinde ürünler'de arama saçma olmuş büyük küçük farketmez ama baştan sona benzeyeni listelemesi gerekiyor ama arama içinde olan harfe göre burda ve nerden başladığına bakmıyor normalde kelime başına bakması lazım.
 
 
 **Merkez yönetim**
@@ -188,13 +185,15 @@ veya dağıtım için izin gerekir.
 | Panelden sipariş durumu güncellenemiyor, iade açılamıyor | Panel → Siparişler → sipariş → **"Siparişi tamamla"** ve **"İade talebi aç"** | 4.5L |
 | Manuel koleksiyona ürün eklenemiyor | Panel → Ürünler → ürün → **"Koleksiyonlar"** kutucukları (koleksiyon ayrıntısındaki seçici de duruyor) | 4.5L |
 | İkinci varyant bozuk sayfa açıyor, eksen eklenemiyor | Panel → Ürünler → ürün → **"Varyant eksenleri"** → Renk seç → kaydet → her renk için varyant | 4.5L |
-| Ürün oluşturunca varyant/görsel bölümü gelmiyor | Panel → Ürünler → Yeni → Oluştur → bölümler **aynı anda** gelir | 4.5L |
 | Vitrinde iade seçeneği yok | Vitrin → Hesabım → sipariş → **"İade"** bölümü (adet + cayma/kusurlu + açıklama) | 4.5K |
 | Sepet sayacı sepetle uyuşmuyor, bekleyen siparişler birikiyor | Vitrin → giriş → sepete ekle → **rozet ile sepet aynı** · Hesabım → bekleyen siparişte **"Ödemeyi tamamla" / "iptal et"** | 4.5J |
 | Sipariş panele düşmemiş / saati yanlış | Vitrin → Hesabım → sipariş saati artık **mağaza saat diliminde** (panel zaten doğruydu) | 4.5M |
 | Yeni marka isteğini onay/red edeyim | Merkez → `/yonetim/markalar` → başvuru **`pending`** görünür → **Onayla / Reddet** (onayda deneme başlar) | 4.5N |
 | Stok yetmeyince ödeme ham JSON döndürüyor | Sepet → stok bağlıyken öde → **sepete döner, Türkçe mesaj** (JSON yok) | 4.5O |
 | Tünelden ödeme tamamlanıyor mu | `make kaldir` → gerçek 3DS/SMS akışı — kullanıcı doğruladı: **ödeme tamam, vitrinde "ödendi"**. ⚠️ Çerçeve içindeki dönüş ekranı hâlâ bozuk (açık listede) | 4.5M |
+| Eksen kaydetmeden varyant ekleyince bozuk sayfa | Panel → ürün → eksen seçmeden **düğmeler kapalı**; boş değerle denersen *"Her varyant ekseni için bir değer seçin."* | 4.5P |
+| Ürün oluşturunca varyant/görsel gelmiyor | Panel → Ürünler → Yeni → Oluştur → bölümler **aynı anda** gelir | 4.5L · 4.5P |
+| Panelde arama kelime ortasından eşleşiyor | Panel → Ürünler → ara: **`iş` boş döner**, `cüz` → Deri Cüzdan | 4.5P |
 | Ürün oluşturunca varyant sayfasına gitmiyor | `POST /yonetim/urunler` → `302 → /yonetim/urunler/{uuid}` — **ölçüldü, zaten doğruydu** | 4.5G |
 
 > ⚠️ Ürün oluşturma yönlendirmesi doğru çalışıyor ama **açılan sayfada

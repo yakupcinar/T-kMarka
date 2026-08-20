@@ -88,6 +88,13 @@ watch(() => props.urun?.uuid, () => {
   secilenEksenler.value = (props.urun?.options ?? []).map((e) => e.uuid)
 }, { immediate: true })
 
+/*
+ | ⚠️ EKSEN SEÇİLMEDEN "kaydet" ANLAMSIZ. Sunucu boş listeyi kabul ediyor
+ | (eksensiz ürün geçerli bir şey) ama marka düğmeye basıp hiçbir şeyin
+ | değişmediğini görüyordu.
+ */
+const eksenSecildi = computed(() => secilenEksenler.value.length > 0)
+
 function eksenleriKaydet() {
   router.post(`/yonetim/urunler/${props.urun.uuid}/eksenler`, {
     option_uuids: secilenEksenler.value,
@@ -96,6 +103,30 @@ function eksenleriKaydet() {
 
 /* Ürünün kullandığı eksenler — varyant formundaki seçiciler bunlardan. */
 const urunEksenleri = computed(() => props.urun?.options ?? [])
+
+/*
+ | ★ VARYANT EKLEME KOŞULU (4.5P).
+ |
+ | ⚠️ Gerçek kullanımda bulundu: eksen seçilip KAYDEDİLMEDEN "Ekle"ye
+ | basılıyordu. Ekranda eksen seçicisi yok (ürünün kayıtlı ekseni yok),
+ | boş `options` gidiyor ve ürün eksensiz bir varyant kazanıyordu —
+ | sonra eksen ARTIK KİLİTLİ (varyant var) ve marka çıkmaza giriyordu.
+ |
+ | ⚠️ Ayrıca kayıtlı eksen VARSA her biri için değer seçilmiş olmalı;
+ | boş seçim sunucuda "Her varyant ekseni için bir değer seçin" ile
+ | dönüyordu ama düğmeyi baştan kapatmak markaya bir tur kazandırıyor.
+ */
+const eksenBekliyor = computed(
+  () => (props.eksenler?.length ?? 0) > 0
+    && urunEksenleri.value.length === 0
+    && !props.urun?.eksen_kilitli,
+)
+
+const varyantEklenebilir = computed(() => {
+  if (eksenBekliyor.value) return false
+
+  return urunEksenleri.value.every((e) => (varyant.options[e.slug] ?? '') !== '')
+})
 
 /*
  | ★ KOLEKSİYON ÜYELİĞİ ÜRÜN TARAFINDAN (4.5L).
@@ -308,10 +339,14 @@ function urunSil() {
             </label>
           </div>
 
+          <!-- ⚠️ Eksen seçilmeden kaydetmek anlamsız: sunucu kabul ediyor
+               ama ekranda hiçbir şey değişmiyor ve marka düğmenin bozuk
+               olduğunu sanıyordu. -->
           <button
             v-if="!urun.eksen_kilitli"
             type="button"
-            class="rounded-lg border border-stone-300 px-3 py-2 text-sm"
+            class="rounded-lg border border-stone-300 px-3 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            :disabled="!eksenSecildi"
             @click="eksenleriKaydet"
           >Eksenleri kaydet</button>
         </template>
@@ -401,17 +436,37 @@ function urunSil() {
             <input v-model="varyant.stock" type="number" min="0" placeholder="Stok" class="rounded-lg border border-stone-300 px-3 py-2 text-sm">
           </div>
 
-          <p v-if="varyant.errors.sku" class="text-sm text-red-700 mb-2">{{ varyant.errors.sku }}</p>
-          <p v-if="varyant.errors.price" class="text-sm text-red-700 mb-2">{{ varyant.errors.price }}</p>
           <!-- ⚠️ Seçenek hatası GÖSTERİLMELİ: "bu birleşimde zaten varyant
                var" mesajı burada çıkmazsa marka neden eklenmediğini
                göremez — eskiden ham 500 alıyordu. -->
-          <p v-if="varyant.errors.options" class="text-sm text-red-700 mb-2">{{ varyant.errors.options }}</p>
+          <!--
+            ⚠️ HATA ANAHTARI `options.renk` GİBİ — `options` değil. Yalnızca
+            `errors.options` gösterildiği için sunucunun döndürdüğü uyarı
+            ekranda HİÇ GÖRÜNMÜYORDU: marka düğmeye basıyor, hiçbir şey
+            olmuyordu.
+          -->
+          <p v-for="(mesaj, alan) in varyant.errors" :key="alan" class="text-sm text-red-700 mb-2">
+            {{ mesaj }}
+          </p>
+
+          <!--
+            ⚠️ EKSEN KAYDEDİLMEDEN VARYANT EKLENEMEZ (4.5P).
+
+            Marka eksenleri işaretleyip KAYDETMEDEN "Ekle"ye basıyordu:
+            boş `options` gidiyor, ürün eksensiz bir varyant kazanıyor ve
+            eksenler ARTIK KİLİTLENİYOR (varyant var) — marka çıkmaza
+            giriyordu.
+          -->
+          <p v-if="eksenBekliyor" class="text-sm text-amber-700 mb-2">
+            Önce eksenleri seçip <strong>“Eksenleri kaydet”</strong>e basın.
+            Bu ürün eksensiz kalacaksa eksen seçmeden devam edebilirsiniz —
+            ama varyant eklendikten sonra eksen değiştirilemez.
+          </p>
 
           <button
             type="button"
-            class="rounded-lg border border-stone-300 px-3 py-2 text-sm"
-            :disabled="varyant.processing"
+            class="rounded-lg border border-stone-300 px-3 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            :disabled="varyant.processing || !varyantEklenebilir"
             @click="varyantEkle"
           >Ekle</button>
         </div>

@@ -437,26 +437,6 @@ it('★★ OLUSTURMA EKRANI KATEGORI LISTESINI de gonderiyor', function () {
 | varyant HER ZAMAN patlıyordu — üstelik ham 500 ile.
 */
 
-/**
- * Eksen + değerleri — iki servis çağrısı tek yerde.
- *
- * ⚠️ Ad çakışması kontrol edildi (`grep -rn "function eksenli" tests/`):
- * test dosyalarındaki fonksiyonlar GLOBAL, aynı ad iki dosyada olursa
- * PHP "cannot redeclare" ile ölür (4.5H'de yaşandı).
- *
- * @param  list<string>  $degerler
- */
-function eksenliDeger(string $ad, array $degerler): Option
-{
-    $eksen = app(OptionService::class)->olustur($ad);
-
-    foreach ($degerler as $sira => $deger) {
-        app(OptionService::class)->degerEkle($eksen, $deger, null, $sira);
-    }
-
-    return $eksen->refresh()->load('values');
-}
-
 it('★★★ EKSENSIZ ikinci varyant ANLASILIR mesajla reddediliyor — 500 DEGIL', function () {
     ['sahip' => $sahip] = markaKur('marka-a.test');
 

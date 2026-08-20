@@ -6115,6 +6115,62 @@ isteğin host'undan türüyor).
 
 ---
 
+### 4.5P — panel katalog cilası  ◀ AÇIK
+
+Üç şikâyet, üçü de gerçek kullanımdan.
+
+**✅ 1 · Eksen değeri boş bırakılınca anlaşılmaz hata.** `ConvertEmptyStringsToNull`
+**beşinci kez**: seçicinin boş seçeneği `value=""` gönderiyor, middleware
+onu **null**'a çeviriyor, `string` kuralı düşüyor ve marka
+*"options.renk metin olmalıdır"* uyarısı alıyordu.
+
+> ⚠️ **Üstelik uyarı EKRANDA HİÇ GÖRÜNMÜYORDU:** hata anahtarı
+> `options.renk`, arayüz ise `errors.options` arıyordu. Marka düğmeye
+> basıyor, hiçbir şey olmuyordu — bildirilen "saçma sayfa" buydu.
+> Artık tüm hatalar döngüyle basılıyor.
+>
+> ⚠️ **Düğmeler de kapatıldı:** eksen kaydedilmeden "Ekle" ve eksen
+> seçilmeden "Eksenleri kaydet" çalışmıyor. Sunucu tarafı zaten
+> koruyordu; ekran markaya bir tur kazandırıyor.
+>
+> ⚠️ Eksen kaydedilmeden varyant eklemenin bedeli ağırdı: boş `options`
+> gidiyor, ürün eksensiz bir varyant kazanıyor ve eksenler **artık
+> kilitli** (varyant var) — marka çıkmaza giriyordu.
+
+**⚠️ KIRMA DENEMESİ BİR KURALIN GEREKSİZ OLDUĞUNU GÖSTERDİ.** İstek
+kuralına `required` eklemiştim; kaldırdığımda test **yine geçti** —
+çünkü koruma orada değil **Domain'de**: `VariantService` eksik ekseni
+zaten reddediyor. Kural 4.5E'deki "ölü koruma" dersine uyarak
+**çıkarıldı**; testin yorumunda gerekçesi yazılı.
+
+**✅ 2 · Ürün oluşturunca varyant/görsel bölümü.** 4.5L'de düzeltilmişti
+(Inertia bileşen yeniden kullanımı); sunucu tarafı artık testle
+sabitlendi — prop'lar iki ekrana da gitmezse düzeltme çalışamaz.
+
+**✅ 3 · Arama kelime ortasından eşleşiyordu.** `ILIKE '%kelime%'` ile
+"iş" araması **"Tişört"ü** getiriyordu.
+
+> `title ~* '\mkelime'` — `\m` POSIX'te **kelime başı** sınırı, `~*`
+> büyük/küçük harf ayrımı yapmıyor. "cüz" → "Deri Cüzdan" eşleşiyor,
+> "üzd" eşleşmiyor.
+>
+> ⚠️ Yalnızca `ILIKE 'kelime%'` (başlığın başı) yazılsaydı "Kahverengi
+> Deri Çanta" ürünü "deri" aramasında **hiç çıkmazdı** — testi var.
+>
+> ⚠️ **Desen kaçırılıyor:** kullanıcının yazdığı metin doğrudan düzenli
+> ifadeye giriyor. Kaçırılmasaydı `.*` yazan biri tüm kataloğu döndürür,
+> yarım bir desen (`(`) ise sorguyu **patlatırdı**. İkisinin de testi var.
+>
+> ⚠️ Başlıkla **başlayanlar önce** sıralanıyor; yoksa marka aradığını
+> listenin ortasında arardı.
+
+**Dört kırma denemesi; üçü düştü, biri kuralın gereksiz olduğunu
+gösterdi.** **Doğrulandı (gerçek panel isteği):** boş eksen → *"Her
+varyant ekseni için bir değer seçin."* · `q=iş` → **boş**, `q=cüz` →
+Deri Cüzdan, `q=deri` → Deri Cüzdan. **792 test.**
+
+---
+
 ### Faz 4.5'in kalan blokları  *(gerçek kullanımdan çıktı)*
 
 4.5I'den sonra kullanıcı listesi yeniden düzenlendi (`README.md` →

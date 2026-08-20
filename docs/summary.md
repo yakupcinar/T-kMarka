@@ -2460,3 +2460,35 @@ FAZ 5 SIRADA — kargo firmaları · e-fatura/e-arşiv
       ödeme tamamlandı, vitrinde "ödendi" göründü
       ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS yalnızca .localhost
       erişiminin yan etkisiymiş; kod değişikliği gerekmedi
+
+4.5P ✅ PANEL KATALOG CİLASI — 792 test
+
+      ✅ 1) EKSEN DEĞERİ BOŞ → ANLAŞILMAZ HATA
+        ConvertEmptyStringsToNull BEŞİNCİ KEZ: value="" → null →
+        `string` düşüyor → "options.renk metin olmalıdır"
+        ⚠️ UYARI EKRANDA HİÇ GÖRÜNMÜYORDU: anahtar `options.renk`,
+          arayüz `errors.options` arıyordu → düğmeye basılıyor, hiçbir
+          şey olmuyordu ("saçma sayfa" buydu)
+        ⚠️ düğmeler kapatıldı: eksen kaydedilmeden "Ekle", eksen
+          seçilmeden "Eksenleri kaydet" çalışmıyor
+        ⚠️ bedeli ağırdı: eksensiz varyant eklenince eksenler ARTIK
+          KİLİTLİ, marka çıkmaza giriyordu
+
+      ⚠️ KIRMA DENEMESİ BİR KURALIN GEREKSİZ OLDUĞUNU GÖSTERDİ
+        isteğe `required` eklemiştim, kaldırınca test YİNE GEÇTİ
+        koruma orada değil DOMAIN'de (VariantService eksik ekseni
+        zaten reddediyor) → kural çıkarıldı (4.5E "ölü koruma" dersi)
+
+      ✅ 2) ÜRÜN OLUŞTURUNCA VARYANT/GÖRSEL — 4.5L'de düzeltilmişti,
+        sunucu tarafı artık testle sabitlendi
+
+      ✅ 3) ARAMA KELİME ORTASINDAN EŞLEŞİYORDU
+        ILIKE '%kelime%' → "iş" araması "Tişört"ü getiriyordu
+        title ~* '\mkelime' — \m kelime başı sınırı, ~* harf duyarsız
+        ⚠️ yalnızca 'kelime%' olsaydı "Kahverengi Deri Çanta" ürünü
+          "deri" aramasında HİÇ ÇIKMAZDI
+        ⚠️ DESEN KAÇIRILIYOR: `.*` tüm kataloğu döndürürdü, `(` sorguyu
+          PATLATIRDI — ikisinin de testi var
+        ⚠️ başlıkla başlayanlar ÖNCE
+
+      DOĞRULANDI (gerçek panel): q=iş → boş · q=cüz → Deri Cüzdan

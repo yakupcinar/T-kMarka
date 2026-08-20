@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Cart\CartService;
+use App\Domain\Catalog\OptionService;
 use App\Domain\Catalog\ProductService;
 use App\Domain\Catalog\VariantService;
 use App\Domain\Identity\DefaultRoles;
@@ -18,6 +19,7 @@ use App\Enums\ProductStatus;
 use App\Enums\SettingGroup;
 use App\Enums\TenantStatus;
 use App\Models\Customer;
+use App\Models\Option;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Product;
@@ -656,4 +658,27 @@ function merkezKullanici(string $eposta = 'yonetici@tikmarka.test'): PlatformUse
     $kullanici->save();
 
     return $kullanici->refresh();
+}
+
+/**
+ * Eksen + değerleri — iki servis çağrısı tek yerde. (4.5L)
+ *
+ * ⚠️ `tests/Pest.php`'de çünkü İKİ dosya kullanıyor
+ * (`PanelKatalogAyarTest`, `PanelKatalogCilaTest`).
+ *
+ * ⚠️ Ad çakışması kontrol edildi (`grep -rn "function eksenli" tests/`):
+ * test dosyalarındaki fonksiyonlar GLOBAL, aynı ad iki dosyada olursa
+ * PHP "cannot redeclare" ile ölür (4.5H'de yaşandı).
+ *
+ * @param  list<string>  $degerler
+ */
+function eksenliDeger(string $ad, array $degerler): Option
+{
+    $eksen = app(OptionService::class)->olustur($ad);
+
+    foreach ($degerler as $sira => $deger) {
+        app(OptionService::class)->degerEkle($eksen, $deger, null, $sira);
+    }
+
+    return $eksen->refresh()->load('values');
 }

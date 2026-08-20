@@ -68,11 +68,32 @@ class ProductPageController extends Controller
 
         if ($kelime !== '') {
             /*
-            | ⚠️ Panelde ARAMA MOTORU (2C) kullanılmıyor, düz `ILIKE`.
-            | Arama motoru vitrin sorgusundan geçiyor ve taslakları
-            | elerdi — marka yeni eklediği taslağı arayamazdı.
+            | ⚠️ Panelde ARAMA MOTORU (2C) kullanılmıyor, düz desen
+            | eşleşmesi. Arama motoru vitrin sorgusundan geçiyor ve
+            | taslakları elerdi — marka yeni eklediği taslağı arayamazdı.
+            |
+            | ★ KELİME BAŞINDAN EŞLEŞME (4.5P). Önce `ILIKE '%kelime%'`
+            | vardı ve KELİME ORTASINDAN eşleşiyordu: "iş" araması
+            | "Tişört"ü getiriyordu. Gerçek kullanımda bildirildi —
+            | *"nerden başladığına bakmıyor, normalde kelime başına
+            | bakması lazım."*
+            |
+            | `\m` POSIX'te KELİME BAŞI sınırı; `~*` büyük/küçük harf
+            | ayrımı yapmıyor. Böylece "cüz" → "Deri Cüzdan" eşleşiyor
+            | ama "üzd" eşleşmiyor.
+            |
+            | ⚠️ Desen KAÇIRILIYOR: kullanıcının yazdığı metin doğrudan
+            | düzenli ifadeye giriyor. Kaçırılmasaydı `.*` yazan biri tüm
+            | kataloğu döndürür, hatalı bir desen ise sorguyu patlatırdı.
             */
-            $sorgu->where('title', 'ILIKE', '%'.$kelime.'%');
+            $sorgu->whereRaw('title ~* ?', ['\m'.self::desenKacir($kelime)]);
+
+            /*
+            | ⚠️ BAŞLIKLA BAŞLAYANLAR ÖNCE. Sıralanmasaydı "Deri" araması
+            | "Kahverengi Deri Çanta"yı "Deri Cüzdan"dan önce
+            | getirebilirdi — marka aradığını listenin ortasında arardı.
+            */
+            $sorgu->orderByRaw('CASE WHEN title ILIKE ? THEN 0 ELSE 1 END', [$kelime.'%']);
         }
 
         $urunler = $sorgu->orderByDesc('id')->paginate(self::SAYFA)->withQueryString();
@@ -478,6 +499,17 @@ class ProductPageController extends Controller
         }
 
         return back()->with('mesaj', 'Eksenler ayarlandı. Şimdi varyantları ekleyebilirsiniz.');
+    }
+
+    /**
+     * POSIX düzenli ifade özel karakterlerini kaçırır.
+     *
+     * ⚠️ Kaçırılmasaydı `.*` yazan biri TÜM kataloğu döndürür, `(` gibi
+     * yarım bir desen ise sorguyu doğrudan patlatırdı.
+     */
+    private static function desenKacir(string $metin): string
+    {
+        return preg_replace('/[.\\\\+*?\\[^\\]$(){}=!<>|:\\-#\\/]/', '\\\\$0', $metin) ?? $metin;
     }
 
     /** @return list<array<string, mixed>> */
