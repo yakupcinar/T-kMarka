@@ -263,6 +263,41 @@ class CheckoutService
     }
 
     /**
+     * Müşteri siparişini kendi iptal ediyor. (4.5J)
+     *
+     * ★ NEDEN AYRI METOT: `odemeBasarisiz` "sağlayıcı reddetti" demek ve
+     * müşteriye *"ödemeniz alınamadı"* bildirimi gönderiyor. İptal eden
+     * müşteriye o postayı atmak yanlış bilgi vermek olurdu.
+     *
+     * ⚠️ Gerçek kullanımda bulundu: müşteri ödeme adımından geri çıkıyor,
+     * sipariş `pending` kalıyor ve "Siparişlerim"de birikiyordu — üstelik
+     * yapabileceği hiçbir şey yoktu. Bağlı stok da 60 dakika kimseye
+     * satılamıyordu; iptal onu HEMEN serbest bırakıyor.
+     *
+     * ⚠️ Yalnızca `pending`. Ödenmiş sipariş buradan iptal EDİLEMEZ —
+     * onun yolu iade (2B) ve para iadesi zinciri var. İzin verilseydi
+     * müşteri parasını geri almadan siparişini "iptal" eder, marka da
+     * göndermeyeceği bir siparişi tahsil etmiş olurdu.
+     *
+     * @throws OrderNotCancellableException
+     */
+    public function musteriIptali(Order $siparis): Order
+    {
+        if ($siparis->payment_status !== PaymentStatus::Pending) {
+            throw new OrderNotCancellableException($siparis->order_number, $siparis->payment_status);
+        }
+
+        foreach ($this->rezervasyonlari($siparis) as $rezervasyon) {
+            $this->stok->serbestBirak($rezervasyon);
+        }
+
+        $siparis->payment_status = PaymentStatus::Cancelled;
+        $siparis->save();
+
+        return $siparis;
+    }
+
+    /**
      * Onaylanan sözleşme sürümünü doğrular. (1A.4 · 1D-K2)
      *
      * ⚠️ Müşterinin GÖRDÜĞÜ sürüm gönderiliyor, "en son sürüm" değil.

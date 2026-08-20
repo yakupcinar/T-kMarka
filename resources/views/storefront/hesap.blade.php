@@ -56,7 +56,27 @@
                         </td>
                         <td>{{ $s->items->sum('quantity') }} ürün</td>
                         <td>{{ number_format((float) $s->grand_total, 2, ',', '.') }} TL</td>
-                        <td>{{ $odemeAdi[$s->payment_status->value] ?? $s->payment_status->value }}</td>
+                        <td>
+                            {{ $odemeAdi[$s->payment_status->value] ?? $s->payment_status->value }}
+
+                            {{--
+                                ⚠️ ÖDEME BEKLEYEN SİPARİŞE EYLEM (4.5J).
+                                Müşteri ödeme adımından geri çıkınca sipariş
+                                `pending` kalıyor ve listede birikiyordu —
+                                yapabileceği hiçbir şey yoktu. Bağlı stok da
+                                60 dakika kimseye satılamıyordu.
+                            --}}
+                            @if ($s->payment_status === \App\Enums\PaymentStatus::Pending)
+                                <div class="ipucu">
+                                    <a href="{{ route('vitrin.ode', $s->uuid) }}">Ödemeyi tamamla</a>
+                                    ·
+                                    <form method="post" action="{{ route('vitrin.hesap.iptal', $s->uuid) }}" style="display:inline">
+                                        @csrf
+                                        <button type="submit" class="baglanti-dugme">iptal et</button>
+                                    </form>
+                                </div>
+                            @endif
+                        </td>
                         <td>{{ $kargoAdi[$s->fulfillment_status->value] ?? $s->fulfillment_status->value }}</td>
                     </tr>
                 @endforeach

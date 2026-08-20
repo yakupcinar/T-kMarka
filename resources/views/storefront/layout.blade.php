@@ -175,6 +175,14 @@
         .aciklama { margin-top: 24px; color: #44403c; }
 
         /* SEPET */
+        /* ⚠️ Form içindeki eylem BAĞLANTI GİBİ görünüyor: "iptal et"
+           yıkıcı bir düğme gibi durmasın ama tıklanabilir olduğu belli
+           olsun. GET bağlantısı yapılamaz — iptal veri değiştiriyor. */
+        .baglanti-dugme {
+            background: none; border: 0; padding: 0; font: inherit;
+            color: #c2410c; cursor: pointer; text-decoration: underline;
+        }
+
         .sepet-tablo { width: 100%; border-collapse: collapse; margin: 24px 0; }
         .sepet-tablo td { border-bottom: 1px solid #e7e5e4; padding: 14px 8px; vertical-align: top; }
         .sepet-tablo tr.olu { opacity: .55; }

@@ -514,6 +514,18 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   panelde `CatalogRuleException`'ı **oturum hatasına** çevir — genel
   işleyici JSON döndürüyor ve o yalnızca `api/*` için doğru.
 
+- **KİMLİĞİ OKUMAK İLE VERİYİ ÇÖZMEK AYRI ŞEYLER — ikisi de tek kapıdan
+  geçmeli.** 4B'de "sepet kimliğini yalnızca `CartToken` okur" kuralı
+  kondu ve ölçüldü; ama sepeti **çözen** yol serbest kaldı.
+  `StorefrontViewData` (üst bardaki rozet) doğrudan `misafirSepetiBul()`
+  çağırıyordu, sayfa ise `CartResolver` kullanıyordu. 4.5J'de ısırdı ve
+  **iki yönü de sessizdi**: bayat misafir çerezi varken rozet dolu / sepet
+  boş; giriş yapmış müşterinin dolu sepetinde rozet **hiç çıkmıyor**.
+  ⚠️ Yapısal testi yazarken kapsamı **dar** tut: ilk hâli girişteki meşru
+  birleştirmeyi (misafir token'ını bilerek okur) ve **kendi yorum
+  metnini** ihlal sayıyordu — eşleşme çağrının kendisinde olmalı
+  (`->metot(`), ham metinde değil.
+
 ## Yapı
 
 ```

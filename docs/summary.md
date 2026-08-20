@@ -2335,3 +2335,29 @@ FAZ 5 SIRADA — kargo firmaları · e-fatura/e-arşiv
       DOĞRULANDI (gerçek curl)
         form görünüyor → talep açıldı → "Talep alındı, marka
         değerlendiriyor" → PANELDE iade listesinde
+
+4.5J ✅ SEPET SAYACI VE BEKLEYEN SİPARİŞ — 771 test
+      "sayaç 2 gösteriyor ama içine girince boş, 2'de sabit kaldı"
+
+      ✅ ROZET İLE SEPET SAYFASI AYRI YOLLARDAN OKUYORDU
+        rozet         → misafirSepetiBul(token)  ← YALNIZCA misafir
+        sepet sayfası → CartResolver::bul()      ← giriş varsa MÜŞTERİ
+        ⚠️ İKİ YÖN DE BOZUK, İKİSİ DE SESSİZ
+          bayat misafir çerezi → rozet dolu, sepet BOŞ (bildirilen)
+          giriş yapmış dolu sepet → rozet HİÇ ÇIKMIYOR (ölçüldü)
+        ⚠️ 4B'deki SepetKimligiTest'in İKİNCİ YARISI: kimliği OKUMAK bir
+          şey, o kimlikten sepeti ÇÖZMEK başka bir şey
+        ⚠️ yapısal testin KAPSAMI DAR: ilk hâli meşru kullanımı (girişte
+          birleştirme) ve KENDİ YORUM METNİNİ ihlal sayıyordu
+
+      ✅ BEKLEYEN SİPARİŞE EYLEM
+        "Ödemeyi tamamla" + "iptal et"
+        ⚠️ iptal odemeBasarisiz'dan AYRI METOT: o "sağlayıcı reddetti"
+          demek ve müşteriye "ödemeniz alınamadı" postası gönderiyor
+        ⚠️ ASIL KAZANÇ STOKTA: bağlı stok 60 dk kimseye satılamıyordu,
+          iptal HEMEN serbest bırakıyor (testi ölçüyor)
+        ⚠️ yalnızca pending — ödenmişe izin verilseydi müşteri PARASINI
+          GERİ ALMADAN siparişini kapatırdı
+
+      DOĞRULANDI (gerçek curl)
+        rozet 2 = sepet sayfası 2 · iptal → cancelled

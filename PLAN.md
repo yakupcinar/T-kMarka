@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ──────── şu an: 4.5K BİTTİ, 4.5J-M-N SIRADA ┐
+┌─ YOL HARİTASI ──────── şu an: 4.5J BİTTİ, 4.5M-N SIRADA ┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -5880,6 +5880,58 @@ denemesi düştü.
 fazla 1", cayma/kusurlu seçenekleri) → talep açıldı → sayfada *"Talep
 alındı, marka değerlendiriyor"* → **panelde iade listesinde**. **764
 test.**
+
+---
+
+### 4.5J — sepet sayacı ve bekleyen sipariş  ◀ AÇIK
+
+Şikâyet: *"Sağ üstteki sayaç 2 gösteriyor ama içine girince boş… işlemi
+tekrarlayınca siparişler arttı, sayı 2'de sabit kaldı."*
+
+**✅ Rozet ile sepet sayfası AYRI YOLLARDAN okuyordu.** `StorefrontViewData`
+doğrudan `misafirSepetiBul()` çağırıyor, sepet sayfası ise
+[CartResolver] kullanıyordu — giriş yapmışsa müşteri sepetini çözen tek
+yol o.
+
+```
+rozet         → misafirSepetiBul(token)     ← YALNIZCA misafir
+sepet sayfası → CartResolver::bul()         ← giriş varsa MÜŞTERİ sepeti
+```
+
+> ⚠️ **İki yön de bozuk, ikisi de sessiz:**
+> bayat misafir çerezi duruyorsa → rozet dolu, sepet **boş** (bildirilen)
+> giriş yapmış müşterinin dolu sepetinde → rozet **hiç çıkmıyor** (ölçüldü)
+>
+> ⚠️ Bu, 4B'deki `SepetKimligiTest`'in **ikinci yarısı**: kimliği okumak
+> bir şey, o kimlikten sepeti **çözmek** başka bir şey. Yapısal test
+> eklendi — sepeti gösteren sayfalar `CartResolver` kullanmak zorunda.
+>
+> ⚠️ Testin **kapsamı dar tutuldu**: ilk hâli meşru kullanımı da
+> yakalıyordu (girişte sepet birleştirme misafir token'ını *bilerek*
+> okuyor, 1C-K5) ve üstelik **kendi yorum metnini** ihlal sayıyordu.
+
+**✅ Bekleyen siparişe eylem verildi.** Müşteri ödeme adımından geri
+çıkınca sipariş `pending` kalıyor ve "Siparişlerim"de birikiyordu —
+yapabileceği hiçbir şey yoktu. Artık **"Ödemeyi tamamla"** ve **"iptal
+et"** var.
+
+> ⚠️ İptal `odemeBasarisiz`'dan **ayrı metot**: o "sağlayıcı reddetti"
+> demek ve müşteriye *"ödemeniz alınamadı"* postası gönderiyor. İptal
+> eden müşteriye o postayı atmak yanlış bilgi vermek olurdu.
+>
+> ⚠️ **Asıl kazanç stokta:** bağlı stok 60 dakika kimseye satılamıyordu
+> (`StockService::ODEME_DAKIKA`); iptal onu **hemen** serbest bırakıyor.
+> Testi bunu ölçüyor.
+>
+> ⚠️ Yalnızca `pending` iptal edilebiliyor. Ödenmiş siparişe izin
+> verilseydi müşteri **parasını geri almadan** siparişini kapatır, marka
+> da göndermeyeceği bir siparişi tahsil etmiş olurdu — onun yolu iade
+> (2B/4.5K).
+
+**Dört kırma denemesi + yapısal testin kendi kırma denemesi, hepsi
+düştü.** **Doğrulandı (gerçek `curl`):** rozet **2**, sepet sayfası **2**
+· hesabımda "Ödemeyi tamamla" ve "iptal et" görünüyor · iptal →
+`payment_status = cancelled`. **771 test.**
 
 ---
 

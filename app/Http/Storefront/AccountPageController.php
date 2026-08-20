@@ -4,6 +4,8 @@ namespace App\Http\Storefront;
 
 use App\Domain\Cart\CartService;
 use App\Domain\Identity\CustomerAuthService;
+use App\Domain\Order\CheckoutService;
+use App\Domain\Order\OrderNotCancellableException;
 use App\Domain\Returns\OverReturnException;
 use App\Domain\Returns\ReturnNotRefundableException;
 use App\Domain\Returns\ReturnService;
@@ -42,6 +44,7 @@ class AccountPageController extends Controller
         private readonly CartService $sepetler,
         private readonly ReturnService $iadeler,
         private readonly WithdrawalWindow $pencere,
+        private readonly CheckoutService $siparisler,
     ) {}
 
     public function girisFormu(): View|RedirectResponse
@@ -163,6 +166,39 @@ class AccountPageController extends Controller
                 strict: true,
             ),
         ]);
+    }
+
+    /**
+     * Müşteri ödemesi tamamlanmamış siparişini iptal eder. (4.5J)
+     *
+     * ⚠️ Gerçek kullanımda bulundu: müşteri ödeme adımından geri çıkıyor,
+     * sipariş `pending` kalıyor ve "Siparişlerim"de birikiyordu —
+     * yapabileceği hiçbir şey yoktu. Bağlı stok da 60 dakika kimseye
+     * satılamıyordu.
+     *
+     * ⚠️ İş kuralı SERVİSTE (`CheckoutService::musteriIptali`): hangi
+     * durumun iptal edilebileceği ve rezervasyonun serbest bırakılması
+     * oraya ait. Burada yazılsaydı aynı kural artisan komutundan
+     * geçilebilirdi.
+     */
+    public function siparisIptal(Request $istek, Order $siparis): RedirectResponse
+    {
+        $musteri = $this->musteri($istek);
+
+        abort_unless($siparis->customer_id === $musteri->id, 404);
+
+        try {
+            $this->siparisler->musteriIptali($siparis);
+        } catch (OrderNotCancellableException) {
+            /*
+            | ⚠️ ANLAŞILIR MESAJ: servisin istisnası durum adını söylüyor.
+            | Müşteri "ödenmiş siparişi neden iptal edemiyorum" sorusunun
+            | cevabını da burada görüyor.
+            */
+            return back()->with('hata', 'Bu sipariş iptal edilemez. Ödemesi tamamlanmış siparişler için iade talebi açabilirsiniz.');
+        }
+
+        return back()->with('mesaj', 'Siparişiniz iptal edildi.');
     }
 
     /**

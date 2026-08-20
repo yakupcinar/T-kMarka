@@ -580,3 +580,31 @@ function iadeciGirisi(Customer $musteri, string $alanAdi = 'marka-a.test'): void
         'password' => 'sifre1234',
     ])->assertRedirect();
 }
+
+/**
+ * GERÇEK ödeme akışıyla `pending` sipariş üretir. (4.5J)
+ *
+ * ⚠️ Fabrika yerine gerçek akış: `Order::factory()` yok ve olsaydı bile
+ * stok rezervasyonunu kurmazdı — "iptal stoğu serbest bırakıyor mu"
+ * iddiası ölçülemezdi.
+ *
+ * ⚠️ Burada — `tests/Pest.php`'de — çünkü `test()` bağlaması için
+ * `phpstan.neon` istisnası YALNIZCA bu dosyaya tanımlı (`panelTokeni` ve
+ * `iadeciGirisi` ile aynı gerekçe).
+ */
+function bekleyenSiparis(ProductVariant $varyant, Customer $musteri, int $adet = 1): Order
+{
+    test()->post('http://marka-a.test/giris', ['email' => $musteri->email, 'password' => 'sifre1234']);
+    test()->post('http://marka-a.test/sepet/ekle', ['variant_uuid' => $varyant->uuid, 'quantity' => $adet]);
+
+    $sozlesme = app(LegalDocumentService::class)->guncelSurum(LegalDocumentType::DistanceSales);
+
+    test()->post('http://marka-a.test/odeme', [
+        'email' => $musteri->email,
+        'legal_version_id' => $sozlesme?->id,
+        'sozlesme_onay' => '1',
+        'shipping' => ornekAdres(),
+    ])->assertRedirect();
+
+    return Order::orderByDesc('id')->firstOrFail();
+}

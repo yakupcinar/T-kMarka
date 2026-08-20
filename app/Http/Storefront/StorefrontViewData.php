@@ -2,7 +2,6 @@
 
 namespace App\Http\Storefront;
 
-use App\Domain\Cart\CartService;
 use App\Domain\Settings\ThemeSettings;
 use App\Models\ProductCollection;
 use Illuminate\Http\Request;
@@ -25,7 +24,7 @@ class StorefrontViewData
 {
     public function __construct(
         private readonly ThemeSettings $tema,
-        private readonly CartService $sepetler,
+        private readonly CartResolver $coz,
     ) {}
 
     public function compose(View $gorunum): void
@@ -70,23 +69,32 @@ class StorefrontViewData
      * görünür sebebi: `X-Cart-Token` başlığı tek yol olarak kalsaydı
      * tarayıcı düz gezinmede onu gönderemez ve burada hep 0 yazardı.
      *
-     * ⚠️ Hata YUTULUYOR değil — sepet bulunamazsa 0 doğru cevap. Ama
-     * sepet AÇILMIYOR: her sayfa görüntülemesi boş sepet yaratsaydı
-     * veritabanı, hiç alışveriş yapmayan ziyaretçilerin sepetleriyle
-     * dolardı (terk edilmiş sepet raporunu da bozardı, 2F).
+     * ★ SEPET [CartResolver] ÜZERİNDEN ÇÖZÜLÜYOR — kendi yolu YOK. (4.5J)
+     *
+     * ⚠️ Burada `misafirSepetiBul()` doğrudan çağrılıyordu, yani rozet
+     * YALNIZCA misafir sepetini sayıyordu. Sepet sayfası ise
+     * [CartResolver] kullanıyor ve giriş yapmışsa MÜŞTERİ sepetini
+     * çözüyor. İki farklı yol, iki farklı cevap:
+     *
+     *   giriş yapmış müşterinin dolu sepeti → rozet hiç çıkmıyor
+     *   bayat misafir çerezi duruyorsa      → rozet dolu, sepet BOŞ
+     *
+     * ⚠️ İkincisi gerçek kullanımda bildirildi: *"sağ üstteki sayaç 2
+     * gösteriyor ama içine girince boş… sayı 2'de sabit kaldı."*
+     * Ölçüldüğünde AYNANIN ÖTEKİ YÜZÜ çıktı — sepette 2 ürün varken
+     * rozet hiç görünmüyordu. Tek kök: iki ayrı çözüm yolu.
+     *
+     * ⚠️ Sepet AÇILMIYOR (`bul`, `bulYaDaAc` değil): her sayfa
+     * görüntülemesi boş sepet yaratsaydı veritabanı, hiç alışveriş
+     * yapmayan ziyaretçilerin sepetleriyle dolardı (terk edilmiş sepet
+     * raporunu da bozardı, 2F).
      */
     private function sepetAdedi(): int
     {
         /** @var Request $istek */
         $istek = request();
 
-        $token = CartToken::oku($istek);
-
-        if ($token === null) {
-            return 0;
-        }
-
-        $sepet = $this->sepetler->misafirSepetiBul($token);
+        $sepet = $this->coz->bul($istek);
 
         return $sepet === null ? 0 : (int) $sepet->items()->sum('quantity');
     }

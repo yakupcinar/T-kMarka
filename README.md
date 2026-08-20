@@ -146,9 +146,9 @@ veya dağıtım için izin gerekir.
 
 **Vitrin — sipariş / ödeme**
 
-* Şirket Panelinden ürün->yeni üründe varyant ekseni eklemede
+* Vitrinde ödemeyi yaptım iyzicodan web in web kısmında ödeme yapıldı ama web in webde karşıma açılamayan bir sayfa çıktı bunu kullanıcının görmesini istemiyoruz onun yerine ödemeniz yapıld ve yapılmadı gibi bir sayfa açılması gerekmez mi bu iyziconun yaptığı bir şey değilse biz ödeme işlemi bittiği gibi web in webi kapatıp kendimiz yazalım ödeme başarılı ya da başarız diye bunu bir araştır unutma iyzico sandbox kullanıyoruz
+* Şirket Panelinden ürün->yeni üründe varyant ekseni eklemeden varyant ekleme butonuna basınca saçma bir sayfa açılıyor o butona varyant ekseni kaydetmeden tıklamayı engelleyelim ayrıca varyant ekseni seçmeden varyant eksenlerini kaydetmeyi de engelleyim o butonda çalışmasın eksen seçilmeden
 * Vitrinden sipariş ödemesini yaptım, vitrinde "ödendi, hazırlanıyor" yazıyor; marka paneline baktım oraya ya düşmemiş ya da saati yanlış düşmüş — bunun testini yap.
-* Sepete ürün koydum, ödeme kısmına kadar geldim, sonra geri çıktım. Siparişlerimde "ödeme bekleniyor" diye duruyor. Sağ üstteki sayaç 2 gösteriyor ama içine girince boş. İşlemi tekrarlayınca siparişler arttı, sağ üstteki sayı 2'de sabit kaldı.
 * Sepette stok yetmediğinde ödeme düğmesi tarayıcıya **ham JSON** döndürüyor (`{"message":"'DC-1' için yeterli stok yok…"}`). 4A/4B/4.5G'de kapatılan hatanın **dördüncüsü** — ölçüldü.
 * `https://marka-a.localhost/odeme/ode/` — sandbox değeriyle ödeme çalıştı, SMS'i girince aşağıdaki hataya düştü. Geçerli/geçersiz kart fark etmeksizin vitrinde kullanıcıya **mesaj dönmüyor** ve sayfanın içindeki sayfa (web in web) kalıyor.
 * Sepete gittim iletişim kısmına test@gmail.com yazdım sonra ödeme kısmına gittim doğru sandbox kart bilgilerini yazdım sms geldi doğru yazdım web in web kaybolmuyor iyziconun yerine ama açılmamış bir sayfa geliyor errorlu hesabıma geri dönünce bakıyorum ödeme yapılmış hazırlanıyor diyor.
@@ -205,6 +205,7 @@ to connect to devices or servers on your local network.
 | İkinci varyant bozuk sayfa açıyor, eksen eklenemiyor | Panel → Ürünler → ürün → **"Varyant eksenleri"** → Renk seç → kaydet → her renk için varyant | 4.5L |
 | Ürün oluşturunca varyant/görsel bölümü gelmiyor | Panel → Ürünler → Yeni → Oluştur → bölümler **aynı anda** gelir | 4.5L |
 | Vitrinde iade seçeneği yok | Vitrin → Hesabım → sipariş → **"İade"** bölümü (adet + cayma/kusurlu + açıklama) | 4.5K |
+| Sepet sayacı sepetle uyuşmuyor, bekleyen siparişler birikiyor | Vitrin → giriş → sepete ekle → **rozet ile sepet aynı** · Hesabım → bekleyen siparişte **"Ödemeyi tamamla" / "iptal et"** | 4.5J |
 | Ürün oluşturunca varyant sayfasına gitmiyor | `POST /yonetim/urunler` → `302 → /yonetim/urunler/{uuid}` — **ölçüldü, zaten doğruydu** | 4.5G |
 
 > ⚠️ Ürün oluşturma yönlendirmesi doğru çalışıyor ama **açılan sayfada

@@ -633,6 +633,13 @@ Route::middleware([
         | pratikte ULAŞILAMAZ bir özellikti.
         */
         Route::post('/hesabim/siparis/{siparis:uuid}/iade', [AccountPageController::class, 'iadeAc'])->name('vitrin.hesap.iade');
+
+        /*
+        | ⚠️ Müşteri iptali (4.5J): ödeme adımından geri çıkan müşterinin
+        | siparişi `pending` kalıyor, "Siparişlerim"de birikiyor ve bağlı
+        | stok 60 dakika kimseye satılamıyordu.
+        */
+        Route::post('/hesabim/siparis/{siparis:uuid}/iptal', [AccountPageController::class, 'siparisIptal'])->name('vitrin.hesap.iptal');
         Route::get('/hesabim/adresler', [AccountPageController::class, 'adresler'])->name('vitrin.adresler');
         Route::post('/hesabim/adresler', [AccountPageController::class, 'adresEkle'])->name('vitrin.adres.ekle');
         Route::delete('/hesabim/adresler/{adres}', [AccountPageController::class, 'adresSil'])->name('vitrin.adres.sil');

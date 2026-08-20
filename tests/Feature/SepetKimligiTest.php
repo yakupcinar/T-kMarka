@@ -66,3 +66,47 @@ it('★ sepet kimligini SADECE CartToken okuyor', function () {
 
     expect($yakalananlar)->toBe([], "Başlık doğrudan okunuyor:\n".implode("\n", $yakalananlar));
 });
+
+/*
+| SEPETİ ÇÖZEN TEK YOL [CartResolver]. (4.5J)
+|
+| ★ Yukarıdaki testin ikinci yarısı: kimliği okumak bir şey, o kimlikten
+| SEPETİ ÇÖZMEK başka bir şey. `StorefrontViewData` (üst bardaki rozet)
+| kendi yolunu açmıştı — `misafirSepetiBul()` çağırıyordu.
+|
+| ⚠️ Bedeli iki yönlüydü ve ikisi de SESSİZ:
+|
+|   giriş yapmış müşterinin dolu sepeti → rozet HİÇ ÇIKMIYOR
+|   bayat misafir çerezi duruyorsa      → rozet DOLU, sepet sayfası BOŞ
+|
+| İkincisi gerçek kullanımda bildirildi: "sayaç 2 gösteriyor ama içine
+| girince boş… sayı 2'de sabit kaldı."
+*/
+it('★★★ SEPETI GOSTEREN sayfalar CartResolver kullaniyor', function () {
+    /*
+    | ⚠️ KAPSAM DAR ve bilerek: kural "sepeti EKRANDA GÖSTEREN sayfa
+    | kendi çözüm yolunu açmasın". Geniş tarama meşru kullanımı da
+    | yakalıyordu:
+    |
+    |   AccountPageController → GİRİŞTE misafir sepetini birleştiriyor;
+    |     oturum daha açılmadan misafir token'ını okumak ZORUNDA (1C-K5)
+    |   api/* controller'ları → kimlik sanctum token'ında, `CartResolver`
+    |     sayfa katmanı için yazıldı (4.5I'deki guard ayrımının aynısı)
+    |
+    | ⚠️ Yorumlar SAYILMIYOR: eşleşme çağrının kendisinde (`->metot(`).
+    | İlk yazılışında yorum metni de yakalanıyordu — test kendi
+    | belgelemesini "ihlal" sayıyordu.
+    */
+    $sayfalar = [
+        'CartPageController.php',
+        'CheckoutPageController.php',
+        'StorefrontViewData.php',
+    ];
+
+    foreach ($sayfalar as $dosya) {
+        $icerik = (string) file_get_contents(app_path('Http/Storefront/'.$dosya));
+
+        expect($icerik)->not->toMatch('/->\s*misafirSepetiBul\s*\(/', $dosya.' sepeti CartResolver dışında çözüyor')
+            ->and($icerik)->not->toMatch('/->\s*musteriSepeti\s*\(/', $dosya.' sepeti CartResolver dışında çözüyor');
+    }
+});
