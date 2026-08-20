@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Domain\Settings\StoreTimezone;
 use App\Enums\Permission;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -67,6 +68,20 @@ class HandleInertiaRequests extends Middleware
             */
             'marka' => [
                 'ad' => (string) (tenant('name') ?? 'Panel'),
+
+                /*
+                | GÖSTERİM SAAT DİLİMİ (4.5M).
+                |
+                | ⚠️ Panel tarihleri `new Date(iso).toLocaleString('tr-TR')`
+                | ile basıyordu, yani PERSONELİN TARAYICI saat dilimine
+                | göre. Türkiye'de doğru görünüyordu ama yurt dışından
+                | bakan bir personel BAŞKA bir saat görürdü — oysa
+                | "sipariş saati" mağazaya ait bir olgu.
+                |
+                | ⚠️ Vitrinle AYNI ayardan okunuyor; iki yüzeyin farklı
+                | saat göstermesi zaten bu bloğu doğuran şikâyetti.
+                */
+                'saat_dilimi' => app(StoreTimezone::class)->oku(),
             ],
 
             /*

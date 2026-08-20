@@ -52,7 +52,7 @@
                             <a href="{{ route('vitrin.hesap.siparis', $s->uuid) }}">
                                 <strong>{{ $s->order_number }}</strong>
                             </a>
-                            <div class="ipucu">{{ $s->placed_at?->format('d.m.Y H:i') }}</div>
+                            <div class="ipucu">{{ $s->placed_at?->setTimezone($saatDilimi)->format('d.m.Y H:i') }}</div>
                         </td>
                         <td>{{ $s->items->sum('quantity') }} ürün</td>
                         <td>{{ number_format((float) $s->grand_total, 2, ',', '.') }} TL</td>

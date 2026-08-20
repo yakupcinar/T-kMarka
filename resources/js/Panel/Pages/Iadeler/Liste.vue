@@ -2,6 +2,7 @@
 /* İade talepleri. (4E) — görmek `order.view`, karar vermek `order.refund`. */
 import { Head, Link } from '@inertiajs/vue3'
 import PanelDuzeni from '../../Layouts/PanelDuzeni.vue'
+import { tarih } from '../../Yardimcilar/tarih'
 
 defineProps({ talepler: Object })
 
@@ -14,7 +15,6 @@ const durumRengi = {
   rejected: 'bg-stone-200 text-stone-700', received: 'bg-indigo-100 text-indigo-800',
   completed: 'bg-green-100 text-green-800',
 }
-function tarih(v) { return v ? new Date(v).toLocaleString('tr-TR') : '—' }
 </script>
 
 <template>

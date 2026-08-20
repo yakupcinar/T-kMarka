@@ -608,3 +608,24 @@ function bekleyenSiparis(ProductVariant $varyant, Customer $musteri, int $adet =
 
     return Order::orderByDesc('id')->firstOrFail();
 }
+
+/**
+ * Yayınlanmış mağaza + satılık tek varyant. (4.5J)
+ *
+ * ⚠️ `tests/Pest.php`'de çünkü İKİ dosya kullanıyor
+ * (`VitrinSepetSayaciTest`, `GosterimSaatiTest`). Tek dosyada kalsaydı
+ * öteki dosya TEK BAŞINA koşturulunca "tanımsız fonksiyon" verirdi —
+ * dosya yükleme sırasına bağlı sessiz bağımlılık.
+ */
+function sayacMagazasi(): ProductVariant
+{
+    markaKur('marka-a.test');
+    magazayiHazirla();
+    app(StorePublication::class)->yayinla();
+
+    $urun = app(ProductService::class)->olustur(['title' => 'Deri Cüzdan', 'brand' => 'Demo']);
+    $varyant = app(VariantService::class)->ekle($urun, ['sku' => 'CZ-1', 'price' => 100, 'stock' => 9]);
+    app(ProductService::class)->durumDegistir($urun->refresh(), ProductStatus::Active);
+
+    return $varyant;
+}

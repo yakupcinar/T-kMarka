@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ──────── şu an: 4.5J BİTTİ, 4.5M-N SIRADA ┐
+┌─ YOL HARİTASI ──────── şu an: 4.5M saat yarısı BİTTİ, tünel + 4.5N SIRADA ┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -5932,6 +5932,71 @@ et"** var.
 düştü.** **Doğrulandı (gerçek `curl`):** rozet **2**, sepet sayfası **2**
 · hesabımda "Ödemeyi tamamla" ve "iptal et" görünüyor · iptal →
 `payment_status = cancelled`. **771 test.**
+
+---
+
+### 4.5M — gösterim saati  ◀ AÇIK
+
+Şikâyet: *"Vitrinde ödendi hazırlanıyor yazıyor, panele baktım oraya ya
+düşmemiş ya da saati yanlış düşmüş."*
+
+**Ölçüm iddiayı yarı doğruladı — ama TERS YÖNDE.** Sipariş panele
+düşmüştü ve panelin saati **doğruydu**; yanlış olan **vitrindi**.
+
+```
+depolama → timestamptz, +00                   ✅ doğru
+panel    → new Date(iso).toLocaleString()     ✅ 11:34  (tarayıcı çevirdi)
+vitrin   → format(), app.timezone = UTC       ❌ 08:34  (ÜÇ SAAT GERİDE)
+```
+
+> ⚠️ Vitrin **sunucuda** render ediliyor (4-K1), yani tarihi tarayıcı
+> çeviremiyor. Panel Inertia olduğu için tesadüfen doğruydu — iki
+> yüzeyin farkı da tam olarak buradan doğdu.
+
+**✅ Marka başına GÖSTERİM saat dilimi ayarı** (`StoreTimezone`,
+varsayılan `Europe/Istanbul`). Vitrin `setTimezone()` ile basıyor, panel
+aynı değeri paylaşılan prop'tan alıp `Intl` ile biçimlendiriyor.
+
+> ⚠️ **ÇÖZÜM `config/app.php`'de `timezone` DEĞİŞTİRMEK DEĞİLDİ.** Laravel
+> `now()`'ı sorguya **ofissiz metin** bağlıyor; PostgreSQL onu oturumun
+> `TimeZone`'una göre yorumluyor. Uygulama saat dilimi `Europe/Istanbul`
+> olsaydı 15 dakikalık rezervasyonlar üç saat kayardı — `CLAUDE.md`'de
+> yazılı, WooCommerce'te (#43593) yaşanmış tuzağın aynısı.
+>
+> **Kırma denemesiyle ölçüldü:** `app.timezone` değiştirilince hem yeni
+> test hem de 0. fazdan beri duran `ZamanDilimiTest` düştü. "Kolay yol"
+> gerçekten tehlikeliymiş.
+>
+> ⚠️ Okuma yolu **beyaz liste** ([ThemeSettings] ile aynı gerekçe): değer
+> `setTimezone()`'a giriyor ve geçersiz metin istisna fırlatır. Ayar
+> veritabanına tohumlayıcı/artisan/elle SQL ile de girebiliyor —
+> geçersiz değerde müşteri kendi sipariş sayfasında **500** görürdü.
+>
+> ⚠️ Panel de artık **mağazanın** saat dilimini kullanıyor, personelin
+> tarayıcısınınkini değil: "sipariş saati" mağazaya ait bir olgu ve
+> yurt dışından bakan personel başka bir saat görürdü.
+>
+> ⚠️ İki ekranda kopyalanmış `tarih()` fonksiyonu tek yere alındı
+> (`Panel/Yardimcilar/tarih.js`) — biri düzeltilip öteki unutulurdu.
+
+**Dört kırma denemesi, dördü de düştü.** **Doğrulandı (gerçek `curl`):**
+ham damga `14:33+00` → vitrinde **17:33** · panel prop'u
+`Europe/Istanbul`. **777 test.**
+
+#### ⏳ Kalan: ödeme akışının TÜNELDEN doğrulanması
+
+`ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS` **bizim kusurumuz değil**:
+Chrome, genel ağdaki bir sayfanın (iyzico) yerel ağa (`.localhost`)
+dönmesini engelliyor.
+
+> ★ **Kod değişikliği GEREKMİYOR — ölçüldü.** Dönüş adresi isteğin
+> host'undan türetiliyor (`$istek->getSchemeAndHttpHost()`), yani tünel
+> alan adından girildiğinde callback kendiliğinden **herkese açık** bir
+> adres oluyor. Tünel alan adı `domains` tablosunda marka-a'ya zaten
+> bağlı.
+>
+> ⚠️ 3DS **SMS adımı** elle yapılmak zorunda; bu yarı kullanıcıyla
+> birlikte koşulacak (`make kaldir` → tünel adresinden alışveriş).
 
 ---
 

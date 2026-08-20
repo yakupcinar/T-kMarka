@@ -27,7 +27,7 @@
 
         <h1>{{ $siparis->order_number }}</h1>
         <p class="ipucu">
-            {{ $siparis->placed_at?->format('d.m.Y H:i') }} ·
+            {{ $siparis->placed_at?->setTimezone($saatDilimi)->format('d.m.Y H:i') }} ·
             {{ $odemeAdi[$siparis->payment_status->value] ?? $siparis->payment_status->value }}
         </p>
 
@@ -83,7 +83,7 @@
             <table class="sepet-tablo">
                 @foreach ($siparis->returns as $talep)
                     <tr>
-                        <td>{{ $talep->created_at?->format('d.m.Y') }}</td>
+                        <td>{{ $talep->created_at?->setTimezone($saatDilimi)->format('d.m.Y') }}</td>
                         <td>{{ $talep->items->sum('quantity') }} ürün</td>
                         <td>{{ $iadeAdi[$talep->status->value] ?? $talep->status->value }}</td>
                     </tr>

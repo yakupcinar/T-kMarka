@@ -526,6 +526,17 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   metnini** ihlal sayıyordu — eşleşme çağrının kendisinde olmalı
   (`->metot(`), ham metinde değil.
 
+- **SUNUCUDA RENDER EDİLEN YÜZEY SAATİ KENDİ ÇEVİRMELİ.** `app.timezone`
+  UTC (ve öyle KALMALI); Blade `format()` onu olduğu gibi basıyor, yani
+  vitrin müşteriye **üç saat geride** saat gösteriyordu. Panel Inertia
+  olduğu için tesadüfen doğruydu (`new Date(iso).toLocaleString()`
+  tarayıcıda çeviriyor) ve iki yüzeyin farkı "sipariş panele yanlış
+  saatle düşmüş" gibi göründü (4.5M). ⚠️ Çözüm `config/app.php`'yi
+  değiştirmek **DEĞİL**: `now()` sorguya ofissiz metin bağlanıyor ve
+  rezervasyon süreleri kayıyor — kırma denemesiyle ölçüldü, `ZamanDilimiTest`
+  düştü. Doğrusu **gösterim** saat dilimi ayarı + `setTimezone()`; değer
+  beyaz listeden geçmeli, yoksa geçersiz ayar sayfayı 500'e düşürür.
+
 ## Yapı
 
 ```

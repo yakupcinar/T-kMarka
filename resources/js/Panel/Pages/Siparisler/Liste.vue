@@ -2,6 +2,7 @@
 /* Sipariş listesi. (4E) — `izin:order.view` arkasında. */
 import { Head, Link, router } from '@inertiajs/vue3'
 import PanelDuzeni from '../../Layouts/PanelDuzeni.vue'
+import { tarih } from '../../Yardimcilar/tarih'
 
 const props = defineProps({ siparisler: Object, durum: String })
 
@@ -20,7 +21,6 @@ function suz(deger) {
 }
 
 function para(v) { return Number(v).toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' TL' }
-function tarih(v) { return v ? new Date(v).toLocaleString('tr-TR') : '—' }
 </script>
 
 <template>

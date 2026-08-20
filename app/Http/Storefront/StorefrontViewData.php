@@ -2,6 +2,7 @@
 
 namespace App\Http\Storefront;
 
+use App\Domain\Settings\StoreTimezone;
 use App\Domain\Settings\ThemeSettings;
 use App\Models\ProductCollection;
 use Illuminate\Http\Request;
@@ -25,6 +26,7 @@ class StorefrontViewData
     public function __construct(
         private readonly ThemeSettings $tema,
         private readonly CartResolver $coz,
+        private readonly StoreTimezone $saatDilimi,
     ) {}
 
     public function compose(View $gorunum): void
@@ -59,6 +61,20 @@ class StorefrontViewData
             | "kaç tane" değil — PostgreSQL ilkinde ilk satırda duruyor.
             */
             'koleksiyonVar' => ProductCollection::where('is_active', true)->exists(),
+
+            /*
+            | GÖSTERİM SAAT DİLİMİ (4.5M).
+            |
+            | ⚠️ Vitrin sunucuda render ediliyor (4-K1), yani tarihi
+            | tarayıcı çeviremiyor: `app.timezone` UTC olduğu için sipariş
+            | saati müşteriye ÜÇ SAAT GERİDE görünüyordu. Panel doğruydu
+            | (orada `new Date(...).toLocaleString()` çalışıyor) ve fark
+            | "sipariş panele düşmemiş ya da saati yanlış" gibi göründü.
+            |
+            | ⚠️ Çözüm `config/app.php`'yi değiştirmek DEĞİL: `now()`
+            | sorguya ofissiz metin bağlıyor ve rezervasyonlar kayardı.
+            */
+            'saatDilimi' => $this->saatDilimi->oku(),
         ]);
     }
 

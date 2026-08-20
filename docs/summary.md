@@ -2361,3 +2361,33 @@ FAZ 5 SIRADA — kargo firmaları · e-fatura/e-arşiv
 
       DOĞRULANDI (gerçek curl)
         rozet 2 = sepet sayfası 2 · iptal → cancelled
+
+4.5M ✅ GÖSTERİM SAATİ — 777 test
+      "vitrinde ödendi yazıyor, panele saati yanlış düşmüş"
+
+      ÖLÇÜM İDDİAYI YARI DOĞRULADI — TERS YÖNDE
+        depolama timestamptz +00              ✅ doğru
+        panel new Date().toLocaleString()     ✅ 11:34 (tarayıcı çevirdi)
+        vitrin format(), app.timezone=UTC     ❌ 08:34 (ÜÇ SAAT GERİDE)
+        yani panel DOĞRUYDU, yanlış olan VİTRİNDİ
+        ⚠️ vitrin SUNUCUDA render ediliyor (4-K1), tarayıcı çeviremiyor
+          panel Inertia olduğu için TESADÜFEN doğruydu
+
+      ✅ MARKA BAŞINA GÖSTERİM SAAT DİLİMİ (StoreTimezone)
+        ⚠️ ÇÖZÜM config/app.php DEĞİŞTİRMEK DEĞİLDİ
+          now() sorguya OFİSSİZ metin bağlıyor, PG oturum TimeZone'una
+          göre yorumluyor → 15 dk rezervasyonlar ÜÇ SAAT kayardı
+          (CLAUDE.md · WooCommerce #43593)
+          KIRMA DENEMESİYLE ÖLÇÜLDÜ: app.timezone değişince hem yeni test
+          hem 0. fazdan beri duran ZamanDilimiTest düştü
+        ⚠️ okuma yolu BEYAZ LİSTE — geçersiz değerde setTimezone istisna
+          fırlatır, müşteri kendi sipariş sayfasında 500 görürdü
+        ⚠️ panel de MAĞAZANIN dilimini kullanıyor, personelin tarayıcısının
+          değil — "sipariş saati" mağazaya ait bir olgu
+        iki ekranda kopyalanan tarih() tek yere alındı
+
+      ⏳ KALAN: ödeme akışının TÜNELDEN doğrulanması
+        ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS BİZİM KUSURUMUZ DEĞİL
+        ★ KOD DEĞİŞİKLİĞİ GEREKMİYOR (ölçüldü): dönüş adresi isteğin
+          host'undan türüyor, tünelden girilince callback herkese açık
+        ⚠️ 3DS SMS adımı ELLE — kullanıcıyla birlikte koşulacak

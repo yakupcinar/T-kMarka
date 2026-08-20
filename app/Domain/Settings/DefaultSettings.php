@@ -32,6 +32,19 @@ class DefaultSettings
     public static function tanimlar(): array
     {
         return [
+            SettingGroup::Store->value => [
+                /*
+                | GÖSTERİM saat dilimi (4.5M).
+                |
+                | ⚠️ Depolama ve hesap UTC kalıyor — burada değişen
+                | yalnızca müşteriye ve markaya GÖSTERİLEN saat.
+                | `config/app.php`'de değiştirmek 15 dakikalık
+                | rezervasyonları kaydırırdı (CLAUDE.md, WooCommerce
+                | #43593).
+                */
+                StoreTimezone::ANAHTAR => StoreTimezone::VARSAYILAN,
+            ],
+
             SettingGroup::Tax->value => [
                 // Türkiye'de genel oran. Kanunla değişebildiği için kilitli
                 // değil, mağaza açıkken de düzenlenebiliyor.

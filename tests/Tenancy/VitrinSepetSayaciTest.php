@@ -1,16 +1,11 @@
 <?php
 
-use App\Domain\Catalog\ProductService;
-use App\Domain\Catalog\VariantService;
 use App\Domain\Legal\LegalDocumentService;
 use App\Domain\Order\CheckoutService;
-use App\Domain\Settings\StorePublication;
 use App\Enums\LegalDocumentType;
 use App\Enums\PaymentStatus;
-use App\Enums\ProductStatus;
 use App\Models\Customer;
 use App\Models\Order;
-use App\Models\ProductVariant;
 
 /*
 | SEPET SAYACI VE BEKLEYEN SİPARİŞ (4.5J) — gerçek kullanımda bulundu.
@@ -25,19 +20,6 @@ use App\Models\ProductVariant;
 | İki yön de bozuk: bayat misafir çerezi varken rozet dolu / sepet boş;
 | giriş yapmış müşterinin dolu sepetinde ise rozet HİÇ çıkmıyordu.
 */
-
-function sayacMagazasi(): ProductVariant
-{
-    markaKur('marka-a.test');
-    magazayiHazirla();
-    app(StorePublication::class)->yayinla();
-
-    $urun = app(ProductService::class)->olustur(['title' => 'Deri Cüzdan', 'brand' => 'Demo']);
-    $varyant = app(VariantService::class)->ekle($urun, ['sku' => 'CZ-1', 'price' => 100, 'stock' => 9]);
-    app(ProductService::class)->durumDegistir($urun->refresh(), ProductStatus::Active);
-
-    return $varyant;
-}
 
 function sayacMusterisi(): Customer
 {
