@@ -34,6 +34,7 @@ class VariantService
     public function ekle(Product $urun, array $veri, array $secenekler = []): ProductVariant
     {
         $this->secenekleriDogrula($urun, $secenekler);
+        $this->benzersizligiDogrula($urun, $secenekler);
         $this->sinirDogrula($urun, 1);
 
         /*
@@ -186,6 +187,33 @@ class VariantService
 
         if ($sorunlar !== []) {
             throw new InvalidVariantOptionsException($sorunlar);
+        }
+    }
+
+    /**
+     * Aynı seçenek birleşiminde ikinci varyant açılmasını engeller.
+     *
+     * ⚠️ Veritabanı kısıtı `(product_id, options)` ZATEN VARDI ve doğru
+     * çalışıyordu — ama yakalanmadığı için panelde ham **500** görünüyordu.
+     * Kontrol buraya konuyor, controller'a değil: aynı kural artisan
+     * komutundan ya da tohumlayıcıdan da geçilebilmeli.
+     *
+     * ⚠️ Kısıt KALDIRILMIYOR. Bu kontrol ile veritabanı arasında yarış
+     * durumu var (iki eşzamanlı istek ikisi de "yok" görebilir); kısıt
+     * son savunma olarak duruyor.
+     *
+     * @param  array<string, string>  $secenekler
+     *
+     * @throws DuplicateVariantException
+     */
+    private function benzersizligiDogrula(Product $urun, array $secenekler): void
+    {
+        $var = $urun->variants()
+            ->get()
+            ->contains(fn (ProductVariant $v) => ($v->options ?? []) === $secenekler);
+
+        if ($var) {
+            throw new DuplicateVariantException($secenekler);
         }
     }
 

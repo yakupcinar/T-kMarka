@@ -2,19 +2,28 @@
 
 namespace App\Http\Panel;
 
+use App\Domain\Catalog\CatalogRuleException;
+use App\Domain\Catalog\CollectionRuleException;
+use App\Domain\Catalog\CollectionService;
+use App\Domain\Catalog\OptionsLockedException;
 use App\Domain\Catalog\ProductImageService;
 use App\Domain\Catalog\ProductQuery;
 use App\Domain\Catalog\ProductService;
 use App\Domain\Catalog\TooManyImagesException;
+use App\Domain\Catalog\TooManyOptionsException;
 use App\Domain\Catalog\UnsupportedImageTypeException;
 use App\Domain\Catalog\VariantService;
+use App\Enums\CollectionType;
 use App\Enums\ProductStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Panel\Requests\ProductImageRequest;
 use App\Http\Panel\Requests\ProductRequest;
 use App\Http\Panel\Requests\VariantRequest;
 use App\Models\Category;
+use App\Models\Option;
+use App\Models\OptionValue;
 use App\Models\Product;
+use App\Models\ProductCollection;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use Illuminate\Http\RedirectResponse;
@@ -43,6 +52,7 @@ class ProductPageController extends Controller
         private readonly ProductService $urunler,
         private readonly VariantService $varyantlar,
         private readonly ProductQuery $sorgu,
+        private readonly CollectionService $koleksiyonlar,
     ) {}
 
     public function index(Request $istek): Response
@@ -79,6 +89,7 @@ class ProductPageController extends Controller
             'urun' => null,
             'kategoriler' => $this->kategoriler(),
             'durumlar' => $this->durumlar(),
+            'eksenler' => $this->eksenler(),
         ]);
     }
 
@@ -101,12 +112,14 @@ class ProductPageController extends Controller
 
     public function edit(Product $urun): Response
     {
-        $urun->load(['variants', 'images', 'category', 'options']);
+        $urun->load(['variants', 'images', 'category', 'options.values', 'collections']);
 
         return Inertia::render('Urunler/Form', [
             'urun' => $this->detay($urun),
             'kategoriler' => $this->kategoriler(),
             'durumlar' => $this->durumlar(),
+            'eksenler' => $this->eksenler(),
+            'manuelKoleksiyonlar' => $this->manuelKoleksiyonlar(),
         ]);
     }
 
@@ -149,7 +162,20 @@ class ProductPageController extends Controller
         /** @var array<string, string> $secenekler */
         $secenekler = $istek->validated('options');
 
-        $this->varyantlar->ekle($urun, $istek->safe()->except('options'), $secenekler);
+        /*
+        | ★ TARAYICIYA OTURUM HATASI, API'YE JSON. (4.5L)
+        |
+        | ⚠️ `CatalogRuleException` için genel işleyici JSON döndürüyor —
+        | `api/*` için doğru. Ama burası bir PANEL SAYFASI: yakalanmazsa
+        | marka Inertia'nın hata kutusunda ham JSON görüyor ya da sayfa
+        | hiç yanıt vermiyor gibi duruyor. 4A · 4B · 4.5G'de kapatılan
+        | hatanın aynı ailesi.
+        */
+        try {
+            $this->varyantlar->ekle($urun, $istek->safe()->except('options'), $secenekler);
+        } catch (CatalogRuleException $hata) {
+            return back()->withErrors($hata->alanHatalari())->withInput();
+        }
 
         return back()->with('mesaj', 'Varyant eklendi.');
     }
@@ -167,7 +193,11 @@ class ProductPageController extends Controller
         /** @var array<string, string> $secenekler */
         $secenekler = $istek->validated('options');
 
-        $this->varyantlar->guncelle($varyant, $istek->safe()->except('options'), $secenekler);
+        try {
+            $this->varyantlar->guncelle($varyant, $istek->safe()->except('options'), $secenekler);
+        } catch (CatalogRuleException $hata) {
+            return back()->withErrors($hata->alanHatalari())->withInput();
+        }
 
         return back()->with('mesaj', 'Varyant güncellendi.');
     }
@@ -260,6 +290,52 @@ class ProductPageController extends Controller
             'status' => $urun->status->value,
             'slug' => $urun->slug,
             'category_uuid' => $urun->category?->uuid,
+
+            /*
+            | VARYANT EKSENLERİ (4.5L) — uçları 1B'de vardı, ekranı yoktu.
+            |
+            | ⚠️ Bedeli ağırdı: eksen tanımlanamayınca her varyantın
+            | `options` alanı `[]` oluyor ve `(product_id, options)`
+            | benzersiz kısıtı yüzünden İKİNCİ varyant her zaman
+            | patlıyordu — üstelik ham 500 ile.
+            |
+            | ⚠️ `values` de gidiyor: eksenin değerleri olmadan ekran
+            | seçici çizemez ve marka eksen tanımlayıp değer seçemezdi.
+            */
+            'options' => $urun->options->map(fn (Option $e) => [
+                'uuid' => $e->uuid,
+                'slug' => $e->slug,
+                'name' => $e->name,
+                'values' => $e->values->map(fn (OptionValue $d) => [
+                    'slug' => $d->slug,
+                    'value' => $d->value,
+                ])->values()->all(),
+            ])->values()->all(),
+
+            /*
+            | ⚠️ Eksen KİLİTLİ Mİ bilgisi ekrana gidiyor: varyant varken
+            | eksen değiştirilemiyor (1B — değiştirilseydi eldeki
+            | varyantlar anında geçersizleşirdi). Ekran bunu bilmezse
+            | marka düğmeye basar ve anlamadığı bir hata alır.
+            */
+            'eksen_kilitli' => $urun->variants->isNotEmpty(),
+
+            /*
+            | KOLEKSİYONLAR (4.5L) — gerçek kullanımda bulundu: marka elle
+            | seçilen koleksiyon açıyor ama ürünü nereden ekleyeceğini
+            | bulamıyordu. Seçici koleksiyon AYRINTISINDA vardı; marka onu
+            | ürün tarafından arıyordu.
+            |
+            | ⚠️ Yalnızca MANUEL koleksiyonlar: kurallıda üyelik sorgu
+            | anında hesaplanıyor (2D) ve elle ekleme yanlış beklenti
+            | yaratırdı — "bu ürün neden burada" sorusunun iki cevabı
+            | olurdu.
+            */
+            'koleksiyonlar' => $urun->collections
+                ->where('type', CollectionType::Manual)
+                ->map(fn (ProductCollection $k) => ['uuid' => $k->uuid, 'title' => $k->title])
+                ->values()
+                ->all(),
             /*
             | GÖRSELLER (4.5E) — uçları 1B'de vardı, ekranı yoktu:
             | ürünler görselsiz kalıyordu.
@@ -290,6 +366,118 @@ class ProductPageController extends Controller
                 'committed' => $v->committed,
             ])->all(),
         ];
+    }
+
+    /**
+     * Elle seçilen koleksiyonlar — ürünün eklenebileceği listeler. (4.5L)
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function manuelKoleksiyonlar(): array
+    {
+        /** @var list<array<string, mixed>> $liste */
+        $liste = ProductCollection::query()
+            ->where('type', CollectionType::Manual->value)
+            ->orderBy('position')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (ProductCollection $k) => ['uuid' => $k->uuid, 'title' => $k->title])
+            ->values()
+            ->all();
+
+        return $liste;
+    }
+
+    /**
+     * Ürünü elle seçilen bir koleksiyona ekler / çıkarır. (4.5L)
+     *
+     * ⚠️ İŞ KURALI SERVİSTE: "kurallı koleksiyona elle ürün eklenemez"
+     * kontrolü `CollectionService::manuelOlmali` içinde. Burada
+     * tekrarlansaydı iki yerde tutulur ve biri güncellenmeden kalırdı —
+     * 4.5E'de bu tam olarak yaşandı ve ölü koruma silindi.
+     */
+    public function koleksiyonaEkle(Request $istek, Product $urun): RedirectResponse
+    {
+        $veri = $istek->validate([
+            'collection_uuid' => ['required', 'uuid'],
+            'ekle' => ['required', 'boolean'],
+        ]);
+
+        $koleksiyon = ProductCollection::where('uuid', $veri['collection_uuid'])->firstOrFail();
+
+        try {
+            $veri['ekle']
+                ? $this->koleksiyonlar->urunEkle($koleksiyon, $urun)
+                : $this->koleksiyonlar->urunCikar($koleksiyon, $urun);
+        } catch (CollectionRuleException $hata) {
+            return back()->with('hata', $hata->getMessage());
+        }
+
+        return back()->with('mesaj', $veri['ekle'] ? 'Koleksiyona eklendi.' : 'Koleksiyondan çıkarıldı.');
+    }
+
+    /**
+     * Markanın tanımlı varyant eksenleri — ürüne atanabilecekler. (4.5L)
+     *
+     * ⚠️ Eksenler KATALOG AYARLARINDA tanımlanıyor (4.5E); burada
+     * yalnızca listeleniyor. Ürün ekranından eksen yaratılabilseydi aynı
+     * eksen ("Renk") her üründe yeniden açılır ve vitrindeki filtreler
+     * birbirini tutmazdı.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function eksenler(): array
+    {
+        /** @var list<array<string, mixed>> $liste */
+        $liste = Option::query()
+            ->with('values')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Option $e) => [
+                'uuid' => $e->uuid,
+                'slug' => $e->slug,
+                'name' => $e->name,
+                'values' => $e->values->map(fn (OptionValue $d) => [
+                    'slug' => $d->slug,
+                    'value' => $d->value,
+                ])->values()->all(),
+            ])
+            ->values()
+            ->all();
+
+        return $liste;
+    }
+
+    /**
+     * Ürünün kullanacağı eksenleri ayarlar. (4.5L)
+     *
+     * ⚠️ Sıra ÖNEMLİ ve dizideki sıra korunuyor: "Renk / Beden" ile
+     * "Beden / Renk" vitrinde farklı görünür.
+     */
+    public function eksenleriAyarla(Request $istek, Product $urun): RedirectResponse
+    {
+        $veri = $istek->validate([
+            'option_uuids' => ['present', 'array', 'max:'.ProductService::MAKS_EKSEN],
+            'option_uuids.*' => ['uuid', 'exists:options,uuid'],
+        ]);
+
+        /** @var list<Option> $eksenler */
+        $eksenler = array_map(
+            fn (string $uuid) => Option::where('uuid', $uuid)->firstOrFail(),
+            $veri['option_uuids'],
+        );
+
+        try {
+            $this->urunler->eksenleriAyarla($urun, $eksenler);
+        } catch (OptionsLockedException|TooManyOptionsException $hata) {
+            /*
+            | ⚠️ Varyant varken eksen değiştirilemiyor (1B). Ekran düğmeyi
+            | zaten gizliyor ama bu bir KOLAYLIK; gerçek koruma burada.
+            */
+            return back()->with('hata', $hata->getMessage());
+        }
+
+        return back()->with('mesaj', 'Eksenler ayarlandı. Şimdi varyantları ekleyebilirsiniz.');
     }
 
     /** @return list<array<string, mixed>> */

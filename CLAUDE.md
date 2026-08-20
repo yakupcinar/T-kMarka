@@ -493,6 +493,27 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   middleware'in dönüştüreceği değer olmuyor; testin gövdesi **tarayıcının
   gönderdiğiyle birebir** olmalı.
 
+- **INERTIA AYNI BİLEŞENE GİDERKEN ÖRNEĞİ YENİDEN KURMAZ — `setup()` bir
+  daha koşmaz.** Oluşturma ve düzenleme aynı bileşense (`Urunler/Form`),
+  setup'ta hesaplanan düz değişken (`const yeniMi = props.urun === null`)
+  yönlendirmeden sonra **eski değerinde donar**. 4.5L'de ısırdı: ürün
+  oluşturuluyor, yönlendirme doğru, prop'lar doğru geliyor ama varyant ve
+  görsel bölümü **hiç görünmüyordu**; sayfa değiştirip geri gelince
+  düzeliyordu. ⚠️ Sunucu tarafında ölçüm bunu GÖREMEZ — 4.5G'de
+  "yönlendirme çalışıyor" diye kapatılmıştı, ölçülen şey ekran değildi.
+  Prop'tan türeyen her şey `computed`; `useForm` başlangıç değerleri de
+  `watch` ile yeniden tohumlanmalı, yoksa kutularda **eski kaydın verisi**
+  kalır ve kaydedilir.
+- **VERİTABANI KISITI TEK BAŞINA ARAYÜZ DEĞİLDİR.** `(product_id, options)`
+  benzersizliği doğruydu ama yakalanmayınca panelde ham **500**
+  (*"duplicate key value violates unique constraint"*) görünüyordu. 4.5L'de
+  ısırdı ve en kötü yerinden: eksen tanımlama ekranı olmadığı için her
+  varyantın `options` alanı `[]` oluyordu, yani **her ürünün ikinci
+  varyantı** bu hataya düşüyordu. Kural: kısıtı kaldırma (yarış durumuna
+  karşı son savunma), Domain'e **aynı adı taşıyan bir kontrol** koy ve
+  panelde `CatalogRuleException`'ı **oturum hatasına** çevir — genel
+  işleyici JSON döndürüyor ve o yalnızca `api/*` için doğru.
+
 ## Yapı
 
 ```

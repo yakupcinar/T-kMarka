@@ -427,3 +427,163 @@ it('★★ OLUSTURMA EKRANI KATEGORI LISTESINI de gonderiyor', function () {
         ->and($veri['props']['kategoriler'][0]['slug'])->toBe('giyim')
         ->and($veri['props']['kuralAlanlari'][0]['ad'])->not->toBeEmpty();
 });
+
+/*
+| VARYANT EKSENLERİ VE ÜRÜN TARAFINDAN KOLEKSİYON (4.5L)
+|
+| ★ Üçü de gerçek kullanımda bulundu ve İKİSİ AYNI KÖKTENDİ:
+| panelde eksen tanımlanamadığı için her varyantın `options` alanı `[]`
+| oluyordu; `(product_id, options)` benzersiz kısıtı yüzünden İKİNCİ
+| varyant HER ZAMAN patlıyordu — üstelik ham 500 ile.
+*/
+
+/**
+ * Eksen + değerleri — iki servis çağrısı tek yerde.
+ *
+ * ⚠️ Ad çakışması kontrol edildi (`grep -rn "function eksenli" tests/`):
+ * test dosyalarındaki fonksiyonlar GLOBAL, aynı ad iki dosyada olursa
+ * PHP "cannot redeclare" ile ölür (4.5H'de yaşandı).
+ *
+ * @param  list<string>  $degerler
+ */
+function eksenliDeger(string $ad, array $degerler): Option
+{
+    $eksen = app(OptionService::class)->olustur($ad);
+
+    foreach ($degerler as $sira => $deger) {
+        app(OptionService::class)->degerEkle($eksen, $deger, null, $sira);
+    }
+
+    return $eksen->refresh()->load('values');
+}
+
+it('★★★ EKSENSIZ ikinci varyant ANLASILIR mesajla reddediliyor — 500 DEGIL', function () {
+    ['sahip' => $sahip] = markaKur('marka-a.test');
+
+    $urun = app(ProductService::class)->olustur(['title' => 'Tişört', 'brand' => 'Demo']);
+
+    $this->actingAs($sahip, 'staff-web')
+        ->post("http://marka-a.test/yonetim/urunler/{$urun->uuid}/varyantlar",
+            ['sku' => 'TS-1', 'price' => '100', 'stock' => 5, 'options' => []])
+        ->assertRedirect();
+
+    /*
+    | ⚠️ ESKİDEN 500: QueryException yakalanmıyordu ve marka ham
+    | "duplicate key value violates unique constraint" görüyordu.
+    | En sık karşılaşılan durum, en anlaşılmaz hatayı veriyordu.
+    */
+    $this->actingAs($sahip, 'staff-web')
+        ->post("http://marka-a.test/yonetim/urunler/{$urun->uuid}/varyantlar",
+            ['sku' => 'TS-2', 'price' => '120', 'stock' => 3, 'options' => []])
+        ->assertSessionHasErrors('options');
+
+    expect($urun->variants()->count())->toBe(1);
+});
+
+it('★★★ EKSEN TANIMLANINCA ikinci varyant EKLENEBILIYOR', function () {
+    ['sahip' => $sahip] = markaKur('marka-a.test');
+
+    $eksen = eksenliDeger('Renk', ['Kırmızı', 'Mavi']);
+    $urun = app(ProductService::class)->olustur(['title' => 'Tişört', 'brand' => 'Demo']);
+
+    $this->actingAs($sahip, 'staff-web')
+        ->post("http://marka-a.test/yonetim/urunler/{$urun->uuid}/eksenler",
+            ['option_uuids' => [$eksen->uuid]])
+        ->assertRedirect();
+
+    foreach ([['TS-K', 'kirmizi'], ['TS-M', 'mavi']] as [$sku, $deger]) {
+        $this->actingAs($sahip, 'staff-web')
+            ->post("http://marka-a.test/yonetim/urunler/{$urun->uuid}/varyantlar",
+                ['sku' => $sku, 'price' => '100', 'stock' => 5, 'options' => ['renk' => $deger]])
+            ->assertSessionHasNoErrors();
+    }
+
+    expect($urun->refresh()->variants()->count())->toBe(2);
+});
+
+it('★★★ EKRAN eksen listesini VE urunun eksenlerini gonderiyor', function () {
+    ['sahip' => $sahip] = markaKur('marka-a.test');
+
+    eksenliDeger('Renk', ['Kırmızı']);
+    $urun = app(ProductService::class)->olustur(['title' => 'Tişört', 'brand' => 'Demo']);
+
+    $veri = inertiaVerisi(
+        $this->actingAs($sahip, 'staff-web')
+            ->get("http://marka-a.test/yonetim/urunler/{$urun->uuid}")->getContent() ?: '',
+    );
+
+    /*
+    | ⚠️ Liste gitmezse ekran seçici çizemez ve eksen HİÇ tanımlanamaz —
+    | düzeltilen hatanın ta kendisi.
+    */
+    expect($veri['props']['eksenler'])->toHaveCount(1)
+        ->and($veri['props']['eksenler'][0]['values'])->toHaveCount(1)
+        ->and($veri['props']['urun']['eksen_kilitli'])->toBeFalse();
+});
+
+it('★★ VARYANT VARKEN eksen kilitli — ekran da biliyor', function () {
+    ['sahip' => $sahip] = markaKur('marka-a.test');
+
+    $eksen = eksenliDeger('Renk', ['Kırmızı']);
+    $urun = app(ProductService::class)->olustur(['title' => 'Tişört', 'brand' => 'Demo']);
+    app(VariantService::class)->ekle($urun, ['sku' => 'TS-1', 'price' => 100, 'stock' => 5]);
+
+    $veri = inertiaVerisi(
+        $this->actingAs($sahip, 'staff-web')
+            ->get("http://marka-a.test/yonetim/urunler/{$urun->refresh()->uuid}")->getContent() ?: '',
+    );
+
+    expect($veri['props']['urun']['eksen_kilitli'])->toBeTrue();
+
+    /*
+    | ⚠️ Ekranın düğmeyi gizlemesi bir KOLAYLIK; gerçek koruma sunucuda.
+    | Değiştirilebilseydi eldeki varyant anında geçersizleşir, ürün
+    | sayfasında seçilemez hâle gelir ve stok orada asılı kalırdı.
+    */
+    $this->actingAs($sahip, 'staff-web')
+        ->post("http://marka-a.test/yonetim/urunler/{$urun->uuid}/eksenler",
+            ['option_uuids' => [$eksen->uuid]])
+        ->assertSessionHas('hata');
+});
+
+it('★★★ URUN EKRANINDAN koleksiyona eklenip cikarilabiliyor', function () {
+    ['sahip' => $sahip] = markaKur('marka-a.test');
+
+    $urun = app(ProductService::class)->olustur(['title' => 'Tişört', 'brand' => 'Demo']);
+    $koleksiyon = app(CollectionService::class)->olustur(['title' => 'Seçmeler'], CollectionType::Manual);
+
+    $this->actingAs($sahip, 'staff-web')
+        ->post("http://marka-a.test/yonetim/urunler/{$urun->uuid}/koleksiyon",
+            ['collection_uuid' => $koleksiyon->uuid, 'ekle' => true])
+        ->assertRedirect();
+
+    expect($koleksiyon->products()->count())->toBe(1);
+
+    $this->actingAs($sahip, 'staff-web')
+        ->post("http://marka-a.test/yonetim/urunler/{$urun->uuid}/koleksiyon",
+            ['collection_uuid' => $koleksiyon->uuid, 'ekle' => false]);
+
+    expect($koleksiyon->products()->count())->toBe(0);
+});
+
+it('★★ KURALLI koleksiyona urun ekranindan da elle eklenemiyor', function () {
+    ['sahip' => $sahip] = markaKur('marka-a.test');
+
+    $urun = app(ProductService::class)->olustur(['title' => 'Tişört', 'brand' => 'Demo']);
+
+    $kurallı = app(CollectionService::class)->olustur(
+        ['title' => 'Pahalılar'],
+        CollectionType::Rule,
+        ['match' => 'all', 'conditions' => [['field' => 'price', 'op' => 'gte', 'value' => '100']]],
+    );
+
+    /*
+    | ⚠️ Yeni bir kapı açıldı — eski kural onunla birlikte gelmeli.
+    | Kurallıda üyelik SORGU ANINDA hesaplanıyor (2D); elle eklenen ürün
+    | kural onu dışlasa bile listede kalırdı.
+    */
+    $this->actingAs($sahip, 'staff-web')
+        ->post("http://marka-a.test/yonetim/urunler/{$urun->uuid}/koleksiyon",
+            ['collection_uuid' => $kurallı->uuid, 'ekle' => true])
+        ->assertSessionHas('hata');
+});

@@ -170,9 +170,6 @@ to connect to devices or servers on your local network.
 
 **Marka paneli — katalog**
 
-* Yeni koleksiyonu "elle seç" ile oluşturdum ama ürün seçtirmiyor. Ürünler kısmında ya da başka bir yerde ürün koleksiyona konabilmeli.
-* Varyant ekleyebiliyorum ama **ikinci varyantta bozuk bir sayfa** açılıyor. Ayrıca varyantlara **eksen** ekleyemiyorum (Renk, Beden…).
-* Ürünü ekleyince "şimdi varyantları ekleyebilirsin" yazısı geliyor ama **varyant ve görsel bölümü gelmiyor**; sayfa değiştirip ürüne tekrar tıklayınca geliyor. Oluşturmaya bastığım anda o bölümler de gelsin.
 
 **Merkez yönetim**
 
@@ -204,6 +201,9 @@ to connect to devices or servers on your local network.
 | Kayıtlı adres ödemede sorulmuyordu / "line" uyarıları veriyordu | Adres kaydet → Ödeme → **liste + seçim**, "Başka adrese gönder" formu açar | 4.5I |
 | Kayıtlı adres seçiliyken "shipping.full_name metin olmalıdır" uyarısı | Adres seç → Öde → **doğrudan ödeme ekranına** gider | 4.5I.1 |
 | Panelden sipariş durumu güncellenemiyor, iade açılamıyor | Panel → Siparişler → sipariş → **"Siparişi tamamla"** ve **"İade talebi aç"** | 4.5L |
+| Manuel koleksiyona ürün eklenemiyor | Panel → Ürünler → ürün → **"Koleksiyonlar"** kutucukları (koleksiyon ayrıntısındaki seçici de duruyor) | 4.5L |
+| İkinci varyant bozuk sayfa açıyor, eksen eklenemiyor | Panel → Ürünler → ürün → **"Varyant eksenleri"** → Renk seç → kaydet → her renk için varyant | 4.5L |
+| Ürün oluşturunca varyant/görsel bölümü gelmiyor | Panel → Ürünler → Yeni → Oluştur → bölümler **aynı anda** gelir | 4.5L |
 | Ürün oluşturunca varyant sayfasına gitmiyor | `POST /yonetim/urunler` → `302 → /yonetim/urunler/{uuid}` — **ölçüldü, zaten doğruydu** | 4.5G |
 
 > ⚠️ "Vitrinde siparişleri göremiyorum" maddesinin **iade yarısı hâlâ

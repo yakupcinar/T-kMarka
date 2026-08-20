@@ -2273,3 +2273,38 @@ FAZ 5 SIRADA — kargo firmaları · e-fatura/e-arşiv
       DOĞRULANDI (gerçek panel isteği)
         tamamla → fulfilled, tek paket delivered
         iade → 302 /yonetim/iadeler/{uuid}, is_withdrawal=false
+
+4.5L.1 ✅ PANEL KATALOG: EKSENLER · KOLEKSİYON ÜYELİĞİ · BİLEŞEN — 757 test
+      dört şikâyet, İKİSİ AYNI KÖKTEN
+
+      ✅ VARYANT EKSENLERİ YOKTU — bedeli İKİNCİ VARYANT
+        eksen olmayınca her varyantın options alanı [] oluyor
+        (product_id, options) benzersiz kısıtı → İKİNCİ VARYANT HER ZAMAN
+        patlıyordu, üstelik ham 500 (duplicate key ... unique constraint)
+        markanın EN SIK yaptığı iş, EN ANLAŞILMAZ hatayı veriyordu
+        ⚠️ kısıt KALDIRILMADI — aynı "Kırmızı/M" iki kez olsaydı müşteri
+          hangisini seçtiğini bilemez, stok ikiye bölünürdü
+          Domain'e DuplicateVariantException, kısıt SON SAVUNMA
+        ⚠️ CatalogRuleException genel işleyicisi JSON döndürüyor (api doğru)
+          panelde yakalanıp oturum hatasına çevrildi — 4A/4B/4.5G'nin
+          DÖRDÜNCÜSÜ
+        ⚠️ eksen varyant varken KİLİTLİ; ekran gizliyor ama koruma sunucuda
+
+      ✅ ÜRÜN EKRANINDAN KOLEKSİYON ÜYELİĞİ
+        seçici koleksiyon ayrıntısında ZATEN VARDI ve çalışıyordu (ölçüldü)
+        marka onu ÜRÜN tarafından arıyordu
+        ⚠️ yalnızca MANUEL koleksiyonlar — kurallıda üyelik sorgu anında
+          yeni kapı açıldı, ESKİ KURAL onunla birlikte geldi
+
+      ✅ ÜRÜN OLUŞTURUNCA VARYANT/GÖRSEL BÖLÜMÜ GELMİYORDU
+        ⚠️ SUNUCUDA HİÇBİR ŞEY YANLIŞ DEĞİLDİ
+          4.5G'de "ölçtüm çalışıyor" denmişti — ölçülen YÖNLENDİRMEYDİ,
+          EKRAN DEĞİL
+        Inertia bileşeni yeniden KULLANIYOR: oluşturma ve düzenleme AYNI
+        bileşen → setup() bir daha koşmuyor → `yeniMi` true'da donuyor
+        computed'e çevrildi + useForm watch ile yeniden tohumlanıyor
+        (yoksa başka ürüne geçince kutularda ESKİ ürünün verisi kalırdı)
+
+      DOĞRULANDI (gerçek panel isteği)
+        eksensiz ikinci varyant 500 → 302 + oturum hatası
+        Renk ekseni atandı, üç varyant eklendi (kırmızı/mavi/siyah)

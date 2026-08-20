@@ -6,6 +6,7 @@
  | düzenleme. İki ayrı dosya olsaydı alan listesi iki yerde tutulurdu ve
  | biri güncellenmeden kalırdı.
  */
+import { computed, ref, watch } from 'vue'
 import { useForm, Head, Link, router } from '@inertiajs/vue3'
 import PanelDuzeni from '../../Layouts/PanelDuzeni.vue'
 
@@ -13,9 +14,28 @@ const props = defineProps({
   urun: Object,
   kategoriler: Array,
   durumlar: Array,
+  eksenler: Array,
+  manuelKoleksiyonlar: Array,
 })
 
-const yeniMi = props.urun === null
+/*
+ | ★ `computed` — DÜZ DEĞİŞKEN DEĞİL. (4.5L)
+ |
+ | ⚠️ Gerçek kullanımda bulundu: "ürünü oluşturuyorum, 'şimdi varyant
+ | ekleyebilirsin' yazısı geliyor ama varyant ve görsel bölümü gelmiyor;
+ | sayfa değiştirip ürüne tekrar tıklayınca geliyor."
+ |
+ | Sebep Inertia'nın bileşen yeniden kullanımı: oluşturma ve düzenleme
+ | AYNI bileşen (`Urunler/Form`). Yönlendirme aynı bileşene gidince Vue
+ | örneği yeniden KURULMUYOR — `setup()` bir daha koşmuyor. Düz değişken
+ | olarak yazılan `yeniMi` `true`'da donuyor ve varyant paneli hiç
+ | görünmüyor.
+ |
+ | ⚠️ Sunucu tarafında hiçbir şey yanlış değildi: yönlendirme doğru,
+ | prop'lar doğru geliyordu. Bu yüzden 4.5G'de "ölçtüm, zaten çalışıyor"
+ | denmişti — ölçülen şey yönlendirmeydi, EKRAN değil.
+ */
+const yeniMi = computed(() => !props.urun)
 
 const form = useForm({
   title: props.urun?.title ?? '',
@@ -26,8 +46,26 @@ const form = useForm({
   category_uuid: props.urun?.category_uuid ?? '',
 })
 
+/*
+ | ⚠️ Form alanları da yeniden tohumlanıyor. `yeniMi`'yi `computed`
+ | yapmak tek başına yetmez: `useForm` başlangıç değerlerini de setup'ta
+ | okuyor, yani başka bir ürüne geçildiğinde kutularda ESKİ ürünün
+ | verisi kalırdı — ve kaydedilirdi.
+ */
+watch(() => props.urun?.uuid, () => {
+  form.defaults({
+    title: props.urun?.title ?? '',
+    description: props.urun?.description ?? '',
+    brand: props.urun?.brand ?? '',
+    model: props.urun?.model ?? '',
+    tax_rate: props.urun?.tax_rate ?? '',
+    category_uuid: props.urun?.category_uuid ?? '',
+  })
+  form.reset()
+})
+
 function kaydet() {
-  if (yeniMi) {
+  if (yeniMi.value) {
     form.post('/yonetim/urunler')
   } else {
     form.put(`/yonetim/urunler/${props.urun.uuid}`)
@@ -35,6 +73,43 @@ function kaydet() {
 }
 
 /* Varyant formu — ayrı, çünkü ürün kaydedilmeden varyant eklenemez. */
+/*
+ | ★ EKSENLER (4.5L). Ürünün hangi eksenleri kullandığı burada seçiliyor;
+ | varyant eklerken her eksen için bir değer isteniyor.
+ |
+ | ⚠️ Eksen tanımlanamadığı sürece her varyantın `options` alanı boş
+ | kalıyordu ve `(product_id, options)` benzersiz kısıtı yüzünden İKİNCİ
+ | varyant her zaman patlıyordu — ham 500 ile. Yani bu ekran eksikken
+ | ürünlerin tek varyantı olabiliyordu.
+ */
+const secilenEksenler = ref([])
+
+watch(() => props.urun?.uuid, () => {
+  secilenEksenler.value = (props.urun?.options ?? []).map((e) => e.uuid)
+}, { immediate: true })
+
+function eksenleriKaydet() {
+  router.post(`/yonetim/urunler/${props.urun.uuid}/eksenler`, {
+    option_uuids: secilenEksenler.value,
+  })
+}
+
+/* Ürünün kullandığı eksenler — varyant formundaki seçiciler bunlardan. */
+const urunEksenleri = computed(() => props.urun?.options ?? [])
+
+/*
+ | ★ KOLEKSİYON ÜYELİĞİ ÜRÜN TARAFINDAN (4.5L).
+ |
+ | ⚠️ Seçici koleksiyon AYRINTISINDA zaten vardı ve çalışıyordu — ama
+ | marka onu ürün tarafından arıyordu ve bulamayınca "seçtirmiyor" dedi.
+ | Aynı iş iki yerden yapılabiliyor; kural tek yerde (CollectionService).
+ */
+const uyeUuidleri = computed(() => new Set((props.urun?.koleksiyonlar ?? []).map((k) => k.uuid)))
+
+function koleksiyonDegistir(uuid, ekle) {
+  router.post(`/yonetim/urunler/${props.urun.uuid}/koleksiyon`, { collection_uuid: uuid, ekle })
+}
+
 const varyant = useForm({
   sku: '',
   price: '',
@@ -45,8 +120,16 @@ const varyant = useForm({
 })
 
 function varyantEkle() {
+  /*
+   | ⚠️ `options` DOLDURULUYOR: eksen seçicilerinden gelen eksen slug →
+   | değer slug eşlemesi. Boş gönderilseydi ürünün tanımlı ekseni varken
+   | "'renk' ekseni eksik" hatası alınırdı.
+   */
   varyant.post(`/yonetim/urunler/${props.urun.uuid}/varyantlar`, {
-    onSuccess: () => varyant.reset(),
+    onSuccess: () => {
+      varyant.reset()
+      varyant.options = {}
+    },
   })
 }
 
@@ -160,6 +243,80 @@ function urunSil() {
         >{{ yeniMi ? 'Oluştur' : 'Kaydet' }}</button>
       </div>
 
+      <!--
+        KOLEKSİYONLAR (4.5L) — elle seçilen koleksiyonlara üyelik.
+
+        ⚠️ Kurallı koleksiyonlar burada YOK: orada üyelik sorgu anında
+        hesaplanıyor (2D) ve elle ekleme "bu ürün neden burada"
+        sorusunun iki cevabı olması demekti.
+      -->
+      <div v-if="!yeniMi && manuelKoleksiyonlar.length" class="col-span-2 rounded-xl bg-white border border-stone-200 p-5">
+        <h2 class="font-semibold mb-3">Koleksiyonlar</h2>
+
+        <div class="flex flex-wrap gap-3">
+          <label v-for="k in manuelKoleksiyonlar" :key="k.uuid" class="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              :checked="uyeUuidleri.has(k.uuid)"
+              @change="koleksiyonDegistir(k.uuid, $event.target.checked)"
+            >
+            {{ k.title }}
+          </label>
+        </div>
+      </div>
+
+      <!--
+        EKSENLER (4.5L) — ürünün "Renk", "Beden" gibi varyant eksenleri.
+
+        ⚠️ Eksen tanımlanamadığı sürece bir ürünün YALNIZCA TEK varyantı
+        olabiliyordu: her varyantın `options` alanı boş kalıyor ve
+        `(product_id, options)` benzersiz kısıtı ikinciyi reddediyordu.
+      -->
+      <div v-if="!yeniMi" class="col-span-2 rounded-xl bg-white border border-stone-200 p-5">
+        <h2 class="font-semibold mb-1">Varyant eksenleri</h2>
+
+        <p v-if="eksenler.length === 0" class="text-sm text-stone-600">
+          Henüz eksen tanımlı değil.
+          <Link href="/yonetim/katalog" class="text-orange-700">Katalog ayarlarından</Link>
+          "Renk", "Beden" gibi eksenler ekleyin.
+        </p>
+
+        <template v-else>
+          <!--
+            ⚠️ Varyant varken eksen DEĞİŞTİRİLEMİYOR (1B): değiştirilseydi
+            eldeki varyantlar anında geçersizleşir, ürün sayfasında
+            seçilemez hâle gelir ve stok orada asılı kalırdı.
+          -->
+          <p v-if="urun.eksen_kilitli" class="text-sm text-stone-600 mb-2">
+            Bu üründe varyant olduğu için eksenler kilitli.
+            Değiştirmek için önce varyantları silin.
+          </p>
+          <p v-else class="text-sm text-stone-600 mb-2">
+            Bu ürünün varyantları hangi eksenlere göre ayrışsın? Sıra önemlidir.
+          </p>
+
+          <div class="flex flex-wrap gap-3 mb-3">
+            <label v-for="e in eksenler" :key="e.uuid" class="flex items-center gap-2 text-sm">
+              <input
+                v-model="secilenEksenler"
+                type="checkbox"
+                :value="e.uuid"
+                :disabled="urun.eksen_kilitli"
+              >
+              {{ e.name }}
+              <span class="text-stone-500">({{ e.values.map((d) => d.value).join(', ') || 'değer yok' }})</span>
+            </label>
+          </div>
+
+          <button
+            v-if="!urun.eksen_kilitli"
+            type="button"
+            class="rounded-lg border border-stone-300 px-3 py-2 text-sm"
+            @click="eksenleriKaydet"
+          >Eksenleri kaydet</button>
+        </template>
+      </div>
+
       <div v-if="!yeniMi" class="col-span-2 rounded-xl bg-white border border-stone-200 p-5">
         <h2 class="font-semibold mb-3">Görseller</h2>
 
@@ -198,7 +355,14 @@ function urunSil() {
 
         <table v-else class="w-full text-sm mb-4">
           <tr v-for="v in urun.variants" :key="v.uuid" class="border-b border-stone-100">
-            <td class="py-2"><code>{{ v.sku }}</code></td>
+            <td class="py-2">
+              <code>{{ v.sku }}</code>
+              <!-- ⚠️ Seçenekler GÖRÜNÜYOR: "Kırmızı / M" yazmadan marka
+                   hangi satırın hangi varyant olduğunu ayırt edemezdi. -->
+              <span v-if="Object.keys(v.options ?? {}).length" class="ml-2 text-stone-600">
+                {{ Object.values(v.options).join(' / ') }}
+              </span>
+            </td>
             <td class="py-2">{{ Number(v.price).toLocaleString('tr-TR', { minimumFractionDigits: 2 }) }} TL</td>
             <td class="py-2">
               {{ v.stock }}
@@ -216,6 +380,21 @@ function urunSil() {
         <div class="border-t border-stone-200 pt-4">
           <h3 class="text-sm font-semibold mb-2">Varyant ekle</h3>
 
+          <!--
+            ⚠️ Her eksen için BİR değer isteniyor. Eksik bırakılırsa
+            sunucu "'renk' ekseni eksik" diyor — ekran o hatayı hiç
+            doğurmasın diye seçiciler burada.
+          -->
+          <div v-if="urunEksenleri.length" class="flex flex-wrap gap-2 mb-2">
+            <label v-for="e in urunEksenleri" :key="e.uuid" class="text-sm">
+              <span class="text-stone-600">{{ e.name }}</span>
+              <select v-model="varyant.options[e.slug]" class="ml-1 rounded-lg border border-stone-300 px-2 py-2 text-sm">
+                <option value="">— seçin —</option>
+                <option v-for="d in e.values" :key="d.slug" :value="d.slug">{{ d.value }}</option>
+              </select>
+            </label>
+          </div>
+
           <div class="grid grid-cols-3 gap-2 mb-2">
             <input v-model="varyant.sku" placeholder="SKU" class="rounded-lg border border-stone-300 px-3 py-2 text-sm">
             <input v-model="varyant.price" type="number" step="0.01" min="0" placeholder="Fiyat" class="rounded-lg border border-stone-300 px-3 py-2 text-sm">
@@ -224,6 +403,10 @@ function urunSil() {
 
           <p v-if="varyant.errors.sku" class="text-sm text-red-700 mb-2">{{ varyant.errors.sku }}</p>
           <p v-if="varyant.errors.price" class="text-sm text-red-700 mb-2">{{ varyant.errors.price }}</p>
+          <!-- ⚠️ Seçenek hatası GÖSTERİLMELİ: "bu birleşimde zaten varyant
+               var" mesajı burada çıkmazsa marka neden eklenmediğini
+               göremez — eskiden ham 500 alıyordu. -->
+          <p v-if="varyant.errors.options" class="text-sm text-red-700 mb-2">{{ varyant.errors.options }}</p>
 
           <button
             type="button"

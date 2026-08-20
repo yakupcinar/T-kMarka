@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ──────── şu an: 4.5L sipariş akışı BİTTİ, katalog tarafı SIRADA ┐
+┌─ YOL HARİTASI ──────── şu an: 4.5L BİTTİ, 4.5J-K-M-N SIRADA ┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -5772,6 +5772,65 @@ fulfilled`, tek paket `delivered` · iade → `302 → /yonetim/iadeler/{uuid}`,
 > **Kalan 4.5L işleri** (katalog tarafı, ayrı ele alınacak): manuel
 > koleksiyona ürün ekleme · varyant eksenleri · ikinci varyantta bozulan
 > sayfa · ürün oluşturduktan sonra varyant/görsel bölümünün gelmemesi.
+
+---
+
+#### 4.5L.1 — panel katalog: eksenler, koleksiyon üyeliği, bileşen yeniden kullanımı
+
+Dört şikâyet, **ikisi aynı kökten**.
+
+**✅ Varyant eksenleri yoktu — ve bedeli ikinci varyanttı.** Panelde eksen
+(Renk, Beden) tanımlanamıyordu; uçları 1B'de vardı, ekranı yoktu.
+
+> ⚠️ **Sessiz değil, ama anlaşılmaz:** eksen olmayınca her varyantın
+> `options` alanı `[]` oluyor. `(product_id, options)` benzersiz kısıtı
+> yüzünden **ikinci varyant her zaman** patlıyordu — üstelik yakalanmadığı
+> için ham **500**: *"duplicate key value violates unique constraint"*.
+> Yani markanın en sık yaptığı iş, en anlaşılmaz hatayı veriyordu.
+>
+> ⚠️ Kısıt **kaldırılmadı** — doğru: aynı "Kırmızı / M" iki kez olsaydı
+> müşteri hangisini seçtiğini bilemez, stok ikiye bölünürdü. Domain'e
+> `DuplicateVariantException` kondu; kısıt yarış durumuna karşı **son
+> savunma** olarak duruyor.
+>
+> ⚠️ `CatalogRuleException` için genel işleyici **JSON** döndürüyor —
+> `api/*` için doğru, panel sayfası için değil. Panelde yakalanıp oturum
+> hatasına çevriliyor: 4A · 4B · 4.5G'de kapatılan hatanın aynı ailesi,
+> **dördüncü kez**.
+>
+> ⚠️ Eksenler varyant varken **kilitli** (1B). Ekran bunu prop'tan biliyor
+> ve düğmeyi gizliyor — ama bu bir kolaylık; gerçek koruma sunucuda,
+> kırma denemesiyle ölçüldü.
+
+**✅ Ürün ekranından koleksiyon üyeliği.** Seçici koleksiyon ayrıntısında
+**zaten vardı ve çalışıyordu** — ölçüldü. Marka onu ürün tarafından
+arıyordu ve bulamayınca "seçtirmiyor" dedi. Aynı iş artık iki yerden
+yapılabiliyor; kural tek yerde (`CollectionService`).
+
+> ⚠️ Listede yalnızca **manuel** koleksiyonlar var. Kurallıda üyelik sorgu
+> anında hesaplanıyor (2D); elle eklenen ürün kural onu dışlasa bile
+> listede kalır ve "bu ürün neden burada" sorusunun **iki cevabı** olurdu.
+> Yeni kapı açıldı, eski kural onunla birlikte geldi — testi var.
+
+**✅ Ürün oluşturunca varyant/görsel bölümü gelmiyordu.**
+
+> ⚠️ **Sunucuda hiçbir şey yanlış değildi**: yönlendirme doğru, prop'lar
+> doğru. 4.5G'de "ölçtüm, zaten çalışıyor" denmişti — ölçülen şey
+> **yönlendirmeydi, ekran değil**.
+>
+> Sebep Inertia'nın bileşen yeniden kullanımı: oluşturma ve düzenleme
+> **aynı bileşen**. Aynı bileşene yönlenince Vue örneği yeniden
+> kurulmuyor, `setup()` bir daha koşmuyor ve düz değişken olarak yazılan
+> `yeniMi` `true`'da donuyor. `computed`'e çevrildi; `useForm`
+> başlangıç değerleri de `watch` ile yeniden tohumlanıyor — yoksa başka
+> bir ürüne geçildiğinde kutularda **eski ürünün verisi** kalır ve
+> kaydedilirdi.
+
+**Dört kırma denemesi, dördü de düştü.** **Doğrulandı (gerçek panel
+isteği):** eksensiz ikinci varyant **500 → 302** + oturum hatası · Renk
+ekseni atandı, **üç varyant** (kırmızı/mavi/siyah) eklendi · ürün ekranı
+eksen listesini, kilit durumunu ve manuel koleksiyonları gönderiyor.
+**757 test.**
 
 ---
 

@@ -800,6 +800,20 @@ Route::middleware([
             Route::post('/koleksiyonlar/{koleksiyon:uuid}/urunler', [CollectionPageController::class, 'urunEkle'])->name('panel.koleksiyon.urunekle');
             Route::delete('/koleksiyonlar/{koleksiyon:uuid}/urunler/{urun}', [CollectionPageController::class, 'urunCikar'])->name('panel.koleksiyon.uruncikar');
 
+            /*
+            | ⚠️ EKSEN AYARI ayrı uçta (4.5L) — ürün güncellemesinin içine
+            | konsaydı her başlık düzenlemesi eksenleri de yazmaya
+            | çalışırdı ve varyantı olan üründe her kayıt hata verirdi.
+            */
+            Route::post('/urunler/{urun:uuid}/eksenler', [PanelUrunSayfasi::class, 'eksenleriAyarla'])->name('panel.urun.eksenler');
+
+            /*
+            | ⚠️ Ürün tarafından koleksiyon üyeliği (4.5L). Aynı iş
+            | koleksiyon ayrıntısından da yapılabiliyor; ikisi de
+            | `CollectionService`'e gidiyor, kural tek yerde.
+            */
+            Route::post('/urunler/{urun:uuid}/koleksiyon', [PanelUrunSayfasi::class, 'koleksiyonaEkle'])->name('panel.urun.koleksiyon');
+
             Route::post('/urunler/{urun:uuid}/varyantlar', [PanelUrunSayfasi::class, 'varyantEkle'])->name('panel.varyant.ekle');
             /*
             | ⚠️ `withoutScopedBindings()` — ve bu BİLİNÇLİ.
