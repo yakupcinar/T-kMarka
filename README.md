@@ -144,12 +144,8 @@ veya dağıtım için izin gerekir.
 
 ### Açık kusurlar
 
-**Vitrin — sipariş / ödeme**
-
-
-**Marka paneli — katalog**
-
-
+*Şu an açık kusur yok — bildirdiklerinin hepsi "Yapıldı" tablosunda.
+Yenisini buraya yazabilirsin.*
 
 **Merkez yönetim**
 
@@ -188,12 +184,9 @@ veya dağıtım için izin gerekir.
 | Sipariş panele düşmemiş / saati yanlış | Vitrin → Hesabım → sipariş saati artık **mağaza saat diliminde** (panel zaten doğruydu) | 4.5M |
 | Yeni marka isteğini onay/red edeyim | Merkez → `/yonetim/markalar` → başvuru **`pending`** görünür → **Onayla / Reddet** (onayda deneme başlar) | 4.5N |
 | Stok yetmeyince ödeme ham JSON döndürüyor | Sepet → stok bağlıyken öde → **sepete döner, Türkçe mesaj** (JSON yok) | 4.5O |
-| Tünelden ödeme tamamlanıyor mu | `make kaldir` → gerçek 3DS/SMS akışı — kullanıcı doğruladı: **ödeme tamam, vitrinde "ödendi"**. ⚠️ Çerçeve içindeki dönüş ekranı hâlâ bozuk (açık listede) | 4.5M |
+| Tünelden ödeme tamamlanıyor mu | `make kaldir` → gerçek 3DS/SMS akışı — kullanıcı doğruladı: **ödeme tamam, vitrinde "ödendi"** (dönüş ekranı 4.5R'de düzeltildi) | 4.5M |
 | Eksen kaydetmeden varyant ekleyince bozuk sayfa | Panel → ürün → eksen seçmeden **düğmeler kapalı**; boş değerle denersen *"Her varyant ekseni için bir değer seçin."* | 4.5P |
 | Ürün oluşturunca varyant/görsel gelmiyor | Panel → Ürünler → Yeni → Oluştur → bölümler **aynı anda** gelir | 4.5L · 4.5P |
 | Panelde arama kelime ortasından eşleşiyor | Panel → Ürünler → ara: **`iş` boş döner**, `cüz` → Deri Cüzdan | 4.5P |
 | Ödeme sonrası çerçevede açılamayan sayfa | Ödemeyi tamamla → çerçeve kapanır, **"Siparişiniz alındı"** ekranı gelir (POST → 303 → imzalı sayfa) | 4.5R |
 | Ürün oluşturunca varyant sayfasına gitmiyor | `POST /yonetim/urunler` → `302 → /yonetim/urunler/{uuid}` — **ölçüldü, zaten doğruydu** | 4.5G |
-
-> ⚠️ Ürün oluşturma yönlendirmesi doğru çalışıyor ama **açılan sayfada
-> varyant/görsel bölümü gelmiyor** — o ayrı bir kusur ve açık listede.
