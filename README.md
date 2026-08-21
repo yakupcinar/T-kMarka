@@ -151,13 +151,27 @@ Yenisini buraya yazabilirsin.
 
 * ⚠️ **Geliştirmede** yeni marka alan adı hâlâ `docker/Caddyfile`'a elle ekleniyor — Let's Encrypt `.localhost` adreslerine sertifika veremediği için on-demand TLS yerelde devreye giremiyor. **Üretimde gerekmiyor** (4.5N).
 
-### Fikirler
+### Fikirler → **Faz 4.6 olarak planlandı** (`PLAN.md`)
 
-* Ürün sayfasının altında benzer ürünler, beğenilenler (Hepsiburada gibi)
-* Ürüne tıklamayı sayma, kullanıcı başına veri tutma; marka panelinde düzgün formatta bir bölüm
-* Vitrinde ürün favorileme yok
-* Vitrene gelen kişi varyantları sıralı kutucuklardan seçsin (L M S, atlında yine aynı ama varyant eksenti içindeki sayı 5 i geçiyorsa kutucuk yerine o ekseni listesinden seçme gibi bir kutucuk koyacağız) ayrıca o varyant ekseni kalmadıysa stokta onu tıklanamaz halde bırakalım orda
-* Hepsiburada gibi büyük e-ticaret sitelerinin niş özelliklerini tespit edip liste oluşturalım
+| # | Fikir | Blok |
+|---|---|---|
+| 1 | Varyantlar sıralı kutucuklardan seçilsin; eksen 5'ten fazla değer içeriyorsa açılır liste; stokta olmayan tıklanamaz | **4.6A** |
+| 2 | Ürün sayfasının altında benzer ürünler, beğenilenler | **4.6E** |
+| 3 | Ürüne tıklamayı sayma, kullanıcı başına veri; panelde bölüm | **4.6F** |
+| 4 | Vitrinde ürün favorileme | **4.6D** |
+| 5 | Büyük e-ticaret sitelerinin niş özelliklerini tespit et | **4.6G** |
+
+**Planlama sırasında ölçümle bulunan iki eksik de fazın içine alındı:**
+
+| Eksik | Blok |
+|---|---|
+| Vitrinde **kategori gezinme sayfası yok** (4.5H kapsam testinde bilerek `null`) | **4.6B** |
+| **Yorumlar vitrinde hiç görünmüyor** — uçlar (2E) ve panel moderasyonu (4.5F) var, müşteri ulaşamıyor | **4.6C** |
+
+> ⚠️ Ayrıca ölçüldü: `ProductViewed` olayı **yalnızca API'den** yazılıyor,
+> vitrin sayfası hiç kaydetmiyor — bugünkü sayılar eksik. Ve
+> `Anonymizer`/`DataExporter` **olayları kapsamıyor**; müşteri başına
+> davranış verisi tutmadan önce KVKK tarafı genişletilmeli (4.6F).
 
 ---
 
