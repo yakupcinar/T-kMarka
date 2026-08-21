@@ -2544,3 +2544,25 @@ FAZ 5 SIRADA — kargo firmaları · e-fatura/e-arşiv
         5 eksen → 422 "Bir üründe en fazla 3 eksen olabilir…"
         3 eksen → 302, seçenekler değerleriyle ekranda
         merkez: ark → boş, marka → üç marka
+
+4.6A ✅ VARYANT SEÇİMİ: EKSEN KUTUCUKLARI — 808 test
+      önce TEK DÜZ AÇILIR LİSTE vardı: "Kırmızı · M — 100 TL"
+      müşteri iki ekseni birden okuyordu ve STOKTA OLMAYAN birleşimler de
+      seçilebiliyordu → seçiyor, sepete ekliyor, hata alıyordu
+
+      ✅ EKSEN BAŞINA SEÇİM, değerler kutucuk, 5'ten fazlaysa açılır liste
+        ⚠️ "STOKTA YOK" KURALI SEPETLE AYNI YERDEN (satinAlinabilirMi)
+          stock>0 kısayolu yazılsaydı BAĞLI stok seçilebilir olurdu
+          (4.5J'deki "iki formül" tuzağı) — kırma denemesiyle ölçüldü
+        ⚠️ ÇIKMAZ SOKAK YOK: bir değerin kapalılığı DİĞER eksenlerin
+          seçimine göre; kendi ekseni sayılsaydı müşteri sıkışır ve
+          rengi değiştiremezdi (gerçek matriste ayrıca ölçüldü)
+        ⚠️ FİYAT SEÇİME GÖRE güncelleniyor — yoksa 100 TL görüp 120 TL
+          ödeyeceği varyantı sepete atardı
+        ⚠️ ÜRETİLMEMİŞ DEĞER LİSTEDE YOK: "stokta yok" ≠ "böyle bir şey yok"
+        ⚠️ EKSENSİZ ÜRÜN BOZULMADI (çoğunluk o), betik de gönderilmiyor
+        ⚠️ betik çalışmazsa düğme AÇIK, sunucu doğrulaması devrede
+        ⚠️ eşik SUNUCUDAN (LISTE_ESIGI)
+
+      ⚠️ DOM etkileşimi tarayıcıda doğrulanamadı (yerel sertifika);
+        sunucu sözleşmesi testlerle, seçim kuralı gerçek matrisle ölçüldü

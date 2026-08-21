@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ──────── şu an: FAZ 4.5 BİTTİ · Faz 4.6 planlandı ┐
+┌─ YOL HARİTASI ──────── şu an: 4.6A BİTTİ, 4.6B SIRADA ┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -6335,6 +6335,64 @@ değer varsa açılır liste**, stokta olmayan birleşim **tıklanamaz**.
 >
 > ⚠️ Eşik (5) **sunucudan** gelmeli, arayüzde sabit yazılmamalı — 4.5S'de
 > `maksEksen` için verilen kararın aynısı.
+
+### 4.6A — varyant seçimi: eksen kutucukları  ◀ AÇIK
+
+Önce **tek düz açılır liste** vardı ve tüm varyantları
+*"Kırmızı · M — 100 TL"* diye basıyordu: müşteri iki ekseni birden okumak
+zorundaydı ve **stokta olmayan birleşimler de seçilebiliyordu** — seçiyor,
+sepete ekliyor, hata alıyordu.
+
+**✅ Eksen başına seçim.** Her eksen kendi grubu; değerler kutucuk, eksende
+**5'ten fazla değer varsa açılır liste**. Renk değerlerinde `swatch`
+varsa renk yuvarlağı basılıyor.
+
+> ⚠️ **"STOKTA YOK" KURALI SEPETLE AYNI YERDEN GELİYOR.** Satılabilirlik
+> `stock − committed` + aktiflik demek (1D-K1) ve `VariantSelector`
+> doğrudan `satinAlinabilirMi()` çağırıyor. Ekran `stock > 0` gibi bir
+> kısayol yazsaydı müşteri, ödemesi süren başka bir siparişe **bağlı**
+> stoğu seçer ve sepete eklerken `InsufficientStockException` alırdı —
+> 4.5J'deki "iki formül" tuzağının aynısı. Kırma denemesiyle ölçüldü.
+>
+> ⚠️ **ÇIKMAZ SOKAK YOK.** Bir değerin kapalı olup olmadığı **diğer**
+> eksenlerdeki seçime göre hesaplanıyor. Kendi ekseni de hesaba
+> katılsaydı müşteri "Kırmızı" seçtikten sonra tüm bedenler kapanınca
+> sıkışır, **rengi değiştiremezdi**. Gerçek matris üzerinde ayrıca
+> ölçüldü: kırmızı+S (tükenmiş) seçiliyken renk ekseni hâlâ açık.
+>
+> ⚠️ **FİYAT SEÇİME GÖRE GÜNCELLENİYOR.** Sabit en düşük fiyat
+> yazılsaydı müşteri 100 TL görüp 120 TL'lik varyantı sepete atar, bunu
+> ancak sepet sayfasında fark ederdi.
+>
+> ⚠️ **ÜRETİLMEMİŞ DEĞER LİSTEDE YOK.** Eksende tanımlı ama bu üründe hiç
+> varyantı olmayan beden gösterilmiyor: *"stokta yok"* ile *"böyle bir şey
+> yok"* aynı şey değil.
+>
+> ⚠️ **EKSENSİZ ÜRÜN BOZULMADI** — çoğunluk o. Seçici hiç basılmıyor,
+> gizli girdi çalışmaya devam ediyor; betik de o sayfalara gönderilmiyor.
+>
+> ⚠️ **Betik çalışmazsa düğme AÇIK kalıyor** ve sunucu doğrulaması
+> devreye giriyor. Kapalı bırakılsaydı JavaScript'i kapalı müşteri
+> hiçbir şey satın alamazdı.
+>
+> ⚠️ Eşik **sunucudan** geliyor (`VariantSelector::LISTE_ESIGI`);
+> arayüzde sabit yazılsaydı eşik değişince iki taraf ayrışırdı (4.5S'deki
+> `maksEksen` kararının aynısı).
+
+**Dört kırma denemesi, dördü de düştü** (satılabilirliği `stock > 0`
+yapmak · eşiği yok saymak · üretilmemiş değerleri listelemek · düz listeye
+dönmek). **Doğrulandı (gerçek sayfa):** iki eksen, altı kutucuk, tükenen
+birleşim işaretli · eksensiz ürün gizli girdiyle çalışıyor · seçim
+algoritması gerçek matris üzerinde ayrıca koşturuldu.
+
+> ⚠️ **DOM etkileşimi tarayıcıda doğrulanamadı**: araç yerel sertifikalı
+> adrese ulaşamıyor. Sunucu sözleşmesi testlerle, seçim kuralı gerçek
+> matrisle ölçüldü; kutucukların ekranda görünüşü kullanıcı tarafından
+> sınanacak.
+
+**808 test.**
+
+---
 
 ### 4.6B — Vitrinde kategori gezinme  *(borç kapanışı)*
 

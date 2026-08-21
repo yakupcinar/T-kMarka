@@ -142,6 +142,8 @@ veya dağıtım için izin gerekir.
 > Açık kusurlar ve fikirler. Biten maddeler **silinmiyor** — aşağıdaki
 > "Yapıldı" bölümüne taşınıyor ki tekrar kontrol edilebilsin.
 
+* Ana sayfadaki ürünler direkt her kullanıcı önüne konmuş bir algoritma yapıp 
+
 ### Açık kusurlar
 
 *Şu an açık kusur yok — bildirdiklerinin hepsi "Yapıldı" tablosunda.

@@ -3,6 +3,7 @@
 namespace App\Http\Storefront;
 
 use App\Domain\Catalog\ProductQuery;
+use App\Domain\Catalog\VariantSelector;
 use App\Domain\Settings\ThemeSettings;
 use App\Http\Controllers\Controller;
 use Illuminate\Contracts\View\View;
@@ -18,6 +19,7 @@ class ProductPageController extends Controller
     public function __construct(
         private readonly ProductQuery $sorgu,
         private readonly ThemeSettings $tema,
+        private readonly VariantSelector $secici,
     ) {}
 
     public function __invoke(string $slug): View
@@ -34,7 +36,12 @@ class ProductPageController extends Controller
             throw new NotFoundHttpException('Ürün bulunamadı.');
         }
 
-        $urun->load(['images', 'variants']);
+        /*
+        | ⚠️ `options.values` de yükleniyor (4.6A): varyant seçicisi eksen
+        | adlarını ve değerlerini gösteriyor. Yüklenmezse her eksen için
+        | ayrı sorgu açılırdı — ürün sayfası N+1'e düşerdi.
+        */
+        $urun->load(['images', 'variants', 'options.values']);
 
         /*
         | ⚠️ Görünüm adı `match` ile SABİT metne çevriliyor, birleştirmeyle
@@ -47,6 +54,20 @@ class ProductPageController extends Controller
             default => 'storefront.sade.urun',
         };
 
-        return view($gorunum, ['urun' => $urun]);
+        return view($gorunum, [
+            'urun' => $urun,
+
+            /*
+            | ★ VARYANT SEÇİCİSİ (4.6A) — veri DOMAIN'den.
+            |
+            | ⚠️ "Bu değer seçilebilir mi" sorusu satılabilirlik kuralına
+            | bağlı (`stock − committed` + aktiflik). Ekran kendi hesabını
+            | yapsaydı müşteri, başka bir siparişe BAĞLI stoğu seçer ve
+            | sepete eklerken hata alırdı — 4.5J'deki "iki formül"
+            | tuzağının aynısı.
+            */
+            'secici' => $this->secici->coz($urun),
+            'listeEsigi' => VariantSelector::LISTE_ESIGI,
+        ]);
     }
 }

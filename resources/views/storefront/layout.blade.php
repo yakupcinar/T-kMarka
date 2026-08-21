@@ -183,6 +183,28 @@
             color: #c2410c; cursor: pointer; text-decoration: underline;
         }
 
+        /* VARYANT SEÇİCİSİ (4.6A) */
+        .varyant-secici { margin: 16px 0; }
+        .eksen { margin-bottom: 12px; }
+        .eksen-ad { display: block; font-size: 14px; color: #57534e; margin-bottom: 6px; }
+        .kutucuklar { display: flex; flex-wrap: wrap; gap: 8px; }
+        .kutucuk {
+            display: inline-flex; align-items: center; gap: 6px;
+            border: 1px solid #d6d3d1; background: #fff; color: #1c1917;
+            border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer;
+        }
+        .kutucuk.secili { border-color: #1c1917; box-shadow: inset 0 0 0 1px #1c1917; }
+
+        /* ⚠️ Tükenen değer GİZLENMİYOR, kapatılıyor: müşteri o seçeneğin
+           var olduğunu ama şu an alınamadığını görmeli. */
+        .kutucuk:disabled, .kutucuk.tukendi {
+            opacity: .45; cursor: not-allowed; text-decoration: line-through;
+        }
+        .kutucuk .renk {
+            width: 14px; height: 14px; border-radius: 50%;
+            border: 1px solid rgba(0,0,0,.2); display: inline-block;
+        }
+
         .sepet-tablo { width: 100%; border-collapse: collapse; margin: 24px 0; }
         .sepet-tablo td { border-bottom: 1px solid #e7e5e4; padding: 14px 8px; vertical-align: top; }
         .sepet-tablo tr.olu { opacity: .55; }
