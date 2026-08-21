@@ -145,7 +145,7 @@ veya dağıtım için izin gerekir.
 ### Açık kusurlar
 
 *Şu an açık kusur yok — bildirdiklerinin hepsi "Yapıldı" tablosunda.
-Yenisini buraya yazabilirsin.*
+Yenisini buraya yazabilirsin.
 
 **Merkez yönetim**
 
@@ -156,7 +156,7 @@ Yenisini buraya yazabilirsin.*
 * Ürün sayfasının altında benzer ürünler, beğenilenler (Hepsiburada gibi)
 * Ürüne tıklamayı sayma, kullanıcı başına veri tutma; marka panelinde düzgün formatta bir bölüm
 * Vitrinde ürün favorileme yok
-* Vitrene gelen kişi varyantları sıralı kutucuklardan seçsin (L M S, atlında yine aynı ama varyant eksenti içindeki sayı 5 i geçiyorsa kutucuk yerine o ekseni listesinden seçme gibi bir kutucuk koyacağız)
+* Vitrene gelen kişi varyantları sıralı kutucuklardan seçsin (L M S, atlında yine aynı ama varyant eksenti içindeki sayı 5 i geçiyorsa kutucuk yerine o ekseni listesinden seçme gibi bir kutucuk koyacağız) ayrıca o varyant ekseni kalmadıysa stokta onu tıklanamaz halde bırakalım orda
 * Hepsiburada gibi büyük e-ticaret sitelerinin niş özelliklerini tespit edip liste oluşturalım
 
 ---

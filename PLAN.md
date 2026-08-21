@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ──────── şu an: FAZ 4.5 BİTTİ, FAZ 5 SIRADA ┐
+┌─ YOL HARİTASI ──────── şu an: FAZ 4.5 BİTTİ · Faz 4.6 planlandı ┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -6288,6 +6288,148 @@ isteği):** 5 eksen → **422** + *"Bir üründe en fazla 3 eksen olabilir…"* 
 > alınmalı — `timestampsTz` ve `TimeZone` tuzağı bu projede zaten bir kez
 > yaşandı.
 
+
+## Faz 4.6 — Vitrin deneyimi ve ölçüm  *(planlandı)*
+
+Kullanıcının biriktirdiği geliştirme fikirleri + planlama sırasında
+**ölçümle bulunan iki eksik**. Faz 5'ten (kargo · e-fatura) önce
+öneriliyor: hepsi vitrin yüzeyinde, entegrasyon riski taşımıyor ve ikisi
+Faz 4.5'te bilerek açık bırakılmış borçları kapatıyor.
+
+> ⚠️ **Sıra kullanıcının kararı.** Faz 5 önce gelmeli denirse bu faz
+> bekler; teknik bir bağımlılık yok.
+
+### Planlama ölçümleri — ne var, ne yok
+
+| Konu | Mevcut durum |
+|---|---|
+| Olay altyapısı | ✅ `events` tablosu + `EventRecorder` (1F) + `ProductViewed` türü **var** |
+| Ürün görüntüleme kaydı | ⚠️ **YALNIZCA API'den** yazılıyor; vitrin SAYFASI hiç kaydetmiyor |
+| Yorumlar | ⚠️ Uçlar (2E) ve panel moderasyonu (4.5F) **var**, vitrinde **hiç görünmüyor** |
+| Kategori gezinme | ❌ Vitrinde **sayfa yok** (4.5H kapsam testinde bilerek `null`) |
+| Varyant seçimi | ⚠️ Tek düz `<select>`: *"Kırmızı · M — 100 TL"* |
+| Favoriler | ❌ Tablo da ekran da yok |
+| KVKK | ⚠️ `Anonymizer` ve `DataExporter` **olayları kapsamıyor** |
+
+---
+
+### 4.6A — Varyant seçimi: eksen kutucukları
+
+Bugün tek bir açılır liste tüm varyantları düz basıyor. Hedef: **eksen
+başına** seçim (Renk · Beden), değeri **kutucuk**, eksende **5'ten fazla
+değer varsa açılır liste**, stokta olmayan birleşim **tıklanamaz**.
+
+> ⚠️ **"STOKTA YOK" KURALI SEPETLE AYNI YERDEN GELMELİ.** Ekran kendi
+> hesabını yaparsa (`stock > 0`) müşteri seçer, sepete eklerken
+> `InsufficientStockException` alır. Satılabilirlik `stock − committed`
+> ve varyantın `is_active` durumu demek — 4.5J'deki "iki formül" tuzağının
+> aynısı.
+>
+> ⚠️ **FİYAT VARYANTA GÖRE DEĞİŞİYOR.** Seçim değişince ekrandaki fiyat da
+> değişmeli; yoksa müşteri 100 TL görüp 120 TL ödeyecek bir varyantı
+> sepete atar. Vitrin sunucuda render ediliyor (4-K1), yani varyant
+> matrisi sayfaya gömülüp seçim küçük bir betikle yapılacak.
+>
+> ⚠️ **EKSENSİZ ÜRÜN BOZULMAMALI.** `options = []` olan ürün tek varyantlı
+> ve gizli girdiyle çalışıyor; kutucuk mantığı onu kapsam dışı bırakmalı.
+>
+> ⚠️ Eşik (5) **sunucudan** gelmeli, arayüzde sabit yazılmamalı — 4.5S'de
+> `maksEksen` için verilen kararın aynısı.
+
+### 4.6B — Vitrinde kategori gezinme  *(borç kapanışı)*
+
+`/kategori/{slug}` ve başlıkta menü. **Alt ağaç dâhil** (1B-K6): "Giyim"
+sayfası "Giyim > Tişört"teki ürünleri de göstermeli.
+
+> ⚠️ 4.5H'nin kapsam testinde `categories => null` yazılıydı — yani
+> "ekranı yok" bilerek kaydedilmişti. Bu blok o satırı siliyor.
+>
+> ⚠️ Müşteri kategoriye **hiçbir yerden** ulaşamıyor: bugün tek gezinme
+> yolu arama ve ana sayfa listesi.
+
+### 4.6C — Vitrinde yorumlar  *(borç kapanışı)*
+
+Ürün sayfasında puan ortalaması + onaylı yorum listesi + **"yorum yaz"**.
+
+> ⚠️ **Bütün zincir bugün ULAŞILAMAZ:** yorum uçları 2E'de, panel
+> moderasyonu 4.5F'de yazıldı ama müşteri yorumu hiçbir yerden
+> göremiyor/yazamıyor. 4.5K'deki iade durumunun aynısı.
+>
+> ⚠️ Yalnızca **onaylı** yorumlar görünmeli; `rating_avg` sayaçları 2E'de
+> kuruldu ve denetim sorgusu var (`IS DISTINCT FROM` dersi orada).
+>
+> ⚠️ Yorum yazma **satın alana** açık (`NotPurchasedException` mevcut) —
+> ekran bunu baştan söylemeli, yoksa müşteri yazıp reddedilir.
+
+### 4.6D — Favoriler
+
+Yeni marka tablosu (`customer_id`, `product_id`, benzersiz), ürün
+kartında/sayfasında kalp, Hesabım'da liste.
+
+> ⚠️ **KARAR: misafir favorisi VAR MI?** Öneri **hayır** — giriş isteyip
+> açık bir yönlendirme göstermek. Misafir favorisi, sepetteki çerez +
+> birleştirme makinesinin (1C-K5) ikinci bir kopyası demek; sepette o
+> mekanizma üç ayrı kusura yol açtı (4A · 4B · 4.5J).
+
+### 4.6E — Benzer ürünler
+
+Ürün sayfasının altında: aynı kategori alt ağacından, kendisi hariç,
+satılabilir ürünler; yetmezse aynı marka, sonra en yeniler.
+
+> ⚠️ Sorgu **`forStorefront()` üzerinden** geçmeli. Kendi sorgusunu
+> yazsaydı taslak/arşiv ürünler "benzer ürün" olarak sızardı — 4.5H'de
+> koleksiyon için ölçülen kusurun aynısı.
+>
+> ⚠️ Görsel ve varyantlar **eager load** edilmeli; kart başına sorgu
+> açılırsa ürün sayfası N+1'e düşer.
+>
+> ⚠️ "Beğenilenler" için veri kaynağı: 4.6F'deki olaylar. O blok
+> bitmeden **en çok satan** (sipariş satırları) üzerinden gitmek daha
+> dürüst — uydurma bir "beğeni" sayacı üretmemek.
+
+### 4.6F — Tıklama sayımı ve panel raporu
+
+**İki iş var ve birincisi bir kusur:**
+
+1. **Vitrin sayfası olay yazmıyor.** `ProductViewed` yalnızca
+   `CatalogController`'dan (API) kaydediliyor; müşterinin gerçekten
+   gezdiği Blade sayfası hiç kayıt üretmiyor. 4.5I'deki sayfa/API
+   ayrımının aynısı — ölçüm bugün **eksik veriyle** yapılıyor.
+2. **Panelde rapor ekranı yok.** Ürün başına görüntüleme · sepete ekleme ·
+   sipariş; müşteri başına zaman çizelgesi.
+
+> ⚠️ **KVKK — ÖLÇÜLDÜ VE EKSİK:** `Anonymizer` ve `DataExporter`
+> **olayları kapsamıyor**. Müşteri başına davranış verisi tutmaya
+> başlamadan önce ikisi de genişletilmeli; yoksa "verimi ver" ve "beni
+> unut" talepleri **eksik cevaplanır**. Bu, bloğun isteğe bağlı değil
+> **zorunlu** parçası.
+>
+> ⚠️ `anon_id` zaten var — girişsiz ziyaretçi için kimlik üretmeye gerek
+> yok.
+>
+> ⚠️ Yazma OKUMA YOLUNDA: her ürün sayfası bir olay yazacak.
+> `EventRecorder` kuyruğa atıyor (`afterCommit`, 1F-K5) — sayfa yavaşlamaz
+> ama bot trafiği sayıları şişirir. En az bir eleme kuralı gerekli.
+
+### 4.6G — Rakip özellik taraması  *(araştırma)*
+
+Hepsiburada · Trendyol · İkas gibi yüzeylerde bizde olmayan niş
+özellikleri çıkarmak ve **karara bağlamak**.
+
+> ⚠️ Çıktısı kod değil **liste + karar**. K-6/M-2.0'ın sorusu burada da
+> geçerli: *bu problemi gerçekten yaşıyor muyuz, yoksa yaşayabileceğimizi
+> mi düşünüyoruz?*
+
+### Önerilen sıra
+
+`4.6A` → `4.6B` → `4.6C` → `4.6E` → `4.6D` → `4.6F` → `4.6G`
+
+Gerekçe: A/B/C her ziyaretçinin **doğrudan** karşılaştığı yüzeyler ve
+ikisi borç kapatıyor. E, B'nin kategori sorgusunu kullanıyor. D ve F
+eklemeli; F kendi içinde bir kusur düzeltmesi ve **KVKK genişletmesi**
+taşıdığı için tek başına ele alınmalı.
+
+---
 
 ## Faz 5 — Entegrasyonlar  *(henüz açılmadı)*
 
