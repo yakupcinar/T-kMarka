@@ -21,9 +21,21 @@ it('sahip rolleri listeliyor, izin seçeneklerini de alıyor', function () {
     $cevap = $this->withToken($token)->getJson('http://rol-a.test/panel/roles');
 
     $cevap->assertOk()
-        // Üç sistem rolü (1A.3).
-        ->assertJsonCount(3, 'roles')
-        ->assertJsonCount(9, 'available_permissions');
+        /*
+        | Sistem rolleri (1A.3).
+        |
+        | ⚠️ DÖRT: "Salt Okunur" 4.6S'de eklendi — her şeyi görüp hiçbir
+        | şeyi değiştiremeyen rol. Sayı sabit tutuluyor ki yeni bir sistem
+        | rolü eklemek bilinçli bir karar olsun.
+        */
+        ->assertJsonCount(4, 'roles')
+        /*
+        | ⚠️ ON BİR: 4.6S'de `settings.view` ve `staff.view` eklendi.
+        | Bu ikisi olmadan "her şeyi görebilen ama hiçbir şeyi
+        | değiştiremeyen" rol kurulamıyordu — ayar ve personel sayfaları
+        | yazma izniyle korunuyordu.
+        */
+        ->assertJsonCount(11, 'available_permissions');
 
     // Panel izin listesini koda gömmesin diye sunucudan alıyor.
     expect($cevap->json('roles.0.is_system'))->toBeTrue();

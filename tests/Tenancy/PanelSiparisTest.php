@@ -3,7 +3,6 @@
 use App\Domain\Cart\CartService;
 use App\Domain\Catalog\ProductService;
 use App\Domain\Catalog\VariantService;
-use App\Domain\Identity\RoleService;
 use App\Domain\Legal\LegalDocumentService;
 use App\Domain\Order\CheckoutService;
 use App\Domain\Returns\ReturnService;
@@ -32,21 +31,6 @@ use App\Models\User;
 beforeEach(function () {
     $this->withoutVite();
 });
-
-/**
- * Belirli izinlere sahip personel — SAHİP DEĞİL (sahip her şeyi yapabilir).
- *
- * @param  list<string>  $izinler
- */
-function izinliPersonel(array $izinler, string $eposta = 'personel@marka-a.test'): User
-{
-    $rol = app(RoleService::class)->olustur('Rol-'.uniqid(), $izinler);
-
-    $personel = User::factory()->create(['email' => $eposta, 'password' => 'sifre1234']);
-    $personel->roles()->sync([$rol->id]);
-
-    return $personel->refresh();
-}
 
 it('★ siparis listesi aciliyor ve sevkiyatlik siparisi gosteriyor', function () {
     $siparis = sevkiyatlikSiparis('marka-a.test');

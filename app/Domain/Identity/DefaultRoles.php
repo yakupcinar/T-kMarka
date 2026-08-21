@@ -34,7 +34,9 @@ class DefaultRoles
                 Permission::OrderFulfill,
                 Permission::OrderRefund,
                 Permission::CustomerView,
+                Permission::SettingsView,
                 Permission::SettingsWrite,
+                Permission::StaffView,
                 Permission::FinanceView,
             ],
 
@@ -54,6 +56,30 @@ class DefaultRoles
                 Permission::OrderFulfill,
                 Permission::CustomerView,
                 Permission::ProductView,
+            ],
+
+            /*
+            | SALT OKUNUR (4.6S) — her şeyi görür, hiçbir şeyi değiştiremez.
+            |
+            | ★ Kullanıcı isteği: denetçi, muhasebeci ya da yeni başlayan
+            | personel için "bakabilsin ama dokunamasın" rolü.
+            |
+            | ⚠️ Bu rol daha önce KURULAMIYORDU: ürün, katalog, ayar ve
+            | personel SAYFALARI yazma izniyle korunuyordu. `product.view`
+            | Faz 1'den beri tanımlıydı ama hiçbir rota onu kullanmıyordu
+            | — ölçüldü, 4.6S'de rotalar `.view` ile de açıldı.
+            |
+            | ⚠️ Listede tek bir `*.write`, `*.manage`, `*.fulfill` ya da
+            | `*.refund` YOK ve bunu ölçen bir test var: rol büyüdükçe
+            | içine yazma izni sızması en olası hata.
+            */
+            'Salt Okunur' => [
+                Permission::ProductView,
+                Permission::OrderView,
+                Permission::CustomerView,
+                Permission::SettingsView,
+                Permission::StaffView,
+                Permission::FinanceView,
             ],
         ];
     }

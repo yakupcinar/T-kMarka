@@ -560,6 +560,15 @@ Bunların hepsi **hata vermeden yanlış sonuç** üretir. Projede en az bir kez
   ile koşuyor ve betik çalışıyordu. Dönüş akışını sınayan test
   **sağlayıcının gerçek şekliyle** (POST + gövde) da koşmalı.
 
+- **AYNI ADRESLİ İKİ ROTADA SON KAYIT KAZANIR — kırma denemesi bunu
+  bilmezse yanlış yeri kırar.** 4.6S'de görüntüleme grubuna ikinci bir
+  `/urunler/yeni` eklendi ve test **geçmeye devam etti**: yazma grubundaki
+  aynı adresli rota onu eziyordu. Deneme, rotayı eski grubundan
+  **silecek** biçimde kurulunca düştü. ⚠️ Ayrıca desen çakışması:
+  `/urunler/yeni` ile `/urunler/{urun:uuid}` aynı gruptayken sıra sayesinde
+  **tesadüfen** çalışıyordu; gruplar bölününce form 403 yerine **404**
+  vermeye başladı. `whereUuid` ile sıraya bağımlılık kaldırıldı.
+
 ## Yapı
 
 ```

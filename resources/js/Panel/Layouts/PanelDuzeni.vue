@@ -16,25 +16,45 @@ const izinler = computed(() => sayfa.props.auth?.permissions ?? [])
 const marka = computed(() => sayfa.props.marka?.ad ?? 'Panel')
 const bildirim = computed(() => sayfa.props.bildirim ?? {})
 
-/* Menü — her maddenin gerektirdiği izin yanında yazılı. */
+/*
+ | Menü — her maddenin gerektirdiği izin yanında yazılı.
+ |
+ | ⚠️ İZİNLER ROTAYLA AYNI OLMALI (4.6S). Menü `product.write` isterken
+ | rota `product.view|product.write` isteseydi salt okunur personel
+ | sayfayı GÖREBİLİR ama menüde BULAMAZDI — adresi elle yazması
+ | gerekirdi.
+ */
 const menu = [
   { ad: 'Pano', yol: '/yonetim', izin: null },
-  { ad: 'Ürünler', yol: '/yonetim/urunler', izin: 'product.write' },
-  { ad: 'Koleksiyonlar', yol: '/yonetim/koleksiyonlar', izin: 'product.write' },
-  { ad: 'Katalog ayarları', yol: '/yonetim/katalog', izin: 'product.write' },
-  { ad: 'Siparişler', yol: '/yonetim/siparisler', izin: 'order.view' },
-  { ad: 'İadeler', yol: '/yonetim/iadeler', izin: 'order.view' },
-  { ad: 'Yorumlar', yol: '/yonetim/yorumlar', izin: 'product.write' },
-  { ad: 'Mağaza', yol: '/yonetim/magaza', izin: 'settings.write' },
-  { ad: 'Ödeme', yol: '/yonetim/odeme-ayarlari', izin: 'settings.write' },
-  { ad: 'Yasal', yol: '/yonetim/yasal', izin: 'settings.write' },
-  { ad: 'Alan adları', yol: '/yonetim/alan-adlari', izin: 'settings.write' },
-  { ad: 'Personel', yol: '/yonetim/personel', izin: 'staff.manage' },
-  { ad: 'Tema', yol: '/yonetim/tema', izin: 'settings.write' },
+  { ad: 'Ürünler', yol: '/yonetim/urunler', izin: ['product.view', 'product.write'] },
+  { ad: 'Koleksiyonlar', yol: '/yonetim/koleksiyonlar', izin: ['product.view', 'product.write'] },
+  { ad: 'Katalog ayarları', yol: '/yonetim/katalog', izin: ['product.view', 'product.write'] },
+  { ad: 'Siparişler', yol: '/yonetim/siparisler', izin: ['order.view'] },
+  { ad: 'İadeler', yol: '/yonetim/iadeler', izin: ['order.view'] },
+  { ad: 'Yorumlar', yol: '/yonetim/yorumlar', izin: ['product.view', 'product.write'] },
+  { ad: 'Mağaza', yol: '/yonetim/magaza', izin: ['settings.view', 'settings.write'] },
+  { ad: 'Ödeme', yol: '/yonetim/odeme-ayarlari', izin: ['settings.view', 'settings.write'] },
+  { ad: 'Yasal', yol: '/yonetim/yasal', izin: ['settings.view', 'settings.write'] },
+  { ad: 'Alan adları', yol: '/yonetim/alan-adlari', izin: ['settings.view', 'settings.write'] },
+  { ad: 'Personel', yol: '/yonetim/personel', izin: ['staff.view', 'staff.manage'] },
+  { ad: 'Tema', yol: '/yonetim/tema', izin: ['settings.view', 'settings.write'] },
 ]
 
+/* ⚠️ HERHANGİ BİRİ — rotadaki `|` ile aynı anlam. */
 const gorunenMenu = computed(() =>
-  menu.filter((m) => m.izin === null || izinler.value.includes(m.izin)),
+  menu.filter((m) => m.izin === null || m.izin.some((i) => izinler.value.includes(i))),
+)
+
+/*
+ | ★ SALT OKUNUR UYARISI (4.6S).
+ |
+ | ⚠️ Düğmeleri tek tek gizlemek yerine üst bara açık bir şerit: personel
+ | neden hiçbir şeyi kaydedemediğini BİLMELİ. Gerçek koruma sunucuda
+ | (4C-K4); bu yalnızca "neden" sorusunu cevaplıyor.
+ */
+const yazabilir = computed(() =>
+  izinler.value.some((i) => i.endsWith('.write') || i.endsWith('.manage')
+    || i.endsWith('.fulfill') || i.endsWith('.refund')),
 )
 
 function cikisYap() {
@@ -71,6 +91,11 @@ function cikisYap() {
     </header>
 
     <main class="mx-auto max-w-6xl px-5 py-8">
+      <p v-if="!yazabilir" class="mb-4 rounded-lg bg-sky-50 border border-sky-300 px-4 py-3 text-sm">
+        <strong>Salt okunur yetki.</strong>
+        Her şeyi görebilirsiniz ama değişiklik kaydedemezsiniz.
+      </p>
+
       <p v-if="bildirim.mesaj" class="mb-4 rounded-lg bg-green-100 border border-green-300 px-4 py-3">
         {{ bildirim.mesaj }}
       </p>

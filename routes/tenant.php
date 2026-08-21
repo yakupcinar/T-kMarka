@@ -361,16 +361,16 @@ Route::middleware([
             });
 
             /*
-            | KATALOG — `product.write`.
-            |
-            | Bu izin de 1A.3'ten beri boştu; ilk kez burada kapı bekliyor.
-            | Katalog rolünde var, yani ürün ekleyen personel eksen de
-            | tanımlayabiliyor — eksen katalogun yapısı.
-            |
-            | Eksenler MAĞAZA seviyesinde (1B-K3): "Renk" bir kez tanımlanır.
-            | Değer uçları eksenin ALTINDA çünkü değer tek başına anlamsız;
-            | ayrıca adres, değerin hangi eksene ait olduğunu da doğruluyor.
-            */
+                | KATALOG — `product.write`.
+                |
+                | Bu izin de 1A.3'ten beri boştu; ilk kez burada kapı bekliyor.
+                | Katalog rolünde var, yani ürün ekleyen personel eksen de
+                | tanımlayabiliyor — eksen katalogun yapısı.
+                |
+                | Eksenler MAĞAZA seviyesinde (1B-K3): "Renk" bir kez tanımlanır.
+                | Değer uçları eksenin ALTINDA çünkü değer tek başına anlamsız;
+                | ayrıca adres, değerin hangi eksene ait olduğunu da doğruluyor.
+                */
             Route::middleware('izin:product.write')->group(function () {
                 Route::get('/options', [OptionController::class, 'index']);
                 Route::post('/options', [OptionController::class, 'store']);
@@ -764,8 +764,69 @@ Route::middleware([
         | farklı izin istemesi, birinden kapatılanın diğerinden açık
         | kalması demek olurdu.
         */
-        Route::middleware('izin:product.write')->group(function () {
+        /*
+        | ★ SALT OKUNUR GÖRÜNTÜLEME (4.6S).
+        |
+        | ⚠️ Bu sayfalar önce YAZMA izniyle korunuyordu; yani "her şeyi
+        | görebilen ama hiçbir şeyi değiştiremeyen" bir rol KURULAMIYORDU.
+        | `product.view` izni Faz 1'den beri tanımlıydı ama HİÇBİR ROTA
+        | onu kullanmıyordu — ölçüldü.
+        |
+        | ⚠️ `|` = HERHANGİ BİRİ. Yazma izni olan personel bu sayfaları
+        | görmeye devam ediyor; doğrudan `.view`'a taşınsaydı yayındaki
+        | markalarda `product.write` verilmiş ama `.view` verilmemiş
+        | roller ekranlarından SESSİZCE düşerdi.
+        |
+        | ⚠️ `/urunler/yeni` burada YOK: o bir OLUŞTURMA formu ve yazma
+        | grubunda kalıyor. Salt okunur personelin doldurup 403 alacağı
+        | bir ekranı görmesinin anlamı yok.
+        */
+        Route::middleware('izin:product.view|product.write')->group(function () {
             Route::get('/urunler', [PanelUrunSayfasi::class, 'index'])->name('panel.urunler');
+            /*
+            | ⚠️ `whereUuid` ŞART. Görüntüleme rotaları yazma grubundan
+            | ayrılınca `/urunler/yeni` bu desene takıldı ve OLUŞTURMA
+            | FORMU 403 yerine 404 vermeye başladı — testte yakalandı.
+            |
+            | Önce ikisi aynı gruptaydı ve `yeni` DAHA ÖNCE yazıldığı için
+            | tesadüfen çalışıyordu. Kısıt, sırayı bir daha önemsiz
+            | kılıyor.
+            */
+            Route::get('/urunler/{urun:uuid}', [PanelUrunSayfasi::class, 'edit'])
+                ->whereUuid('urun')
+                ->name('panel.urun.duzenle');
+            Route::get('/katalog', [CatalogSettingsPageController::class, 'index'])->name('panel.katalog');
+            Route::get('/koleksiyonlar', [CollectionPageController::class, 'index'])->name('panel.koleksiyonlar');
+            Route::get('/koleksiyonlar/{koleksiyon:uuid}', [CollectionPageController::class, 'goster'])->name('panel.koleksiyon');
+            Route::get('/yorumlar', [ReviewPageController::class, 'index'])->name('panel.yorumlar');
+        });
+
+        Route::middleware('izin:settings.view|settings.write')->group(function () {
+            Route::get('/magaza', [StorePageController::class, 'index'])->name('panel.magaza');
+            Route::get('/tema', [ThemePageController::class, 'index'])->name('panel.tema');
+            Route::get('/yasal', [PanelLegalSayfa::class, 'index'])->name('panel.yasal');
+            Route::get('/alan-adlari', [DomainPageController::class, 'index'])->name('panel.alanadlari');
+            Route::get('/odeme-ayarlari', [PaymentSettingsPageController::class, 'index'])->name('panel.odeme');
+        });
+
+        Route::middleware('izin:staff.view|staff.manage')->group(function () {
+            Route::get('/personel', [StaffPageController::class, 'index'])->name('panel.personel');
+        });
+
+        /*
+        | ★ GÖRÜNTÜLEME `.view` İLE DE AÇILIYOR (4.6S).
+        |
+        | ⚠️ Bu gruptaki GET sayfaları `izin:product.view|product.write`
+        | ile işaretli — yani grubun yazma iznini GEVŞETİYORLAR. Sebep:
+        | "her şeyi görebilen ama hiçbir şeyi değiştiremeyen" bir rol
+        | kurulamıyordu; `product.view` izni tanımlıydı ama HİÇBİR ROTA
+        | onu kullanmıyordu.
+        |
+        | ⚠️ `/urunler/yeni` BİLEREK DIŞARIDA: o bir OLUŞTURMA FORMU.
+        | Salt okunur personelin doldurup gönderdiğinde 403 alacağı bir
+        | ekranı görmesinin anlamı yok.
+        */
+        Route::middleware('izin:product.write')->group(function () {
             Route::get('/urunler/yeni', [PanelUrunSayfasi::class, 'create'])->name('panel.urun.yeni');
             Route::post('/urunler', [PanelUrunSayfasi::class, 'store'])->name('panel.urun.olustur');
 
@@ -775,7 +836,6 @@ Route::middleware([
             | (ya da adresi gören herkes) kaç ürün olduğunu sayabilirdi;
             | ayrıca `id` tahmin edilebilir.
             */
-            Route::get('/urunler/{urun:uuid}', [PanelUrunSayfasi::class, 'edit'])->name('panel.urun.duzenle');
             Route::put('/urunler/{urun:uuid}', [PanelUrunSayfasi::class, 'update'])->name('panel.urun.guncelle');
             Route::post('/urunler/{urun:uuid}/durum', [PanelUrunSayfasi::class, 'durum'])->name('panel.urun.durum');
             Route::delete('/urunler/{urun:uuid}', [PanelUrunSayfasi::class, 'destroy'])->name('panel.urun.sil');
@@ -794,7 +854,6 @@ Route::middleware([
             | ⚠️ Tek ekranda ikisi birden — ikisi de ürün eklemeden ÖNCE
             | yapılan hazırlık işi.
             */
-            Route::get('/katalog', [CatalogSettingsPageController::class, 'index'])->name('panel.katalog');
             Route::post('/katalog/kategoriler', [CatalogSettingsPageController::class, 'kategoriEkle'])->name('panel.kategori.ekle');
             Route::delete('/katalog/kategoriler/{kategori}', [CatalogSettingsPageController::class, 'kategoriSil'])->name('panel.kategori.sil');
             Route::post('/katalog/kategoriler/{kategori}/tasi', [CatalogSettingsPageController::class, 'kategoriTasi'])->name('panel.kategori.tasi');
@@ -816,13 +875,10 @@ Route::middleware([
             | ⚠️ Yorum onaylanmadan vitrinde görünmüyor (2E); ekran
             | olmadığı için o kuyruğun ÇIKIŞI YOKTU.
             */
-            Route::get('/yorumlar', [ReviewPageController::class, 'index'])->name('panel.yorumlar');
             Route::post('/yorumlar/{yorum:uuid}/onayla', [ReviewPageController::class, 'onayla'])->name('panel.yorum.onayla');
             Route::post('/yorumlar/{yorum:uuid}/reddet', [ReviewPageController::class, 'reddet'])->name('panel.yorum.reddet');
 
-            Route::get('/koleksiyonlar', [CollectionPageController::class, 'index'])->name('panel.koleksiyonlar');
             Route::post('/koleksiyonlar', [CollectionPageController::class, 'ekle'])->name('panel.koleksiyon.ekle');
-            Route::get('/koleksiyonlar/{koleksiyon:uuid}', [CollectionPageController::class, 'goster'])->name('panel.koleksiyon');
             Route::delete('/koleksiyonlar/{koleksiyon:uuid}', [CollectionPageController::class, 'sil'])->name('panel.koleksiyon.sil');
             Route::post('/koleksiyonlar/{koleksiyon:uuid}/kural', [CollectionPageController::class, 'kuralKaydet'])->name('panel.koleksiyon.kural');
             Route::post('/koleksiyonlar/{koleksiyon:uuid}/urunler', [CollectionPageController::class, 'urunEkle'])->name('panel.koleksiyon.urunekle');
@@ -938,7 +994,6 @@ Route::middleware([
         | herkese her yetkiyi verebilir.
         */
         Route::middleware('izin:staff.manage')->group(function () {
-            Route::get('/personel', [StaffPageController::class, 'index'])->name('panel.personel');
             Route::post('/personel', [StaffPageController::class, 'personelEkle'])->name('panel.personel.ekle');
             Route::delete('/personel/{kullanici}', [StaffPageController::class, 'personelCikar'])->name('panel.personel.cikar');
 
@@ -959,7 +1014,6 @@ Route::middleware([
             | marka panelden sağlayıcısını kuramıyordu, yani GERÇEK PARA
             | TAHSİL EDEMİYORDU. Uçları 1E'de vardı, ekranı yoktu.
             */
-            Route::get('/odeme-ayarlari', [PaymentSettingsPageController::class, 'index'])->name('panel.odeme');
             Route::post('/odeme-ayarlari', [PaymentSettingsPageController::class, 'kaydet'])->name('panel.odeme.kaydet');
 
             /*
@@ -973,21 +1027,17 @@ Route::middleware([
             | talimatını HİÇ GÖREMİYORDU — o adım insan işi ve destek
             | yükünün tamamı orada.
             */
-            Route::get('/alan-adlari', [DomainPageController::class, 'index'])->name('panel.alanadlari');
             Route::post('/alan-adlari', [DomainPageController::class, 'ekle'])->name('panel.alanadi.ekle');
             Route::post('/alan-adlari/{alanAdi}/dogrula', [DomainPageController::class, 'dogrula'])->name('panel.alanadi.dogrula');
             Route::delete('/alan-adlari/{alanAdi}', [DomainPageController::class, 'sil'])->name('panel.alanadi.sil');
 
-            Route::get('/yasal', [PanelLegalSayfa::class, 'index'])->name('panel.yasal');
             Route::post('/yasal/{tur}', [PanelLegalSayfa::class, 'kaydet'])->name('panel.yasal.kaydet');
             Route::post('/yasal/{tur}/yayinla', [PanelLegalSayfa::class, 'yayinla'])->name('panel.yasal.yayinla');
 
-            Route::get('/magaza', [StorePageController::class, 'index'])->name('panel.magaza');
             Route::post('/magaza', [StorePageController::class, 'kaydet'])->name('panel.magaza.kaydet');
             Route::post('/magaza/yayinla', [StorePageController::class, 'yayinla'])->name('panel.magaza.yayinla');
             Route::post('/magaza/kapat', [StorePageController::class, 'kapat'])->name('panel.magaza.kapat');
 
-            Route::get('/tema', [ThemePageController::class, 'index'])->name('panel.tema');
             Route::post('/tema', [ThemePageController::class, 'kaydet'])->name('panel.tema.kaydet');
             Route::post('/tema/logo', [ThemePageController::class, 'logoYukle'])->name('panel.tema.logo');
             Route::delete('/tema/logo', [ThemePageController::class, 'logoKaldir'])->name('panel.tema.logo.sil');

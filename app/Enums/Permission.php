@@ -34,9 +34,21 @@ enum Permission: string
     // ── Mağaza yönetimi ────────────────────────────────────────────────
 
     /** ⚠️ Ödeme sağlayıcı anahtarlarına da erişim demek (settings). */
+    /**
+     * Ayarları GÖRME — değiştirmeden. (4.6S)
+     *
+     * ⚠️ Bu izin yokken ayar SAYFALARI `settings.write` ile korunuyordu,
+     * yani "her şeyi görebilen ama hiçbir şeyi değiştiremeyen" bir rol
+     * KURULAMIYORDU: ya hiç göremiyordu ya da yazabiliyordu.
+     */
+    case SettingsView = 'settings.view';
+
     case SettingsWrite = 'settings.write';
 
     /** ⚠️ Personel davet/çıkarma — yetki yükseltmeye en yakın izin. */
+    /** Personel listesini GÖRME — ekleyip çıkarmadan. (4.6S) */
+    case StaffView = 'staff.view';
+
     case StaffManage = 'staff.manage';
 
     /** Ciro, kâr raporu. */
@@ -57,7 +69,9 @@ enum Permission: string
             self::OrderFulfill => 'Siparişi kargoya verme',
             self::OrderRefund => 'İade ve para iadesi',
             self::CustomerView => 'Müşterileri görüntüleme',
+            self::SettingsView => 'Mağaza ayarlarını görüntüleme',
             self::SettingsWrite => 'Mağaza ayarlarını değiştirme',
+            self::StaffView => 'Personeli görüntüleme',
             self::StaffManage => 'Personel yönetimi',
             self::FinanceView => 'Finansal raporlar',
         };

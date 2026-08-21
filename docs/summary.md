@@ -2566,3 +2566,33 @@ FAZ 5 SIRADA — kargo firmaları · e-fatura/e-arşiv
 
       ⚠️ DOM etkileşimi tarayıcıda doğrulanamadı (yerel sertifika);
         sunucu sözleşmesi testlerle, seçim kuralı gerçek matrisle ölçüldü
+
+4.6S ✅ SALT OKUNUR PERSONEL ROLÜ — 814 test
+      "her şeyi görebilecek ama hiçbir tıkladığı sonuç almayacak"
+
+      ⚠️ ÖNCE ÖLÇTÜM: BU ROL KURULAMIYORDU
+        product.view/customer.view/finance.view TANIMLI ama HİÇBİR ROTADA
+        görüntüleme sayfaları YAZMA izniyle korunuyordu:
+          urunler/katalog/koleksiyonlar → product.write
+          magaza/tema/yasal/alan-adlari → settings.write
+          personel                      → staff.manage
+
+      ✅ RequirePermission "herhangi biri" kabul ediyor (izin:a|b)
+      ✅ settings.view + staff.view eklendi
+      ✅ görüntüleme rotaları yazma grubundan ÇIKARILDI
+      ✅ hazır "Salt Okunur" rolü + menü hizalaması + uyarı şeridi
+
+      ⚠️ NEDEN DOĞRUDAN .view'A TAŞIMADIM: yayındaki markalarda write
+        verilmiş ama view verilmemiş roller SESSİZCE ekranlarından düşerdi
+      ⚠️ "HEPSİ" değil "HERHANGİ BİRİ" — AND olsaydı yazma izinli rol
+        yine dışarıda kalırdı (kırma denemesiyle ölçüldü)
+      ⚠️ /urunler/yeni BİLEREK dışarıda (oluşturma formu)
+      ⚠️ ROTA BÖLÜNCE SIRA BOZULDU: /urunler/yeni {urun:uuid} desenine
+        takıldı, 403 yerine 404 verdi → whereUuid ile sıra bağımlılığı
+        kaldırıldı (önce tesadüfen çalışıyordu)
+      ⚠️ KIRMA DENEMESİ İLK HÂLİYLE YANLIŞ YERİ KIRDI: aynı adresli
+        rotada SON KAYIT kazanıyor, yazma grubundaki eziyordu
+      ⚠️ ödeme ayarları salt okunura da açık — sırlar zaten MASKELİ
+
+      DOĞRULANDI (gerçek panel oturumu)
+        12 sayfa 200 · /urunler/yeni 403 · beş yazma ucu 403

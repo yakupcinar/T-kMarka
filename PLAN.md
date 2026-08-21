@@ -5,7 +5,7 @@
 > Son güncelleme: **2026-08-14**
 
 ```
-┌─ YOL HARİTASI ──────── şu an: 4.6A BİTTİ, 4.6B SIRADA ┐
+┌─ YOL HARİTASI ──────── şu an: 4.6A + 4.6S BİTTİ, 4.6B SIRADA ┐
 │                                                                │
 │  0 · TEMEL      ✅ git → docker → test → KİRACILIK → ci        │
 │                    ╰ çıktı: iki kiracı, verileri karışmıyor    │
@@ -6391,6 +6391,72 @@ algoritması gerçek matris üzerinde ayrıca koşturuldu.
 > sınanacak.
 
 **808 test.**
+
+---
+
+### 4.6S — salt okunur personel rolü  ◀ AÇIK
+
+Kullanıcı isteği: *"Her şeyi görebilecek ama hiçbir tıkladığı sonuç
+almayacak — siparişlere tıklayıp içine girebilir, ama değişiklik,
+yaratma ve silme engellenmeli."*
+
+**⚠️ ÖNCE ÖLÇTÜM: bu rol KURULAMIYORDU.** Rota/izin haritası çıkarıldı ve
+iki şey göründü:
+
+```
+product.view · customer.view · finance.view  → TANIMLI ama HİÇBİR ROTADA KULLANILMIYOR
+yonetim/urunler · katalog · koleksiyonlar    → GET, ama izin: product.write
+yonetim/magaza · tema · yasal · alan-adlari  → GET, ama izin: settings.write
+yonetim/personel                             → GET, ama izin: staff.manage
+```
+
+Yani görüntüleme sayfaları **yazma izniyle** korunuyordu: rol ya hiçbir
+şey göremiyordu ya da yazabiliyordu.
+
+**✅ Yapılanlar**
+
+1. `RequirePermission` **"herhangi biri"** kabul ediyor: `izin:a|b`.
+2. İki yeni okuma izni: `settings.view`, `staff.view`.
+3. Görüntüleme rotaları yazma grubundan **çıkarılıp** kendi gruplarına
+   alındı (`product.view|product.write` vb.).
+4. Hazır **"Salt Okunur"** rolü (`DefaultRoles`).
+5. Menü izinleri rotalarla hizalandı + **"Salt okunur yetki"** şeridi.
+
+> ⚠️ **NEDEN DOĞRUDAN `.view`'A TAŞIMADIM.** Yayındaki markalarda
+> `product.write` verilmiş ama `product.view` verilmemiş roller olabilir.
+> Doğrudan taşımak o personeli bugün kullandığı ekranlardan **sessizce**
+> dışarı atardı. `|` bunu önlüyor ve testi var.
+>
+> ⚠️ **"HEPSİ" DEĞİL "HERHANGİ BİRİ".** `AND` yazılsaydı yalnızca yazma
+> izni olan rol yine dışarıda kalırdı — kırma denemesiyle ölçüldü.
+>
+> ⚠️ **`/urunler/yeni` BİLEREK DIŞARIDA:** o bir oluşturma formu. Salt
+> okunur personelin doldurup 403 alacağı ekranı görmesinin anlamı yok.
+>
+> ⚠️ **ROTA BÖLÜNCE SIRA BOZULDU:** `/urunler/yeni` artık
+> `{urun:uuid}` desenine takılıyor ve **403 yerine 404** veriyordu.
+> Testte yakalandı; `whereUuid` ile sıraya bağımlılık kaldırıldı. Önce
+> ikisi aynı gruptaydı ve `yeni` daha önce yazıldığı için **tesadüfen**
+> çalışıyordu.
+>
+> ⚠️ **KIRMA DENEMESİ İLK HÂLİYLE YANLIŞ YERİ KIRDI** (4D'nin dersi):
+> görüntüleme grubuna ikinci bir `/urunler/yeni` eklemek işe yaramadı —
+> aynı adresli rotada **son kayıt kazanıyor** ve yazma grubundaki onu
+> eziyordu. Deneme, rotayı yazma grubundan **silecek** biçimde yeniden
+> kuruldu ve o zaman düştü.
+>
+> ⚠️ Ödeme ayarları sayfası salt okunur role de açık — **sırlar zaten
+> maskeli** (`paneleGorunen`: şifreli değer yerine `is_set` dönüyor).
+> Ölçüldü.
+>
+> ⚠️ İki mevcut test "üç sistem rolü" ve "dokuz izin" diye sabit
+> sayıyordu; dördüncü rol ve iki izin eklenince düştüler. Sayılar
+> **sabit bırakıldı** (dinamik hesaplanmadı): yeni bir sistem rolü
+> eklemek bilinçli bir karar olmalı ve test onu görünür kılıyor.
+
+**Dört kırma denemesi, dördü de düştü.** **Doğrulandı (gerçek panel
+oturumu):** 12 sayfanın hepsi **200** · `/urunler/yeni` **403** · beş
+yazma ucu **403**. **814 test.**
 
 ---
 

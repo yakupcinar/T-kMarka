@@ -5,6 +5,7 @@ use App\Domain\Catalog\OptionService;
 use App\Domain\Catalog\ProductService;
 use App\Domain\Catalog\VariantService;
 use App\Domain\Identity\DefaultRoles;
+use App\Domain\Identity\RoleService;
 use App\Domain\Legal\LegalDocumentService;
 use App\Domain\Order\CheckoutService;
 use App\Domain\Order\FulfillmentService;
@@ -681,4 +682,24 @@ function eksenliDeger(string $ad, array $degerler): Option
     }
 
     return $eksen->refresh()->load('values');
+}
+
+/**
+ * Belirli izinlere sahip personel — SAHİP DEĞİL (sahip her şeyi yapabilir).
+ *
+ * ⚠️ `tests/Pest.php`'de çünkü İKİ dosya kullanıyor
+ * (`PanelSiparisTest`, `SaltOkunurRolTest`).
+ *
+ * Eski açıklama — SAHİP DEĞİL (sahip her şeyi yapabilir).
+ *
+ * @param  list<string>  $izinler
+ */
+function izinliPersonel(array $izinler, string $eposta = 'personel@marka-a.test'): User
+{
+    $rol = app(RoleService::class)->olustur('Rol-'.uniqid(), $izinler);
+
+    $personel = User::factory()->create(['email' => $eposta, 'password' => 'sifre1234']);
+    $personel->roles()->sync([$rol->id]);
+
+    return $personel->refresh();
 }

@@ -127,6 +127,11 @@ veya dağıtım için izin gerekir.
 * https://marka-a.localhost/yonetim // sahip@marka-a.localhost / 123
 * https://localhost/yonetim // yakup@tikmarka.test / 123
 
+# Server Hesaplar
+
+* https://tightwad-gargle-footage.ngrok-free.dev // test@gmail.com / 12345678
+* https://tightwad-gargle-footage.ngrok-free.dev/yonetim // test@gmail.com / 12345678
+* Admin paneli localhost'da kalacak.
 
 * Iyzico Örnek Hesaplar: Test Kullanıcısı (isim soyisim) test@gmail.com (mail)
 * Numara / ccv / tarih

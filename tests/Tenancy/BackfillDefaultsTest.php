@@ -182,7 +182,12 @@ it('★ EKSİK ROL tamamlanıyor', function () {
     $servis->tamamla('X');
 
     expect($servis->eksikler('X')['roles'])->toBe([])
-        ->and(Role::count())->toBe(3);
+        /*
+        | ⚠️ DÖRT: "Salt Okunur" 4.6S'de eklendi. Sayı SABİT tutuluyor
+        | (dinamik hesaplanmıyor) çünkü yeni bir sistem rolü eklemek
+        | bilinçli bir karar olmalı — test onu görünür kılıyor.
+        */
+        ->and(Role::count())->toBe(4);
 });
 
 it('★ store.name eksikse MERKEZDEKİ marka adıyla dolduruluyor', function () {
