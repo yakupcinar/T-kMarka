@@ -6224,6 +6224,45 @@ aynı adres **403**. **797 test.**
 
 ---
 
+### 4.5S — eksen sınırı ve merkez araması  ◀ AÇIK
+
+**✅ 1 · "Eksen kaydetsem bile seçenekler gelmiyor."** Marka tanımlı **5
+eksenin hepsini** birden kaydetmeye çalıştı. Bir üründe en fazla **3**
+eksen olabiliyor (1B-K4: fazlası varyant sayısını katlanarak büyütür);
+istek doğrulaması reddediyordu ama **ekranda hiçbir şey görünmüyordu**.
+
+> ⚠️ Sebep: eksen formu düz `router.post` kullanıyordu ve 422'yi
+> **sessizce yutuyordu**. `useForm`'a geçirildi, hatalar basılıyor.
+>
+> ⚠️ **Gerçek koşu ikinci bir kusur gösterdi:** mesaj
+> `validation.max.array` çeviri anahtarını **olduğu gibi** basıyordu
+> (Türkçe dil dosyası yok). Elle yazıldı ve gerekçesi de mesajın içinde.
+>
+> ⚠️ Sınır **sunucudan** geliyor (`maksEksen`); arayüzde sabit yazılsaydı
+> sınır değişince iki taraf ayrışırdı. Kutucuklar üçe gelince kapanıyor.
+
+**✅ 2 · Varyant tablosu eksen kaydedilmeden dokunulabiliyordu.** 4.5P'de
+yalnızca **düğme** kapatılmıştı; marka SKU/fiyat/stok kutularını yine
+dolduruyor, sonra düğmenin çalışmadığını görüyordu — üstelik doldurduğu
+veri eksenler kaydedilince sıfırlanıyordu. Alanlar da kapatıldı.
+
+**✅ 3 · Merkez marka araması kelime ortasından eşleşiyordu.** Panel ürün
+aramasındaki (4.5P) kusurun aynısı.
+
+> ⚠️ Desen **ortak sınıfa** taşındı (`WordPrefixPattern`). İkinci kez
+> kopyalansaydı biri düzeltilip öteki unutulurdu — bu projede tam olarak
+> o aile (rozet/sepet çözümü, çerez okuma) defalarca ısırdı.
+>
+> ⚠️ Kaçırma da ortak: `.*` yazan biri tüm markaları döndürür, yarım bir
+> desen sorguyu patlatırdı. İkisinin de testi var.
+
+**Dört kırma denemesi, dördü de düştü.** **Doğrulandı (gerçek panel
+isteği):** 5 eksen → **422** + *"Bir üründe en fazla 3 eksen olabilir…"* ·
+3 eksen → **302**, seçenekler değerleriyle ekrana düşüyor · merkezde
+`ark` → **boş**, `marka` → üç marka. **802 test.**
+
+---
+
 ### Faz 4.5'in kalan blokları  *(gerçek kullanımdan çıktı)*
 
 4.5I'den sonra kullanıcı listesi yeniden düzenlendi (`README.md` →

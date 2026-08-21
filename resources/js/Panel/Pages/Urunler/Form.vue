@@ -82,10 +82,19 @@ function kaydet() {
  | varyant her zaman patlıyordu — ham 500 ile. Yani bu ekran eksikken
  | ürünlerin tek varyantı olabiliyordu.
  */
-const secilenEksenler = ref([])
+/*
+ | ⚠️ `useForm` — düz `router.post` DEĞİL. (4.5S)
+ |
+ | Sınır aşıldığında (en fazla `maksEksen` eksen) sunucu 422 dönüyor ve
+ | düz `router.post` ile bu hata EKRANDA HİÇ GÖRÜNMÜYORDU: marka beş
+ | ekseni işaretleyip kaydediyor, hiçbir şey olmuyor ve "kaydettim ama
+ | seçenekler gelmiyor" diyordu.
+ */
+const eksenForm = useForm({ option_uuids: [] })
 
 watch(() => props.urun?.uuid, () => {
-  secilenEksenler.value = (props.urun?.options ?? []).map((e) => e.uuid)
+  eksenForm.option_uuids = (props.urun?.options ?? []).map((e) => e.uuid)
+  eksenForm.clearErrors()
 }, { immediate: true })
 
 /*
@@ -93,12 +102,17 @@ watch(() => props.urun?.uuid, () => {
  | (eksensiz ürün geçerli bir şey) ama marka düğmeye basıp hiçbir şeyin
  | değişmediğini görüyordu.
  */
-const eksenSecildi = computed(() => secilenEksenler.value.length > 0)
+const eksenSecildi = computed(() => eksenForm.option_uuids.length > 0)
+
+/*
+ | ⚠️ SINIRA GELİNCE kalan kutucuklar kapanıyor (1B-K4: bir üründe en
+ | fazla `maksEksen` eksen). Sunucu zaten reddediyor ama marka bunu
+ | ancak kaydettikten SONRA öğreniyordu.
+ */
+const eksenSiniriDoldu = computed(() => eksenForm.option_uuids.length >= (props.maksEksen ?? 3))
 
 function eksenleriKaydet() {
-  router.post(`/yonetim/urunler/${props.urun.uuid}/eksenler`, {
-    option_uuids: secilenEksenler.value,
-  })
+  eksenForm.post(`/yonetim/urunler/${props.urun.uuid}/eksenler`, { preserveScroll: true })
 }
 
 /* Ürünün kullandığı eksenler — varyant formundaki seçiciler bunlardan. */
@@ -324,15 +338,16 @@ function urunSil() {
           </p>
           <p v-else class="text-sm text-stone-600 mb-2">
             Bu ürünün varyantları hangi eksenlere göre ayrışsın? Sıra önemlidir.
+            <strong>En fazla {{ maksEksen }} eksen</strong> seçebilirsiniz.
           </p>
 
           <div class="flex flex-wrap gap-3 mb-3">
             <label v-for="e in eksenler" :key="e.uuid" class="flex items-center gap-2 text-sm">
               <input
-                v-model="secilenEksenler"
+                v-model="eksenForm.option_uuids"
                 type="checkbox"
                 :value="e.uuid"
-                :disabled="urun.eksen_kilitli"
+                :disabled="urun.eksen_kilitli || (eksenSiniriDoldu && !eksenForm.option_uuids.includes(e.uuid))"
               >
               {{ e.name }}
               <span class="text-stone-500">({{ e.values.map((d) => d.value).join(', ') || 'değer yok' }})</span>
@@ -342,11 +357,17 @@ function urunSil() {
           <!-- ⚠️ Eksen seçilmeden kaydetmek anlamsız: sunucu kabul ediyor
                ama ekranda hiçbir şey değişmiyor ve marka düğmenin bozuk
                olduğunu sanıyordu. -->
+          <!-- ⚠️ Sunucu hatası GÖRÜNMELİ: düz `router.post` ile 422 sessizce
+               yutuluyordu ve marka "kaydettim ama bir şey olmadı" diyordu. -->
+          <p v-for="(mesaj, alan) in eksenForm.errors" :key="alan" class="text-sm text-red-700 mb-2">
+            {{ mesaj }}
+          </p>
+
           <button
             v-if="!urun.eksen_kilitli"
             type="button"
             class="rounded-lg border border-stone-300 px-3 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-            :disabled="!eksenSecildi"
+            :disabled="!eksenSecildi || eksenForm.processing"
             @click="eksenleriKaydet"
           >Eksenleri kaydet</button>
         </template>
@@ -423,17 +444,29 @@ function urunSil() {
           <div v-if="urunEksenleri.length" class="flex flex-wrap gap-2 mb-2">
             <label v-for="e in urunEksenleri" :key="e.uuid" class="text-sm">
               <span class="text-stone-600">{{ e.name }}</span>
-              <select v-model="varyant.options[e.slug]" class="ml-1 rounded-lg border border-stone-300 px-2 py-2 text-sm">
+              <select v-model="varyant.options[e.slug]" :disabled="eksenBekliyor"
+                      class="ml-1 rounded-lg border border-stone-300 px-2 py-2 text-sm disabled:bg-stone-100">
                 <option value="">— seçin —</option>
                 <option v-for="d in e.values" :key="d.slug" :value="d.slug">{{ d.value }}</option>
               </select>
             </label>
           </div>
 
+          <!--
+            ⚠️ EKSEN KAYDEDİLMEDEN ALANLAR DA KAPALI (4.5S).
+
+            Önce yalnızca "Ekle" düğmesi kapatılmıştı; marka SKU, fiyat ve
+            stok kutularını yine dolduruyor, sonra düğmenin çalışmadığını
+            görüyordu. Doldurduğu veri de eksenler kaydedilince
+            sıfırlanıyordu — iki kez emek.
+          -->
           <div class="grid grid-cols-3 gap-2 mb-2">
-            <input v-model="varyant.sku" placeholder="SKU" class="rounded-lg border border-stone-300 px-3 py-2 text-sm">
-            <input v-model="varyant.price" type="number" step="0.01" min="0" placeholder="Fiyat" class="rounded-lg border border-stone-300 px-3 py-2 text-sm">
-            <input v-model="varyant.stock" type="number" min="0" placeholder="Stok" class="rounded-lg border border-stone-300 px-3 py-2 text-sm">
+            <input v-model="varyant.sku" placeholder="SKU" :disabled="eksenBekliyor"
+                   class="rounded-lg border border-stone-300 px-3 py-2 text-sm disabled:bg-stone-100 disabled:text-stone-400">
+            <input v-model="varyant.price" type="number" step="0.01" min="0" placeholder="Fiyat" :disabled="eksenBekliyor"
+                   class="rounded-lg border border-stone-300 px-3 py-2 text-sm disabled:bg-stone-100 disabled:text-stone-400">
+            <input v-model="varyant.stock" type="number" min="0" placeholder="Stok" :disabled="eksenBekliyor"
+                   class="rounded-lg border border-stone-300 px-3 py-2 text-sm disabled:bg-stone-100 disabled:text-stone-400">
           </div>
 
           <!-- ⚠️ Seçenek hatası GÖSTERİLMELİ: "bu birleşimde zaten varyant

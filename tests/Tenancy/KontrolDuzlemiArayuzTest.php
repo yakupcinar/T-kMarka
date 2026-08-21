@@ -3,6 +3,7 @@
 use App\Enums\TenantStatus;
 use App\Models\Customer;
 use App\Platform\TenantDataExport;
+use App\Platform\TenantProvisioning;
 use Illuminate\Support\Facades\Auth;
 
 /*
@@ -301,4 +302,58 @@ it('★★ GECERSIZ durum gecisi sunucuda REDDEDILIYOR', function () {
         ->assertStatus(409);   // ⚠️ 422 beklemiştim; geçersiz DURUM GEÇİŞİ bir çakışma (3C).
 
     expect($marka->refresh()->status)->toBe(TenantStatus::Closed);
+});
+
+/*
+| MERKEZ MARKA ARAMASI (4.5S) — gerçek kullanımdan.
+|
+| ⚠️ Panel ürün aramasındaki (4.5P) kusurun aynısı burada da vardı:
+| `ILIKE '%ad%'` kelime ORTASINDAN eşleşiyordu.
+|
+| ⚠️ Desen ORTAK SINIFTAN geliyor (`WordPrefixPattern`): ikinci kez
+| kopyalansaydı biri düzeltilip öteki unutulurdu.
+*/
+it('★★★ MARKA ARAMASI kelime BASINDAN esliyor', function () {
+    $yonetici = merkezKullanici();
+
+    app(TenantProvisioning::class)->ac('Deri Butik', 'deri-butik.localhost', 'a@ornek.test', 'sifre1234');
+    app(TenantProvisioning::class)->ac('Modern Deri Atölye', 'modern-deri.localhost', 'b@ornek.test', 'sifre1234');
+
+    // ⚠️ "eri" ORTADAN eşleşseydi ikisi de gelirdi.
+    $veri = inertiaVerisi(
+        $this->actingAs($yonetici, 'platform-web')->get('http://localhost/yonetim/markalar?q=eri')->getContent() ?: '',
+    );
+
+    expect($veri['props']['markalar']['data'])->toBeEmpty();
+
+    /*
+    | ⚠️ "deri" İKİ markayı da bulmalı: biri adının BAŞINDA, öteki İKİNCİ
+    | kelimesinde. Yalnızca `ILIKE 'deri%'` yazılsaydı ikincisi hiç
+    | çıkmazdı.
+    */
+    $veri = inertiaVerisi(
+        $this->actingAs($yonetici, 'platform-web')->get('http://localhost/yonetim/markalar?q=deri')->getContent() ?: '',
+    );
+
+    expect($veri['props']['markalar']['data'])->toHaveCount(2)
+        // ⚠️ Adıyla BAŞLAYAN önce.
+        ->and($veri['props']['markalar']['data'][0]['name'])->toBe('Deri Butik');
+});
+
+it('★★ MARKA ARAMASINDA duzenli ifade karakteri TUM LISTEYI acmiyor', function () {
+    $yonetici = merkezKullanici();
+
+    app(TenantProvisioning::class)->ac('Deri Butik', 'deri-butik.localhost', 'a@ornek.test', 'sifre1234');
+
+    $veri = inertiaVerisi(
+        $this->actingAs($yonetici, 'platform-web')
+            ->get('http://localhost/yonetim/markalar?q='.urlencode('.*'))->getContent() ?: '',
+    );
+
+    expect($veri['props']['markalar']['data'])->toBeEmpty();
+
+    // ⚠️ Yarım desen sorguyu PATLATMAMALI.
+    $this->actingAs($yonetici, 'platform-web')
+        ->get('http://localhost/yonetim/markalar?q='.urlencode('('))
+        ->assertOk();
 });

@@ -153,3 +153,93 @@ it('★★ OLUSTURMA ekrani da eksen listesini aliyor — varyant paneli icin', 
     expect($veri['props']['urun'])->toBeNull()
         ->and($veri['props']['eksenler'])->toHaveCount(1);
 });
+
+/*
+| EKSEN SINIRI VE MERKEZ ARAMASI (4.5S) — gerçek kullanımdan.
+|
+| ★ *"varyant ekseni kaydetsem bile seçenekler gelmiyor, tüm varyant
+| eksenlerini (5 tane var) aynı anda kaydetmek istediğimde varyant kısmına
+| seçenek olarak düşmediler."*
+|
+| ⚠️ Sebep: bir üründe en fazla 3 eksen olabiliyor (1B-K4). İstek
+| doğrulaması beşi reddediyordu ama ekranda HİÇBİR ŞEY GÖRÜNMÜYORDU —
+| düz `router.post` 422'yi sessizce yutuyordu.
+*/
+
+it('★★★ SINIRI ASAN eksen kaydi ANLASILIR sekilde REDDEDILIYOR', function () {
+    ['sahip' => $sahip] = markaKur('marka-a.test');
+
+    $eksenler = collect(['Renk', 'Beden', 'Kalıp', 'Ram', 'Depolama'])
+        ->map(fn (string $ad) => eksenliDeger($ad, ['A', 'B']));
+
+    $urun = app(ProductService::class)->olustur(['title' => 'Tişört', 'brand' => 'D']);
+
+    /*
+    | ⚠️ Beşini birden kaydetmek: markanın yaptığı tam olarak buydu.
+    */
+    $this->actingAs($sahip, 'staff-web')
+        ->post("http://marka-a.test/yonetim/urunler/{$urun->uuid}/eksenler",
+            ['option_uuids' => $eksenler->pluck('uuid')->all()])
+        ->assertSessionHasErrors('option_uuids');
+
+    /*
+    | ⚠️ MESAJIN KENDİSİ ölçülüyor. Varsayılan metin çeviri anahtarını
+    | olduğu gibi basıyordu (`validation.max.array`) ve marka ekranda
+    | onu görüyordu — gerçek koşuda yakalandı.
+    */
+    expect(session('errors')?->get('option_uuids')[0] ?? '')
+        ->toContain('en fazla 3 eksen')
+        ->and(session('errors')?->get('option_uuids')[0] ?? '')->not->toContain('validation.');
+
+    // ⚠️ Hiçbiri bağlanmamalı — yarım kayıt en kötü sonuç olurdu.
+    expect($urun->refresh()->options()->count())->toBe(0);
+
+    // Sınır içinde kalan kayıt çalışıyor.
+    $this->actingAs($sahip, 'staff-web')
+        ->post("http://marka-a.test/yonetim/urunler/{$urun->uuid}/eksenler",
+            ['option_uuids' => $eksenler->take(3)->pluck('uuid')->all()])
+        ->assertSessionHasNoErrors();
+
+    expect($urun->refresh()->options()->count())->toBe(3);
+});
+
+it('★★★ EKRAN eksen SINIRINI da biliyor', function () {
+    ['sahip' => $sahip] = markaKur('marka-a.test');
+
+    $urun = app(ProductService::class)->olustur(['title' => 'Tişört', 'brand' => 'D']);
+
+    /*
+    | ⚠️ Sayı arayüzde sabit yazılsaydı sınır değiştiğinde iki taraf
+    | ayrışırdı — 4.5L'deki "deneme_gun" kararının aynısı.
+    */
+    $veri = inertiaVerisi(
+        $this->actingAs($sahip, 'staff-web')
+            ->get("http://marka-a.test/yonetim/urunler/{$urun->uuid}")->getContent() ?: '',
+    );
+
+    expect($veri['props']['maksEksen'])->toBe(ProductService::MAKS_EKSEN);
+});
+
+it('★★★ EKSEN KAYDEDILINCE secenekler EKRANA dusuyor', function () {
+    ['sahip' => $sahip] = markaKur('marka-a.test');
+
+    $eksen = eksenliDeger('Renk', ['Kırmızı', 'Mavi']);
+    $urun = app(ProductService::class)->olustur(['title' => 'Tişört', 'brand' => 'D']);
+
+    $this->actingAs($sahip, 'staff-web')
+        ->post("http://marka-a.test/yonetim/urunler/{$urun->uuid}/eksenler", ['option_uuids' => [$eksen->uuid]]);
+
+    /*
+    | ⚠️ ASIL ŞİKÂYET BUYDU: "kaydetsem bile seçenekler gelmiyor."
+    | Sunucunun ürünün eksenlerini DEĞERLERİYLE göndermesi şart; yoksa
+    | ekran varyant formunda seçici çizemez.
+    */
+    $veri = inertiaVerisi(
+        $this->actingAs($sahip, 'staff-web')
+            ->get("http://marka-a.test/yonetim/urunler/{$urun->uuid}")->getContent() ?: '',
+    );
+
+    expect($veri['props']['urun']['options'])->toHaveCount(1)
+        ->and($veri['props']['urun']['options'][0]['slug'])->toBe('renk')
+        ->and($veri['props']['urun']['options'][0]['values'])->toHaveCount(2);
+});

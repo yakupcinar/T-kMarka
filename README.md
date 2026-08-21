@@ -123,7 +123,7 @@ veya dağıtım için izin gerekir.
 
 ## Örnek Hesaplar
 
-*	https://marka-a.localhost/ · https://marka-b.localhost/ // mehmet@ornek.test / 123
+*	https://marka-a.localhost/ · https://marka-b.localhost/ // yakupcinar@gmail.com / 12345678
 * https://marka-a.localhost/yonetim // sahip@marka-a.localhost / 123
 * https://localhost/yonetim // yakup@tikmarka.test / 123
 
@@ -156,6 +156,7 @@ Yenisini buraya yazabilirsin.*
 * Ürün sayfasının altında benzer ürünler, beğenilenler (Hepsiburada gibi)
 * Ürüne tıklamayı sayma, kullanıcı başına veri tutma; marka panelinde düzgün formatta bir bölüm
 * Vitrinde ürün favorileme yok
+* Vitrene gelen kişi varyantları sıralı kutucuklardan seçsin (L M S, atlında yine aynı ama varyant eksenti içindeki sayı 5 i geçiyorsa kutucuk yerine o ekseni listesinden seçme gibi bir kutucuk koyacağız)
 * Hepsiburada gibi büyük e-ticaret sitelerinin niş özelliklerini tespit edip liste oluşturalım
 
 ---
@@ -189,4 +190,7 @@ Yenisini buraya yazabilirsin.*
 | Ürün oluşturunca varyant/görsel gelmiyor | Panel → Ürünler → Yeni → Oluştur → bölümler **aynı anda** gelir | 4.5L · 4.5P |
 | Panelde arama kelime ortasından eşleşiyor | Panel → Ürünler → ara: **`iş` boş döner**, `cüz` → Deri Cüzdan | 4.5P |
 | Ödeme sonrası çerçevede açılamayan sayfa | Ödemeyi tamamla → çerçeve kapanır, **"Siparişiniz alındı"** ekranı gelir (POST → 303 → imzalı sayfa) | 4.5R |
+| Eksen kaydetmeden varyant tablosuna yazılabiliyor | Panel → ürün → eksen kaydedilmeden **SKU/fiyat/stok kutuları kapalı** | 4.5S |
+| 5 eksen birden kaydedilince seçenekler gelmiyor | Panel → ürün → 3'ten fazla işaretlenemiyor; denersen *"Bir üründe en fazla 3 eksen olabilir…"* | 4.5S |
+| Merkez marka araması kelime ortasından eşleşiyor | `localhost/yonetim/markalar` → **`ark` boş döner**, `marka` → üç marka | 4.5S |
 | Ürün oluşturunca varyant sayfasına gitmiyor | `POST /yonetim/urunler` → `302 → /yonetim/urunler/{uuid}` — **ölçüldü, zaten doğruydu** | 4.5G |

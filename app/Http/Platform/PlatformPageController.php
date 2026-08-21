@@ -2,6 +2,7 @@
 
 namespace App\Http\Platform;
 
+use App\Domain\Search\WordPrefixPattern;
 use App\Enums\TenantStatus;
 use App\Http\Controllers\Controller;
 use App\Platform\Models\Plan;
@@ -61,7 +62,19 @@ class PlatformPageController extends Controller
             | yapılsaydı her satır taranırdı — ve 3B'den önce bu sorgu
             | hiçbir şey bulamıyordu.
             */
-            $sorgu->where('name', 'ilike', '%'.str_replace(['%', '_'], ['\%', '\_'], trim($ad)).'%');
+            /*
+            | ★ KELİME BAŞINDAN EŞLEŞME (4.5S). Önce `ILIKE '%ad%'` vardı
+            | ve KELİME ORTASINDAN eşleşiyordu — panel ürün aramasındaki
+            | (4.5P) kusurun aynısı, gerçek kullanımda burada da
+            | bildirildi.
+            |
+            | ⚠️ Desen ORTAK SINIFTAN geliyor: ikinci kez kopyalansaydı
+            | biri düzeltilip öteki unutulurdu.
+            */
+            $sorgu->whereRaw('name ~* ?', [WordPrefixPattern::olustur(trim($ad))]);
+
+            // ⚠️ Adıyla BAŞLAYANLAR önce — yoksa aranan liste ortasında kalır.
+            $sorgu->orderByRaw('CASE WHEN name ILIKE ? THEN 0 ELSE 1 END', [trim($ad).'%']);
         }
 
         $durum = $istek->query('durum');

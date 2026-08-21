@@ -13,6 +13,7 @@ use App\Domain\Catalog\TooManyImagesException;
 use App\Domain\Catalog\TooManyOptionsException;
 use App\Domain\Catalog\UnsupportedImageTypeException;
 use App\Domain\Catalog\VariantService;
+use App\Domain\Search\WordPrefixPattern;
 use App\Enums\CollectionType;
 use App\Enums\ProductStatus;
 use App\Http\Controllers\Controller;
@@ -86,7 +87,7 @@ class ProductPageController extends Controller
             | düzenli ifadeye giriyor. Kaçırılmasaydı `.*` yazan biri tüm
             | kataloğu döndürür, hatalı bir desen ise sorguyu patlatırdı.
             */
-            $sorgu->whereRaw('title ~* ?', ['\m'.self::desenKacir($kelime)]);
+            $sorgu->whereRaw('title ~* ?', [WordPrefixPattern::olustur($kelime)]);
 
             /*
             | ⚠️ BAŞLIKLA BAŞLAYANLAR ÖNCE. Sıralanmasaydı "Deri" araması
@@ -111,6 +112,7 @@ class ProductPageController extends Controller
             'kategoriler' => $this->kategoriler(),
             'durumlar' => $this->durumlar(),
             'eksenler' => $this->eksenler(),
+            'maksEksen' => ProductService::MAKS_EKSEN,
         ]);
     }
 
@@ -140,6 +142,18 @@ class ProductPageController extends Controller
             'kategoriler' => $this->kategoriler(),
             'durumlar' => $this->durumlar(),
             'eksenler' => $this->eksenler(),
+
+            /*
+            | ⚠️ SINIR EKRANA GİDİYOR (4.5S). Marka tanımlı 5 eksenin
+            | hepsini birden kaydetmeye çalıştı; istek doğrulaması
+            | reddetti ama ekranda HİÇBİR ŞEY GÖRÜNMEDİ — "kaydettim ama
+            | seçenekler gelmiyor" bildirimi buydu.
+            |
+            | ⚠️ Sayı arayüzde sabit yazılsaydı sınır değiştiğinde iki
+            | taraf ayrışırdı (4.5L'deki "deneme_gun" kararının aynısı).
+            */
+            'maksEksen' => ProductService::MAKS_EKSEN,
+
             'manuelKoleksiyonlar' => $this->manuelKoleksiyonlar(),
         ]);
     }
@@ -477,9 +491,20 @@ class ProductPageController extends Controller
      */
     public function eksenleriAyarla(Request $istek, Product $urun): RedirectResponse
     {
+        /*
+        | ⚠️ MESAJ ELLE YAZILIYOR. Varsayılanı `validation.max.array`
+        | çeviri anahtarını OLDUĞU GİBİ basıyordu (Türkçe dil dosyası
+        | yok) — marka ekranda "validation.max.array" görüyordu.
+        | Gerçek koşuda ölçüldü.
+        */
         $veri = $istek->validate([
             'option_uuids' => ['present', 'array', 'max:'.ProductService::MAKS_EKSEN],
             'option_uuids.*' => ['uuid', 'exists:options,uuid'],
+        ], [
+            'option_uuids.max' => sprintf(
+                'Bir üründe en fazla %d eksen olabilir. Daha fazlası varyant sayısını katlanarak büyütür (1B-K4).',
+                ProductService::MAKS_EKSEN,
+            ),
         ]);
 
         /** @var list<Option> $eksenler */
@@ -499,17 +524,6 @@ class ProductPageController extends Controller
         }
 
         return back()->with('mesaj', 'Eksenler ayarlandı. Şimdi varyantları ekleyebilirsiniz.');
-    }
-
-    /**
-     * POSIX düzenli ifade özel karakterlerini kaçırır.
-     *
-     * ⚠️ Kaçırılmasaydı `.*` yazan biri TÜM kataloğu döndürür, `(` gibi
-     * yarım bir desen ise sorguyu doğrudan patlatırdı.
-     */
-    private static function desenKacir(string $metin): string
-    {
-        return preg_replace('/[.\\\\+*?\\[^\\]$(){}=!<>|:\\-#\\/]/', '\\\\$0', $metin) ?? $metin;
     }
 
     /** @return list<array<string, mixed>> */

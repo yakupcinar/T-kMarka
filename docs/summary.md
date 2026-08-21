@@ -2519,3 +2519,28 @@ FAZ 5 SIRADA — kargo firmaları · e-fatura/e-arşiv
       DOĞRULANDI (gerçek curl, iyzico şekliyle)
         POST token=… → 303 → imzalı adres → 200 "Siparişiniz alındı"
         imzasız aynı adres → 403
+
+4.5S ✅ EKSEN SINIRI VE MERKEZ ARAMASI — 802 test
+
+      ✅ 1) "EKSEN KAYDETSEM BİLE SEÇENEKLER GELMİYOR"
+        marka 5 eksenin HEPSİNİ birden kaydetmeye çalıştı
+        bir üründe en fazla 3 eksen olabiliyor (1B-K4)
+        istek doğrulaması reddediyordu ama EKRANDA HİÇBİR ŞEY GÖRÜNMÜYORDU
+        ⚠️ sebep: eksen formu düz router.post → 422'yi SESSİZCE YUTUYORDU
+          useForm'a geçirildi, hatalar basılıyor
+        ⚠️ GERÇEK KOŞU İKİNCİ KUSURU GÖSTERDİ: mesaj `validation.max.array`
+          çeviri anahtarını OLDUĞU GİBİ basıyordu (Türkçe dil dosyası yok)
+        ⚠️ sınır SUNUCUDAN (maksEksen); kutucuklar üçe gelince kapanıyor
+
+      ✅ 2) VARYANT TABLOSU EKSEN KAYDEDİLMEDEN DOKUNULABİLİYORDU
+        4.5P'de yalnızca DÜĞME kapatılmıştı; kutular doluyor, sonra
+        düğmenin çalışmadığı görülüyor ve veri sıfırlanıyordu
+
+      ✅ 3) MERKEZ MARKA ARAMASI KELİME ORTASINDAN EŞLEŞİYORDU
+        4.5P'nin aynısı → desen ORTAK SINIFA taşındı (WordPrefixPattern)
+        ⚠️ ikinci kez kopyalansaydı biri düzeltilip öteki unutulurdu
+
+      DOĞRULANDI (gerçek panel)
+        5 eksen → 422 "Bir üründe en fazla 3 eksen olabilir…"
+        3 eksen → 302, seçenekler değerleriyle ekranda
+        merkez: ark → boş, marka → üç marka
